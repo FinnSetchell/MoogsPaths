@@ -1,12 +1,16 @@
-# MoogsPaths Mod - Planning Docs
-
-This folder contains planning documentation for the MoogsPaths Minecraft mod.
+# MoogsPaths Mod — Planning Docs
 
 ## Target Versions
 
-- **Initial release:** 1.20 / 1.20.1
-- **Port:** 1.21 / 1.21.1 (Multiloader — Forge/NeoForge + Fabric)
+- **Phase 1:** 1.20 / 1.20.1 — Forge
+- **Phase 2:** 1.21 / 1.21.1 — Forge, NeoForge, Fabric (Architectury)
 
-## Contents
+## Documents
 
-_Documents will be added here as planning progresses._
+| Document | Description |
+|---|---|
+| [overview.md](overview.md) | Project vision and core pillars |
+| [gameplay.md](gameplay.md) | Gameplay design, path behaviour, structure/feature system |
+| [architecture.md](architecture.md) | Technical architecture, systems breakdown, worldgen approach |
+| [data-format.md](data-format.md) | Full JSON schema reference for all data types |
+| [roadmap.md](roadmap.md) | Phased development milestones |
