@@ -40,17 +40,16 @@
 - [ ] Debug overlay (show path skeletons, F3 region info)
 - [ ] Complete built-in data (a few ready-to-use network types)
 - [ ] Documentation pass
-- [ ] 1.20.1 Forge release
+- [ ] 1.20.1 Forge + Fabric release
 
 ---
 
-## Phase 2 — Multiloader Port (1.21/1.21.1)
+## Phase 2 — 1.21/1.21.1 Port
 
 - [ ] Update Architectury + Loom to 1.21 targets
-- [ ] NeoForge loader module
-- [ ] Fabric loader module
+- [ ] Add NeoForge loader module
 - [ ] Audit API changes (registry, worldgen hooks) between 1.20 and 1.21
-- [ ] Release all three loader JARs
+- [ ] Release Forge, NeoForge, and Fabric JARs for 1.21.1
 
 ---
 

@@ -6,8 +6,8 @@
 |-------------------|---------------------------------------------|
 | Minecraft version | 1.20 / 1.20.1                               |
 | Abstraction layer | Architectury API                            |
-| Primary loader    | Forge (phase 1)                             |
-| Future loaders    | NeoForge + Fabric (phase 2, via Architectury)|
+| Phase 1 loaders   | Forge + Fabric                              |
+| Phase 2 loaders   | Forge, NeoForge, Fabric                     |
 | Data format       | JSON (datapack-style, loaded via codec)     |
 | Build system      | Gradle (Architectury Loom)                  |
 
@@ -17,7 +17,7 @@
 moogspaths/
   common/          # Shared logic, data types, codecs, worldgen
   forge/           # Forge entrypoint, loader-specific hooks
-  fabric/          # Fabric entrypoint (phase 2)
+  fabric/          # Fabric entrypoint
 ```
 
 All worldgen logic lives in `common`. Loader modules only contain entrypoints

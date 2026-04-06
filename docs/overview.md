@@ -25,7 +25,7 @@ data directory — no dependency on MoogsPaths' internals required.
 
 ## Target Versions
 
-| Phase | Version      | Loaders              |
-|-------|-------------|----------------------|
-| 1     | 1.20/1.20.1 | Forge (primary)      |
+| Phase | Version      | Loaders                              |
+|-------|-------------|--------------------------------------|
+| 1     | 1.20/1.20.1 | Forge + Fabric (via Architectury)    |
 | 2     | 1.21/1.21.1 | Forge, NeoForge, Fabric (via Architectury) |
