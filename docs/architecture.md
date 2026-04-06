@@ -33,15 +33,22 @@ JSON files (datapack / mod resources)
   Registry population (PathNetworkType, PathType,
                        StructureSet, FeatureDecoratorSet)
         ↓
-  Worldgen hook (ChunkGenerator / PlacedFeature layer)
+  ── WORLDGEN THREAD ──────────────────────────────────────
+  PlacedFeature fires per region (RarityFilter + DistanceFilter)
         ↓
-  Path network spawning decision (per region)
+  Spawn decision → origin point queued to PathWatcher
+  ── SERVER TICK THREAD ───────────────────────────────────
+  PathWatcher processes queue (N sections/tick, configurable)
         ↓
-  Path segment generation (guided random walk)
+  Guided random walk → waypoint list
         ↓
-  Structure placement pass
+  Section-by-section rasterisation (terrain-hugging block placement)
+        ↓
+  Structure placement pass (NBT pool, interval-based)
         ↓
   Feature decorator scatter pass
+        ↓
+  SavedData / PersistentState (persists in-progress paths)
 ```
 
 ## Key Systems
@@ -91,6 +98,31 @@ Responsibilities:
 
 ### 5. Path Generation Algorithm
 
+**Direction system:** 16-way enum (N, NNE, NE, ENE, E … NNW) with a static
+5×5 lookup table for O(1) direction from (x,z) delta. No float angle maths
+at runtime. (Pattern validated by TravelersCrossroads.)
+
+**Curviness model** (per step, weights configurable via `curviness` field):
+
+```
+roll = random(0, 100)
+if roll < straightWeight:   dir = forwardDir
+elif roll < curveWeight:    dir = forwardDir ± 1   // gentle
+else:                       dir = forwardDir ± 2   // broader turn
+```
+
+Default weights (medium curviness): 30 / 50 / 20.
+`curviness: 0.0` = 100/0/0. `curviness: 1.0` = 0/0/100.
+
+**Step distance** auto-calculated from width (validated formula from TC):
+```
+stepDistance = round(0.667 × (width² - width + 8))
+```
+
+**Branching:** At each waypoint, roll against `branch_probability`.
+If triggered, start a child walk from that point with a reduced length budget
+(e.g. 60% of remaining parent budget). Branches inherit the parent `PathType`.
+
 Phase 1 — Spawn decision:
 - Divide the world into generation regions (e.g. 512×512 block cells)
 - Per region, use seeded RNG to decide which `PathNetworkType`s attempt to spawn
@@ -117,25 +149,39 @@ Phase 5 — Feature pass:
 
 ### 6. Worldgen Integration (1.20)
 
-Options considered:
-- **`PlacedFeature` + `FeaturePlacement`** — simplest hook point, fires per chunk.
-  Risk: paths crossing chunk boundaries need cross-chunk coordination.
-- **Custom `ChunkGenerator` decorator** — more control, more complex, harder to
-  play nicely with other mods.
-- **`StructureFeature` (structure system)** — good for the start point; paths are
-  not structures but the spawn decision logic maps well here.
+**Two-stage approach** (validated by TravelersCrossroads reference mod):
 
-**Chosen approach:** Use a `PlacedFeature` as the worldgen hook for the spawn
-decision, but do path generation from a seeded, region-aware cache so that all
-chunks in a region agree on path layout before any of them generate. This avoids
-the cross-chunk seam problem without needing a custom chunk generator.
+**Stage 1 — Spawn decision (worldgen time):**
+Use a `PlacedFeature` with a `RarityFilter` + custom `DistanceFilter`
+(prevents paths spawning within N chunks of each other) to record path
+origin points. No blocks are placed at this stage — only the origin
+coordinate is queued.
 
-### 7. Persistence / Caching
+**Stage 2 — Path construction (server tick):**
+A server-tick listener (`PathWatcher`) processes queued origins
+progressively — N sections per tick (configurable). This completely
+sidesteps cross-chunk seam problems and spreads CPU cost across frames
+rather than causing chunk-load spikes.
 
-Path networks are fully deterministic from world seed + region coords.
-No save data is required — regenerating is always identical.
-A lightweight in-memory LRU cache holds recently computed region layouts
-to avoid recomputation during normal play.
+This pattern decouples path layout from chunk generation entirely.
+Paths appear in the world over a short period after a region loads,
+rather than all at once.
+
+### 7. Persistence
+
+In-progress path construction must survive server restarts.
+
+| Loader   | API               |
+|----------|-------------------|
+| Forge    | `SavedData`       |
+| Fabric   | `PersistentState` |
+
+A thin platform-service abstraction in `common` will expose
+`load()` / `save()` / `markDirty()` so `PathWatcher` stays loader-agnostic.
+
+Completed paths are fully deterministic from world seed + region coords,
+so only *in-progress* state needs persistence. An in-memory LRU cache
+holds recently computed region layouts to avoid re-seeding cost.
 
 ## Codec / JSON Loading
 
