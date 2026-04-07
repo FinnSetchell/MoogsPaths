@@ -1,0 +1,72 @@
+package com.finndog.moogs_paths.world;
+
+import com.finndog.moogs_paths.data.PathNetworkType;
+import com.finndog.moogs_paths.data.PathType;
+import com.finndog.moogs_paths.data.ScaleSettings;
+import net.minecraft.core.BlockPos;
+import net.minecraft.util.RandomSource;
+
+import java.util.*;
+
+public final class PathWalker {
+    private PathWalker() {}
+
+    public static List<List<BlockPos>> walkWithBranches(BlockPos origin, PathNetworkType network, PathType pathType, RandomSource random) {
+        List<List<BlockPos>> result = new ArrayList<>();
+
+        List<BlockPos> mainPath = walkSingle(origin, network, pathType, random, 1.0f);
+        result.add(mainPath);
+
+        var branches = network.branches();
+        int branchCount = random.nextInt(branches.maxBranches() - branches.minBranches() + 1) + branches.minBranches();
+
+        for(int i = 0; i < branchCount; i++) {
+            BlockPos branchStart = mainPath.get(random.nextInt(mainPath.size()));
+            result.add(walkSingle(branchStart, network, pathType, random, branches.lengthFraction()));
+        }
+
+        return result;
+    }
+
+    private static List<BlockPos> walkSingle(BlockPos origin, PathNetworkType network, PathType pathType, RandomSource random, float lengthFraction) {
+        ScaleSettings scale = network.scale();
+        int targetLength = Math.round((random.nextInt(scale.lengthMax - scale.lengthMin + 1) + scale.lengthMin) * lengthFraction);
+
+        PathDirection dir = PathDirection.VALUES[random.nextInt(16)];
+        int width = random.nextInt(pathType.width().max() - pathType.width().min() + 1) + pathType.width().min();
+        int stepDist = stepDistance(width);
+
+        List<BlockPos> waypoints = new ArrayList<>();
+        BlockPos current = origin;
+        waypoints.add(current);
+
+        int distanceWalked = 0;
+        while(distanceWalked < targetLength) {
+            BlockPos next = new BlockPos(current.getX() + dir.dx * stepDist, 0, current.getZ() + dir.dz * stepDist);
+            waypoints.add(next);
+            current = next;
+            distanceWalked += stepDist;
+            dir = steer(dir, pathType.curviness(), random);
+        }
+
+        return waypoints;
+    }
+
+    private static PathDirection steer(PathDirection current, float curviness, RandomSource random) {
+        float roll = random.nextFloat();
+        if(roll > curviness) return current;
+
+        int steps;
+        float turnRoll = random.nextFloat();
+        if(turnRoll < 0.5f) steps = 1;
+        else if(turnRoll < 0.85f) steps = 2;
+        else steps = 3;
+
+        if(random.nextBoolean()) steps = -steps;
+        return current.rotate(steps);
+    }
+
+    public static int stepDistance(int width) {
+        return Math.round(0.667f * (width * width - width + 8));
+    }
+}
