@@ -1,0 +1,14 @@
+{
+  "surface_blocks": [
+    { "block": "minecraft:gravel", "weight": 3 },
+    { "block": "minecraft:dirt_path", "weight": 1 }
+  ],
+  "edge_blocks": [
+    { "block": "minecraft:dirt", "weight": 1 }
+  ],
+  "fill_block": "minecraft:gravel",
+  "width": { "min": 3, "max": 4 },
+  "curviness": 0.2,
+  "slope_handling": { "cut_tolerance": 4, "fill_tolerance": 3 },
+  "fade": { "start_blocks": 16, "end_blocks": 24 }
+}

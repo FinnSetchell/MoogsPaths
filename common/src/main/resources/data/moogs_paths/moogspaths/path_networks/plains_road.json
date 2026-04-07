@@ -1,0 +1,10 @@
+{
+  "path_type": "moogs_paths:plains_gravel_road",
+  "scale": "local",
+  "biome_filter": { "type": "tag", "tag": "minecraft:is_overworld" },
+  "weight": 5,
+  "region_size": 48,
+  "branches": { "min_branches": 0, "max_branches": 1, "length_fraction": 0.4 },
+  "structure_sets": [],
+  "feature_decorator_sets": []
+}
