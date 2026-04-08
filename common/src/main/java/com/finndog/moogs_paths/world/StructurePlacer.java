@@ -84,11 +84,15 @@ public final class StructurePlacer {
             .setMirror(Mirror.NONE)
             .setIgnoreEntities(false);
 
-        BlockPos size = template.getSize(settings);
+        BlockPos rawSize = template.getSize();
+        // For 90/270 degree rotations the X and Z dimensions swap
+        boolean rotated90 = rotation == Rotation.CLOCKWISE_90 || rotation == Rotation.COUNTERCLOCKWISE_90;
+        int sizeX = rotated90 ? rawSize.getZ() : rawSize.getX();
+        int sizeZ = rotated90 ? rawSize.getX() : rawSize.getZ();
         BlockPos placementPos = new BlockPos(
-            pos.getX() - size.getX() / 2 + entry.offset()[0],
+            pos.getX() - sizeX / 2 + entry.offset()[0],
             pos.getY() + entry.offset()[1],
-            pos.getZ() - size.getZ() / 2 + entry.offset()[2]
+            pos.getZ() - sizeZ / 2 + entry.offset()[2]
         );
 
         template.placeInWorld(level, placementPos, placementPos, settings, level.getRandom(), 2);
