@@ -27,11 +27,11 @@ public sealed interface BiomeFilter permits BiomeFilter.Any, BiomeFilter.Whiteli
             throw new IllegalArgumentException("Unknown BiomeFilter type: " + filter);
         },
         type -> switch(type) {
-            case "any" -> Any.CODEC;
-            case "whitelist" -> Whitelist.CODEC;
-            case "blacklist" -> Blacklist.CODEC;
-            case "tag" -> TagFilter.CODEC;
-            case "and" -> And.CODEC;
+            case "any" -> Any.CODEC.codec();
+            case "whitelist" -> Whitelist.CODEC.codec();
+            case "blacklist" -> Blacklist.CODEC.codec();
+            case "tag" -> TagFilter.CODEC.codec();
+            case "and" -> And.CODEC.codec();
             default -> throw new IllegalArgumentException("Unknown BiomeFilter type: " + type);
         }
     );
