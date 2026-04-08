@@ -62,12 +62,13 @@ public final class PathRasteriser {
 
                     int sy = level.getHeight(Heightmap.Types.WORLD_SURFACE, bx, bz);
                     if(sy <= level.getMinBuildHeight()) continue;
+                    if(!level.getFluidState(new BlockPos(bx, sy - 1, bz)).isEmpty()) continue;
 
                     int diff = sy - centerY;
                     if(diff > pathType.slopeHandling().cutTolerance()) continue;
                     if(-diff > pathType.slopeHandling().fillTolerance()) continue;
 
-                    if(manhattan == halfWidth && !pathType.edgeBlocks().isEmpty()) {
+                    if(halfWidth > 0 && manhattan == halfWidth && !pathType.edgeBlocks().isEmpty()) {
                         level.setBlock(new BlockPos(bx, sy - 1, bz), pick(pathType.edgeBlocks(), random), Block.UPDATE_ALL);
                     }
                     else {

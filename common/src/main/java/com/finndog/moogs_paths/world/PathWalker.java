@@ -18,7 +18,7 @@ public final class PathWalker {
         result.add(mainPath);
 
         var branches = network.branches();
-        int branchCount = random.nextInt(branches.maxBranches() - branches.minBranches() + 1) + branches.minBranches();
+        int branchCount = random.nextInt(Math.max(1, branches.maxBranches() - branches.minBranches() + 1)) + branches.minBranches();
 
         for(int i = 0; i < branchCount; i++) {
             BlockPos branchStart = mainPath.get(random.nextInt(mainPath.size()));
@@ -30,7 +30,7 @@ public final class PathWalker {
 
     private static List<BlockPos> walkSingle(BlockPos origin, PathNetworkType network, PathType pathType, RandomSource random, float lengthFraction) {
         ScaleSettings scale = network.scale();
-        int targetLength = Math.round((random.nextInt(scale.lengthMax - scale.lengthMin + 1) + scale.lengthMin) * lengthFraction);
+        int targetLength = Math.round((random.nextInt(Math.max(1, scale.lengthMax - scale.lengthMin + 1)) + scale.lengthMin) * lengthFraction);
 
         PathDirection dir = PathDirection.VALUES[random.nextInt(16)];
         int width = random.nextInt(pathType.width().max() - pathType.width().min() + 1) + pathType.width().min();
