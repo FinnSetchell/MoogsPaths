@@ -10,7 +10,9 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public final class PathRasteriser {
     private PathRasteriser() {}
@@ -43,12 +45,19 @@ public final class PathRasteriser {
         int chunkMinZ = chunkZ * 16;
         int chunkMaxZ = chunkMinZ + 15;
 
+        Set<Long> centerPositions = new HashSet<>();
+        bresenham(from.getX(), from.getZ(), to.getX(), to.getZ(), (cx, cz) -> {
+            if(cx >= chunkMinX && cx <= chunkMaxX && cz >= chunkMinZ && cz <= chunkMaxZ) {
+                centerPositions.add((long) cx << 32 | (cz & 0xFFFFFFFFL));
+            }
+        });
+
         bresenham(from.getX(), from.getZ(), to.getX(), to.getZ(), (cx, cz) -> {
             if(cx + halfWidth < chunkMinX || cx - halfWidth > chunkMaxX) return;
             if(cz + halfWidth < chunkMinZ || cz - halfWidth > chunkMaxZ) return;
             if(random.nextFloat() >= fade) return;
 
-            int centerY = level.getHeight(Heightmap.Types.WORLD_SURFACE, cx, cz);
+            int centerY = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, cx, cz);
             if(centerY <= level.getMinBuildHeight()) return;
 
             for(int ox = -halfWidth; ox <= halfWidth; ox++) {
@@ -60,7 +69,7 @@ public final class PathRasteriser {
                     int bz = cz + oz;
                     if((bx >> 4) != chunkX || (bz >> 4) != chunkZ) continue;
 
-                    int sy = level.getHeight(Heightmap.Types.WORLD_SURFACE, bx, bz);
+                    int sy = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, bx, bz);
                     if(sy <= level.getMinBuildHeight()) continue;
                     if(!level.getFluidState(new BlockPos(bx, sy - 1, bz)).isEmpty()) continue;
 
@@ -68,7 +77,9 @@ public final class PathRasteriser {
                     if(diff > pathType.slopeHandling().cutTolerance()) continue;
                     if(-diff > pathType.slopeHandling().fillTolerance()) continue;
 
-                    if(halfWidth > 0 && manhattan == halfWidth && !pathType.edgeBlocks().isEmpty()) {
+                    long posKey = (long) bx << 32 | (bz & 0xFFFFFFFFL);
+                    if(halfWidth > 0 && manhattan == halfWidth && !pathType.edgeBlocks().isEmpty()
+                            && !centerPositions.contains(posKey)) {
                         level.setBlock(new BlockPos(bx, sy - 1, bz), pick(pathType.edgeBlocks(), random), Block.UPDATE_ALL);
                     }
                     else {

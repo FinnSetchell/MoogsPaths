@@ -7,14 +7,15 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
 
 import java.util.*;
+import java.util.function.BiFunction;
 
 public final class PathWalker {
     private PathWalker() {}
 
-    public static List<List<BlockPos>> walkWithBranches(BlockPos origin, PathNetworkType network, PathType pathType, RandomSource random) {
+    public static List<List<BlockPos>> walkWithBranches(BlockPos origin, PathNetworkType network, PathType pathType, RandomSource random, BiFunction<Integer, Integer, Integer> heightAt) {
         List<List<BlockPos>> result = new ArrayList<>();
 
-        List<BlockPos> mainPath = walkSingle(origin, network, pathType, random, 1.0f);
+        List<BlockPos> mainPath = walkSingle(origin, network, pathType, random, 1.0f, heightAt);
         result.add(mainPath);
 
         var branches = network.branches();
@@ -22,13 +23,13 @@ public final class PathWalker {
 
         for(int i = 0; i < branchCount; i++) {
             BlockPos branchStart = mainPath.get(random.nextInt(mainPath.size()));
-            result.add(walkSingle(branchStart, network, pathType, random, branches.lengthFraction()));
+            result.add(walkSingle(branchStart, network, pathType, random, branches.lengthFraction(), heightAt));
         }
 
         return result;
     }
 
-    private static List<BlockPos> walkSingle(BlockPos origin, PathNetworkType network, PathType pathType, RandomSource random, float lengthFraction) {
+    private static List<BlockPos> walkSingle(BlockPos origin, PathNetworkType network, PathType pathType, RandomSource random, float lengthFraction, BiFunction<Integer, Integer, Integer> heightAt) {
         ScaleSettings scale = network.scale();
         int targetLength = Math.round((random.nextInt(Math.max(1, scale.lengthMax - scale.lengthMin + 1)) + scale.lengthMin) * lengthFraction);
 
@@ -46,10 +47,38 @@ public final class PathWalker {
             waypoints.add(next);
             current = next;
             distanceWalked += stepDist;
-            dir = steer(dir, pathType.curviness(), random);
+            if(heightAt != null && pathType.slopeAvoidance() > 0f)
+                dir = slopeAwareSteer(current, dir, pathType, random, heightAt, stepDist);
+            else
+                dir = steer(dir, pathType.curviness(), random);
         }
 
         return waypoints;
+    }
+
+    private static PathDirection slopeAwareSteer(BlockPos current, PathDirection dir, PathType pathType, RandomSource random, BiFunction<Integer, Integer, Integer> heightAt, int stepDist) {
+        int currentY = heightAt.apply(current.getX(), current.getZ());
+        if (currentY < 0) return steer(dir, pathType.curviness(), random);
+
+        PathDirection best = steer(dir, pathType.curviness(), random);
+        int bestSlope = slopeOf(best, current, currentY, heightAt, stepDist);
+
+        for(int i = 0; i < 2; i++) {
+            PathDirection alt = steer(dir, pathType.curviness(), random);
+            int altSlope = slopeOf(alt, current, currentY, heightAt, stepDist);
+            if(altSlope < bestSlope && random.nextFloat() < pathType.slopeAvoidance()) {
+                best = alt;
+                bestSlope = altSlope;
+            }
+        }
+
+        return best;
+    }
+
+    private static int slopeOf(PathDirection dir, BlockPos current, int currentY, BiFunction<Integer, Integer, Integer> heightAt, int stepDist) {
+        int nextY = heightAt.apply(current.getX() + dir.dx * stepDist, current.getZ() + dir.dz * stepDist);
+        if (nextY < 0) return 0;
+        return Math.abs(nextY - currentY);
     }
 
     private static PathDirection steer(PathDirection current, float curviness, RandomSource random) {

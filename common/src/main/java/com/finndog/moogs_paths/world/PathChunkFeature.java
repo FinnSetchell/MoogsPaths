@@ -11,6 +11,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
@@ -75,9 +76,12 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                     }
                     PathType pathType = pathTypeOpt.get();
 
-                    // Walk uses its own seeded random — deterministic, same result every chunk
                     RandomSource walkRandom = RandomSource.create(pathSeed ^ 0x1L);
-                    List<List<BlockPos>> allPaths = PathWalker.walkWithBranches(originPos, network, pathType, walkRandom);
+                    List<List<BlockPos>> allPaths = PathWalker.walkWithBranches(originPos, network, pathType, walkRandom,
+                        (x, z) -> {
+                            if (Math.abs((x >> 4) - chunkX) > 7 || Math.abs((z >> 4) - chunkZ) > 7) return -1;
+                            return level.getHeight(Heightmap.Types.WORLD_SURFACE_WG, x, z);
+                        });
 
                     for(int branchIdx = 0; branchIdx < allPaths.size(); branchIdx++) {
                         List<BlockPos> waypoints = allPaths.get(branchIdx);
