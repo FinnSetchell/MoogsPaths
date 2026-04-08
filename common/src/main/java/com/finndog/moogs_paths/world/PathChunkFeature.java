@@ -65,9 +65,10 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                         ^ ((long) originChunkX * 341873128712L)
                         ^ ((long) originChunkZ * 132897987541L)
                         ^ 0xABCDEF1234567890L;
-                    RandomSource pathRandom = RandomSource.create(pathSeed);
 
-                    PathNetworkType network = pickWeighted(eligible, pathRandom);
+                    // Network pick uses pathSeed directly
+                    RandomSource pickRandom = RandomSource.create(pathSeed);
+                    PathNetworkType network = pickWeighted(eligible, pickRandom);
 
                     Optional<PathType> pathTypeOpt = PathDataManager.getPathType(network.pathType());
                     if(pathTypeOpt.isEmpty()) {
@@ -76,10 +77,23 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                     }
                     PathType pathType = pathTypeOpt.get();
 
-                    List<List<BlockPos>> allPaths = PathWalker.walkWithBranches(originPos, network, pathType, pathRandom);
+                    // Walk uses its own seeded random — deterministic, same result every chunk
+                    RandomSource walkRandom = RandomSource.create(pathSeed ^ 0x1L);
+                    List<List<BlockPos>> allPaths = PathWalker.walkWithBranches(originPos, network, pathType, walkRandom);
 
-                    for(List<BlockPos> waypoints : allPaths) {
-                        PathRasteriser.rasteriseInChunk(level, waypoints, pathType, chunkX, chunkZ, pathRandom);
+                    for(int branchIdx = 0; branchIdx < allPaths.size(); branchIdx++) {
+                        List<BlockPos> waypoints = allPaths.get(branchIdx);
+                        long branchSeed = pathSeed ^ ((long) branchIdx * 9999991L);
+
+                        // Rasteriser gets a per-chunk seed — cross-chunk consistency not needed here
+                        RandomSource rasterRandom = RandomSource.create(branchSeed ^ ((long) chunkX * 1234567L) ^ ((long) chunkZ * 9876543L));
+                        PathRasteriser.rasteriseInChunk(level, waypoints, pathType, chunkX, chunkZ, rasterRandom);
+
+                        // Structure placer needs the same random sequence in every chunk
+                        if(!network.structureSets().isEmpty()) {
+                            RandomSource structureRandom = RandomSource.create(branchSeed ^ 0x9E3779B97F4A7C15L);
+                            StructurePlacer.placeInChunk(level, waypoints, network.structureSets(), chunkX, chunkZ, structureRandom);
+                        }
                     }
 
                     placed[0] = true;
