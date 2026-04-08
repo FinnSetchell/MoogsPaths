@@ -1,11 +1,14 @@
 package com.finndog.moogs_paths.platform;
 
 import com.finndog.moogs_paths.platform.services.IPlatformHelper;
+import com.mojang.brigadier.CommandDispatcher;
+import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.AddReloadListenerEvent;
+import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
 import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.loading.FMLLoader;
@@ -24,6 +27,11 @@ public class ForgePlatformHelper implements IPlatformHelper {
     @Override
     public void registerServerStartingListener(Consumer<MinecraftServer> listener) {
         MinecraftForge.EVENT_BUS.addListener((ServerStartingEvent event) -> listener.accept(event.getServer()));
+    }
+
+    @Override
+    public void registerCommandListener(Consumer<CommandDispatcher<CommandSourceStack>> listener) {
+        MinecraftForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> listener.accept(event.getDispatcher()));
     }
 
     @Override

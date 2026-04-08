@@ -1,5 +1,6 @@
 package com.finndog.moogs_paths;
 
+import com.finndog.moogs_paths.commands.PathsDebugCommand;
 import com.finndog.moogs_paths.data.PathDataManager;
 import com.finndog.moogs_paths.platform.Services;
 
@@ -8,5 +9,6 @@ public class MoogsPathsCommon {
         Services.PLATFORM.registerReloadListeners(PathDataManager.createListeners());
         Services.PLATFORM.registerServerStartingListener(server ->
             PathDataManager.onServerStart(server.getStructureManager()));
+        Services.PLATFORM.registerCommandListener(PathsDebugCommand::register);
     }
 }

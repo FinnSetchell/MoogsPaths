@@ -123,6 +123,14 @@ public final class PathDataManager {
         return CACHED_TEMPLATES.getOrDefault(id, Optional.empty());
     }
 
+    public static int getCachedTemplateCount() {
+        return CACHED_TEMPLATES.size();
+    }
+
+    public static Collection<ResourceLocation> getAllStructureIds() {
+        return Collections.unmodifiableSet(CACHED_TEMPLATES.keySet());
+    }
+
     public static void onServerStart(StructureTemplateManager manager) {
         templateManager = manager;
         reloadTemplates();
