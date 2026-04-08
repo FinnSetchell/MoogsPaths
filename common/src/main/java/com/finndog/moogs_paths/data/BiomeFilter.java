@@ -3,13 +3,18 @@ package com.finndog.moogs_paths.data;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.core.Holder;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.level.biome.Biome;
 
 import java.util.List;
 
 public sealed interface BiomeFilter permits BiomeFilter.Any, BiomeFilter.Whitelist, BiomeFilter.Blacklist, BiomeFilter.TagFilter, BiomeFilter.And {
 
-    boolean test(ResourceLocation biomeId);
+    boolean test(Holder<Biome> biome);
 
     Codec<BiomeFilter> DISPATCH_CODEC = Codec.STRING.dispatch(
         "type",
@@ -35,7 +40,7 @@ public sealed interface BiomeFilter permits BiomeFilter.Any, BiomeFilter.Whiteli
         static final MapCodec<Any> CODEC = MapCodec.unit(new Any());
 
         @Override
-        public boolean test(ResourceLocation biomeId) {
+        public boolean test(Holder<Biome> biome) {
             return true;
         }
     }
@@ -46,8 +51,10 @@ public sealed interface BiomeFilter permits BiomeFilter.Any, BiomeFilter.Whiteli
         ).apply(instance, Whitelist::new));
 
         @Override
-        public boolean test(ResourceLocation biomeId) {
-            return biomes.contains(biomeId);
+        public boolean test(Holder<Biome> biome) {
+            return biome.unwrapKey()
+                .map(key -> biomes.contains(key.location()))
+                .orElse(false);
         }
     }
 
@@ -57,8 +64,10 @@ public sealed interface BiomeFilter permits BiomeFilter.Any, BiomeFilter.Whiteli
         ).apply(instance, Blacklist::new));
 
         @Override
-        public boolean test(ResourceLocation biomeId) {
-            return !biomes.contains(biomeId);
+        public boolean test(Holder<Biome> biome) {
+            return biome.unwrapKey()
+                .map(key -> !biomes.contains(key.location()))
+                .orElse(true);
         }
     }
 
@@ -68,8 +77,8 @@ public sealed interface BiomeFilter permits BiomeFilter.Any, BiomeFilter.Whiteli
         ).apply(instance, TagFilter::new));
 
         @Override
-        public boolean test(ResourceLocation biomeId) {
-            return false; // tag membership requires registry access; callers must resolve at runtime
+        public boolean test(Holder<Biome> biome) {
+            return biome.is(TagKey.create(Registries.BIOME, tag));
         }
     }
 
@@ -79,8 +88,8 @@ public sealed interface BiomeFilter permits BiomeFilter.Any, BiomeFilter.Whiteli
         ).apply(instance, And::new));
 
         @Override
-        public boolean test(ResourceLocation biomeId) {
-            return filters.stream().allMatch(f -> f.test(biomeId));
+        public boolean test(Holder<Biome> biome) {
+            return filters.stream().allMatch(f -> f.test(biome));
         }
     }
 }
