@@ -10,6 +10,7 @@ import net.minecraft.core.Holder;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
@@ -26,6 +27,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
     @Override
     public boolean place(FeaturePlaceContext<NoneFeatureConfiguration> ctx) {
         WorldGenLevel level = ctx.level();
+        ChunkGenerator generator = ctx.chunkGenerator();
         long worldSeed = level.getSeed();
         int chunkX = ctx.origin().getX() >> 4;
         int chunkZ = ctx.origin().getZ() >> 4;
@@ -93,6 +95,12 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                         if(!network.structureSets().isEmpty()) {
                             RandomSource structureRandom = RandomSource.create(branchSeed ^ 0x9E3779B97F4A7C15L);
                             StructurePlacer.placeInChunk(level, waypoints, network.structureSets(), chunkX, chunkZ, structureRandom);
+                        }
+
+                        // Feature scatterer needs the same random sequence in every chunk
+                        if(!network.featureDecoratorSets().isEmpty()) {
+                            RandomSource featureRandom = RandomSource.create(branchSeed ^ 0x6C62272E07BB0142L);
+                            FeatureScatterer.scatterInChunk(level, generator, waypoints, network.featureDecoratorSets(), chunkX, chunkZ, featureRandom);
                         }
                     }
 
