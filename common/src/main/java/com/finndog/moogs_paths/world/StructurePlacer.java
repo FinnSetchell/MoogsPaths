@@ -5,6 +5,7 @@ import com.finndog.moogs_paths.data.PathDataManager;
 import com.finndog.moogs_paths.data.PathNetworkType;
 import com.finndog.moogs_paths.data.StructureSet;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Vec3i;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.Level;
@@ -84,8 +85,7 @@ public final class StructurePlacer {
             .setMirror(Mirror.NONE)
             .setIgnoreEntities(false);
 
-        BlockPos rawSize = template.getSize();
-        // For 90/270 degree rotations the X and Z dimensions swap
+        Vec3i rawSize = template.getSize();
         boolean rotated90 = rotation == Rotation.CLOCKWISE_90 || rotation == Rotation.COUNTERCLOCKWISE_90;
         int sizeX = rotated90 ? rawSize.getZ() : rawSize.getX();
         int sizeZ = rotated90 ? rawSize.getX() : rawSize.getZ();
