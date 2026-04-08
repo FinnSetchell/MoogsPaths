@@ -1,10 +1,12 @@
 package com.finndog.moogs_paths.platform;
 
 import com.finndog.moogs_paths.platform.services.IPlatformHelper;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.resource.IdentifiableResourceReloadListener;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.packs.PackType;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
@@ -13,6 +15,7 @@ import net.minecraft.util.profiling.ProfilerFiller;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.function.Consumer;
 
 public class FabricPlatformHelper implements IPlatformHelper {
 
@@ -37,6 +40,11 @@ public class FabricPlatformHelper implements IPlatformHelper {
                 }
             )
         );
+    }
+
+    @Override
+    public void registerServerStartingListener(Consumer<MinecraftServer> listener) {
+        ServerLifecycleEvents.SERVER_STARTING.register(listener::accept);
     }
 
     @Override

@@ -1,21 +1,17 @@
 package com.finndog.moogs_paths.world;
 
-import com.finndog.moogs_paths.Constants;
 import com.finndog.moogs_paths.data.PathDataManager;
 import com.finndog.moogs_paths.data.PathNetworkType;
 import com.finndog.moogs_paths.data.StructureSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Vec3i;
-import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
-import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 
 import java.util.List;
 import java.util.Optional;
@@ -24,41 +20,44 @@ public final class StructurePlacer {
     private StructurePlacer() {}
 
     public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<PathNetworkType.WeightedRef> structureSetRefs, int chunkX, int chunkZ, RandomSource random) {
-        Level underlying = level.getLevel();
-        if(!(underlying instanceof ServerLevel serverLevel)) return;
-        StructureTemplateManager manager = serverLevel.getStructureManager();
-
         for(PathNetworkType.WeightedRef ref : structureSetRefs) {
             PathDataManager.getStructureSet(ref.id()).ifPresent(set ->
-                placeSet(level, serverLevel, manager, waypoints, set, chunkX, chunkZ, random));
+                placeSet(level, waypoints, set, chunkX, chunkZ, random));
         }
     }
 
     //////////////////////////////
 
-    private static void placeSet(WorldGenLevel level, ServerLevel serverLevel, StructureTemplateManager manager, List<BlockPos> waypoints, StructureSet set, int chunkX, int chunkZ, RandomSource random) {
+    private static void placeSet(WorldGenLevel level, List<BlockPos> waypoints, StructureSet set, int chunkX, int chunkZ, RandomSource random) {
         if(set.placement() == StructureSet.PlacementMode.ENDPOINT) {
-            tryPlace(level, serverLevel, manager, waypoints.get(0), set, chunkX, chunkZ, random);
+            tryPlace(level, waypoints.get(0), set, chunkX, chunkZ, random);
             if(waypoints.size() > 1) {
-                tryPlace(level, serverLevel, manager, waypoints.get(waypoints.size() - 1), set, chunkX, chunkZ, random);
+                tryPlace(level, waypoints.get(waypoints.size() - 1), set, chunkX, chunkZ, random);
             }
             return;
         }
+
+        // Step distance from the first segment so spacing is measured in blocks, not waypoints
+        int stepDist = waypoints.size() > 1
+            ? (int) Math.round(Math.hypot(
+                waypoints.get(1).getX() - waypoints.get(0).getX(),
+                waypoints.get(1).getZ() - waypoints.get(0).getZ()))
+            : 1;
 
         int distanceSinceLast = 0;
         int nextThreshold = nextSpacing(set, random);
 
         for(BlockPos waypoint : waypoints) {
-            distanceSinceLast++;
+            distanceSinceLast += stepDist;
             if(distanceSinceLast >= nextThreshold) {
-                tryPlace(level, serverLevel, manager, waypoint, set, chunkX, chunkZ, random);
+                tryPlace(level, waypoint, set, chunkX, chunkZ, random);
                 distanceSinceLast = 0;
                 nextThreshold = nextSpacing(set, random);
             }
         }
     }
 
-    private static void tryPlace(WorldGenLevel level, ServerLevel serverLevel, StructureTemplateManager manager, BlockPos waypoint, StructureSet set, int chunkX, int chunkZ, RandomSource random) {
+    private static void tryPlace(WorldGenLevel level, BlockPos waypoint, StructureSet set, int chunkX, int chunkZ, RandomSource random) {
         // Always pick entry and rotation first — advances random consistently across all chunks
         StructureSet.StructureEntry entry = pickWeighted(set.structures(), random);
         Rotation rotation = parseRotation(entry.rotation(), random);
@@ -70,16 +69,13 @@ public final class StructurePlacer {
 
         if(!isFlatEnough(level, pos, set.flatnessTolerance())) return;
 
-        Optional<StructureTemplate> templateOpt = manager.get(entry.nbt());
-        if(templateOpt.isEmpty()) {
-            Constants.LOG.warn("Structure template not found: {}", entry.nbt());
-            return;
-        }
+        Optional<StructureTemplate> templateOpt = PathDataManager.getCachedTemplate(entry.nbt());
+        if(templateOpt.isEmpty()) return;
 
-        placeEntry(serverLevel, templateOpt.get(), pos, entry, rotation);
+        placeEntry(level, templateOpt.get(), pos, entry, rotation);
     }
 
-    private static void placeEntry(ServerLevel level, StructureTemplate template, BlockPos pos, StructureSet.StructureEntry entry, Rotation rotation) {
+    private static void placeEntry(WorldGenLevel level, StructureTemplate template, BlockPos pos, StructureSet.StructureEntry entry, Rotation rotation) {
         StructurePlaceSettings settings = new StructurePlaceSettings()
             .setRotation(rotation)
             .setMirror(Mirror.NONE)

@@ -6,5 +6,7 @@ import com.finndog.moogs_paths.platform.Services;
 public class MoogsPathsCommon {
     public static void init() {
         Services.PLATFORM.registerReloadListeners(PathDataManager.createListeners());
+        Services.PLATFORM.registerServerStartingListener(server ->
+            PathDataManager.onServerStart(server.getStructureManager()));
     }
 }

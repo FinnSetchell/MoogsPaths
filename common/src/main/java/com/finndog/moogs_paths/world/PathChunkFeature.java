@@ -45,6 +45,9 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
 
         boolean[] placed = {false};
 
+       BlockPos currentCenter = new BlockPos(chunkX * 16 + 8, 64, chunkZ * 16 + 8);
+        Holder<Biome> currentBiome = level.getBiome(currentCenter);
+
         for(Map.Entry<Integer, List<PathNetworkType>> entry : byRegionSize.entrySet()) {
             int regionSize = entry.getKey();
             List<PathNetworkType> networks = entry.getValue();
@@ -55,22 +58,15 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                     int originChunkZ = origin[1];
                     BlockPos originPos = new BlockPos(originChunkX * 16 + 8, 64, originChunkZ * 16 + 8);
 
-                    Holder<Biome> biomeHolder = level.getBiome(originPos);
-
-                    List<PathNetworkType> eligible = networks.stream()
-                        .filter(n -> n.biomeFilter().test(biomeHolder))
-                        .collect(Collectors.toList());
-
-                    if(eligible.isEmpty()) return;
-
                     long pathSeed = worldSeed
                         ^ ((long) originChunkX * 341873128712L)
                         ^ ((long) originChunkZ * 132897987541L)
                         ^ 0xABCDEF1234567890L;
 
-                    // Network pick uses pathSeed directly
                     RandomSource pickRandom = RandomSource.create(pathSeed);
-                    PathNetworkType network = pickWeighted(eligible, pickRandom);
+                    PathNetworkType network = pickWeighted(networks, pickRandom);
+
+                    if(!network.biomeFilter().test(currentBiome)) return;
 
                     Optional<PathType> pathTypeOpt = PathDataManager.getPathType(network.pathType());
                     if(pathTypeOpt.isEmpty()) {

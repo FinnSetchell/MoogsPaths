@@ -1,6 +1,8 @@
 package com.finndog.moogs_paths.data;
 
 import com.finndog.moogs_paths.Constants;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonElement;
@@ -20,6 +22,9 @@ public final class PathDataManager {
     private static final Map<ResourceLocation, PathNetworkType> PATH_NETWORKS = new HashMap<>();
     private static final Map<ResourceLocation, StructureSet> STRUCTURE_SETS = new HashMap<>();
     private static final Map<ResourceLocation, FeatureDecoratorSet> DECORATOR_SETS = new HashMap<>();
+    private static final Map<ResourceLocation, Optional<StructureTemplate>> CACHED_TEMPLATES = new HashMap<>();
+
+    private static StructureTemplateManager templateManager;
 
     private PathDataManager() {}
 
@@ -69,6 +74,7 @@ public final class PathDataManager {
                             .ifPresent(ss -> STRUCTURE_SETS.put(id, ss))
                     );
                     Constants.LOG.info("Loaded {} structure sets", STRUCTURE_SETS.size());
+                    reloadTemplates();
                 }
             }
         );
@@ -111,5 +117,30 @@ public final class PathDataManager {
 
     public static Collection<PathNetworkType> getAllNetworks() {
         return Collections.unmodifiableCollection(PATH_NETWORKS.values());
+    }
+
+    public static Optional<StructureTemplate> getCachedTemplate(ResourceLocation id) {
+        return CACHED_TEMPLATES.getOrDefault(id, Optional.empty());
+    }
+
+    public static void onServerStart(StructureTemplateManager manager) {
+        templateManager = manager;
+        reloadTemplates();
+    }
+
+    private static void reloadTemplates() {
+        if(templateManager == null) return;
+        CACHED_TEMPLATES.clear();
+        STRUCTURE_SETS.values().forEach(set ->
+            set.structures().forEach(entry -> {
+                ResourceLocation id = entry.nbt();
+                if(!CACHED_TEMPLATES.containsKey(id)) {
+                    Optional<StructureTemplate> tmpl = templateManager.get(id);
+                    if(tmpl.isEmpty()) Constants.LOG.warn("Structure template not found: {}", id);
+                    CACHED_TEMPLATES.put(id, tmpl);
+                }
+            })
+        );
+        Constants.LOG.info("Cached {} structure templates", CACHED_TEMPLATES.size());
     }
 }
