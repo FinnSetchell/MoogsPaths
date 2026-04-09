@@ -10,6 +10,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -45,20 +46,30 @@ public final class PathRasteriser {
         int chunkMinZ = chunkZ * 16;
         int chunkMaxZ = chunkMinZ + 15;
 
+        BlockState fillState = BuiltInRegistries.BLOCK.getOptional(pathType.fillBlock())
+            .orElse(Blocks.DIRT).defaultBlockState();
+        int fillTolerance = pathType.slopeHandling().fillTolerance();
+
         Set<Long> centerPositions = new HashSet<>();
+        List<Long> processPoints = new ArrayList<>();
         bresenham(from.getX(), from.getZ(), to.getX(), to.getZ(), (cx, cz) -> {
-            if(cx >= chunkMinX && cx <= chunkMaxX && cz >= chunkMinZ && cz <= chunkMaxZ) {
-                centerPositions.add((long) cx << 32 | (cz & 0xFFFFFFFFL));
-            }
+            long key = (long) cx << 32 | (cz & 0xFFFFFFFFL);
+            if(cx >= chunkMinX && cx <= chunkMaxX && cz >= chunkMinZ && cz <= chunkMaxZ)
+                centerPositions.add(key);
+            if(cx + halfWidth >= chunkMinX && cx - halfWidth <= chunkMaxX &&
+               cz + halfWidth >= chunkMinZ && cz - halfWidth <= chunkMaxZ)
+                processPoints.add(key);
         });
 
-        bresenham(from.getX(), from.getZ(), to.getX(), to.getZ(), (cx, cz) -> {
-            if(cx + halfWidth < chunkMinX || cx - halfWidth > chunkMaxX) return;
-            if(cz + halfWidth < chunkMinZ || cz - halfWidth > chunkMaxZ) return;
-            if(random.nextFloat() >= fade) return;
+        BlockPos.MutableBlockPos mpos = new BlockPos.MutableBlockPos();
+
+        for(long encoded : processPoints) {
+            int cx = (int)(encoded >> 32);
+            int cz = (int)(encoded & 0xFFFFFFFFL);
+            if(random.nextFloat() >= fade) continue;
 
             int centerY = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, cx, cz);
-            if(centerY <= level.getMinBuildHeight()) return;
+            if(centerY <= level.getMinBuildHeight()) continue;
 
             for(int ox = -halfWidth; ox <= halfWidth; ox++) {
                 for(int oz = -halfWidth; oz <= halfWidth; oz++) {
@@ -71,35 +82,32 @@ public final class PathRasteriser {
 
                     int sy = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, bx, bz);
                     if(sy <= level.getMinBuildHeight()) continue;
-                    if(!level.getFluidState(new BlockPos(bx, sy - 1, bz)).isEmpty()) continue;
+                    mpos.set(bx, sy - 1, bz);
+                    if(!level.getFluidState(mpos).isEmpty()) continue;
 
                     int diff = sy - centerY;
                     if(diff > pathType.slopeHandling().cutTolerance()) continue;
-                    if(-diff > pathType.slopeHandling().fillTolerance()) continue;
+                    if(-diff > fillTolerance) continue;
 
                     long posKey = (long) bx << 32 | (bz & 0xFFFFFFFFL);
                     if(halfWidth > 0 && manhattan == halfWidth && !pathType.edgeBlocks().isEmpty()
                             && !centerPositions.contains(posKey)) {
-                        level.setBlock(new BlockPos(bx, sy - 1, bz), pick(pathType.edgeBlocks(), random), Block.UPDATE_ALL);
+                        level.setBlock(mpos, pick(pathType.edgeBlocks(), random), Block.UPDATE_CLIENTS);
                     }
                     else {
-                        level.setBlock(new BlockPos(bx, sy - 1, bz), pick(pathType.surfaceBlocks(), random), Block.UPDATE_ALL);
-                        fillBelow(level, bx, sy - 2, bz, pathType);
+                        level.setBlock(mpos, pick(pathType.surfaceBlocks(), random), Block.UPDATE_CLIENTS);
+                        fillBelow(level, mpos, bx, sy - 2, bz, fillState, fillTolerance);
                     }
                 }
             }
-        });
+        }
     }
 
-    private static void fillBelow(WorldGenLevel level, int x, int startY, int z, PathType pathType) {
-        BlockState fillState = BuiltInRegistries.BLOCK.getOptional(pathType.fillBlock())
-            .orElse(Blocks.DIRT)
-            .defaultBlockState();
-        int maxFill = pathType.slopeHandling().fillTolerance();
+    private static void fillBelow(WorldGenLevel level, BlockPos.MutableBlockPos mpos, int x, int startY, int z, BlockState fillState, int maxFill) {
         for(int depth = 0; depth < maxFill; depth++) {
-            BlockPos pos = new BlockPos(x, startY - depth, z);
-            if(level.getBlockState(pos).isAir()) {
-                level.setBlock(pos, fillState, Block.UPDATE_ALL);
+            mpos.set(x, startY - depth, z);
+            if(level.getBlockState(mpos).isAir()) {
+                level.setBlock(mpos, fillState, Block.UPDATE_CLIENTS);
             }
             else break;
         }
@@ -116,7 +124,8 @@ public final class PathRasteriser {
     }
 
     private static BlockState pick(List<PathType.WeightedBlock> entries, RandomSource random) {
-        int total = entries.stream().mapToInt(PathType.WeightedBlock::weight).sum();
+        int total = 0;
+        for(PathType.WeightedBlock e : entries) total += e.weight();
         int roll = random.nextInt(Math.max(1, total));
         int cumulative = 0;
         for(PathType.WeightedBlock e : entries) {

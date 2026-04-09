@@ -65,7 +65,7 @@ public final class StructurePlacer {
 
         int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, waypoint.getX(), waypoint.getZ());
         if(!level.getFluidState(new BlockPos(waypoint.getX(), surfaceY - 1, waypoint.getZ())).isEmpty()) return;
-        BlockPos pos = new BlockPos(waypoint.getX(), surfaceY, waypoint.getZ());
+        BlockPos pos = new BlockPos(waypoint.getX(), surfaceY - 1, waypoint.getZ());
 
         if(!isFlatEnough(level, pos, set.flatnessTolerance())) return;
 
@@ -110,7 +110,8 @@ public final class StructurePlacer {
     }
 
     private static StructureSet.StructureEntry pickWeighted(List<StructureSet.StructureEntry> entries, RandomSource random) {
-        int total = entries.stream().mapToInt(StructureSet.StructureEntry::weight).sum();
+        int total = 0;
+        for(StructureSet.StructureEntry e : entries) total += e.weight();
         int roll = random.nextInt(Math.max(1, total));
         int cumulative = 0;
         for(StructureSet.StructureEntry e : entries) {

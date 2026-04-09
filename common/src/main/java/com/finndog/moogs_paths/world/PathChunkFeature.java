@@ -17,7 +17,6 @@ import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
 
@@ -33,16 +32,10 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
         int chunkX = ctx.origin().getX() >> 4;
         int chunkZ = ctx.origin().getZ() >> 4;
 
-        Collection<PathNetworkType> allNetworks = PathDataManager.getAllNetworks();
-        if(allNetworks.isEmpty()) return false;
+        Map<Integer, List<PathNetworkType>> byRegionSize = PathDataManager.getNetworksByRegionSize();
+        if(byRegionSize.isEmpty()) return false;
 
-        int maxRadius = allNetworks.stream()
-            .mapToInt(n -> n.scale().lengthMax)
-            .max()
-            .orElse(1000);
-
-        Map<Integer, List<PathNetworkType>> byRegionSize = allNetworks.stream()
-            .collect(Collectors.groupingBy(PathNetworkType::regionSize));
+        int maxRadius = PathDataManager.getNetworksMaxRadius();
 
         boolean[] placed = {false};
 
@@ -112,7 +105,8 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
     }
 
     private static PathNetworkType pickWeighted(List<PathNetworkType> eligible, RandomSource random) {
-        int total = eligible.stream().mapToInt(PathNetworkType::weight).sum();
+        int total = 0;
+        for(PathNetworkType n : eligible) total += n.weight();
         int roll = random.nextInt(Math.max(1, total));
         int cumulative = 0;
         for(PathNetworkType n : eligible) {

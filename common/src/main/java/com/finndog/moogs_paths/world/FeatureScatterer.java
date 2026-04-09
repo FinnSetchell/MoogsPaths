@@ -83,7 +83,8 @@ public final class FeatureScatterer {
     }
 
     private static PlacedFeature pickWeighted(List<FeatureDecoratorSet.FeatureEntry> entries, Registry<PlacedFeature> registry, RandomSource random) {
-        int total = entries.stream().mapToInt(FeatureDecoratorSet.FeatureEntry::weight).sum();
+        int total = 0;
+        for(FeatureDecoratorSet.FeatureEntry e : entries) total += e.weight();
         int roll = random.nextInt(Math.max(1, total));
         int cumulative = 0;
         for(FeatureDecoratorSet.FeatureEntry e : entries) {
