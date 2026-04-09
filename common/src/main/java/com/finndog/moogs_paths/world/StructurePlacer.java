@@ -58,13 +58,13 @@ public final class StructurePlacer {
     }
 
     private static void tryPlace(WorldGenLevel level, BlockPos waypoint, StructureSet set, int chunkX, int chunkZ, RandomSource random) {
-        // Always pick entry and rotation first — advances random consistently across all chunks
         StructureSet.StructureEntry entry = pickWeighted(set.structures(), random);
         Rotation rotation = parseRotation(entry.rotation(), random);
 
         if((waypoint.getX() >> 4) != chunkX || (waypoint.getZ() >> 4) != chunkZ) return;
 
-        int surfaceY = level.getHeight(Heightmap.Types.WORLD_SURFACE, waypoint.getX(), waypoint.getZ());
+        int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, waypoint.getX(), waypoint.getZ());
+        if(!level.getFluidState(new BlockPos(waypoint.getX(), surfaceY - 1, waypoint.getZ())).isEmpty()) return;
         BlockPos pos = new BlockPos(waypoint.getX(), surfaceY, waypoint.getZ());
 
         if(!isFlatEnough(level, pos, set.flatnessTolerance())) return;
@@ -95,10 +95,10 @@ public final class StructurePlacer {
     }
 
     private static boolean isFlatEnough(WorldGenLevel level, BlockPos center, int tolerance) {
-        int centerY = level.getHeight(Heightmap.Types.WORLD_SURFACE, center.getX(), center.getZ());
+        int centerY = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, center.getX(), center.getZ());
         for(int ox = -2; ox <= 2; ox++) {
             for(int oz = -2; oz <= 2; oz++) {
-                int y = level.getHeight(Heightmap.Types.WORLD_SURFACE, center.getX() + ox, center.getZ() + oz);
+                int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, center.getX() + ox, center.getZ() + oz);
                 if(Math.abs(y - centerY) > tolerance) return false;
             }
         }
