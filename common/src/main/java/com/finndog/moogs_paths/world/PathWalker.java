@@ -47,51 +47,81 @@ public final class PathWalker {
             waypoints.add(next);
             current = next;
             distanceWalked += stepDist;
-            if(heightAt != null && pathType.slopeAvoidance() > 0f)
-                dir = slopeAwareSteer(current, dir, pathType, random, heightAt, stepDist);
-            else
+            if(heightAt != null) {
+                PathDirection steered = terrainAwareSteer(current, dir, pathType, random, heightAt, stepDist);
+                if(steered == null) break;
+                dir = steered;
+            }
+            else {
                 dir = steer(dir, pathType.curviness(), random);
+            }
         }
 
         return waypoints;
     }
 
-    private static PathDirection slopeAwareSteer(BlockPos current, PathDirection dir, PathType pathType, RandomSource random, BiFunction<Integer, Integer, Integer> heightAt, int stepDist) {
+    // scores all 16 directions and returns the best one, or null if all are impassable
+    private static PathDirection terrainAwareSteer(BlockPos current, PathDirection dir, PathType pathType, RandomSource random, BiFunction<Integer, Integer, Integer> heightAt, int stepDist) {
         int currentY = heightAt.apply(current.getX(), current.getZ());
-        if (currentY < 0) return steer(dir, pathType.curviness(), random);
+        if(currentY < 0) return steer(dir, pathType.curviness(), random);
 
-        PathDirection best = steer(dir, pathType.curviness(), random);
-        int bestSlope = slopeOf(best, current, currentY, heightAt, stepDist);
+        int maxSlope = pathType.maxSlopePerStep();
+        float slopeWeight = pathType.slopeCostWeight();
+        float curviness = pathType.curviness();
 
-        for(int i = 0; i < 2; i++) {
-            PathDirection alt = steer(dir, pathType.curviness(), random);
-            int altSlope = slopeOf(alt, current, currentY, heightAt, stepDist);
-            if(altSlope < bestSlope && random.nextFloat() < pathType.slopeAvoidance()) {
-                best = alt;
-                bestSlope = altSlope;
+        PathDirection best = null;
+        float bestScore = Float.MAX_VALUE;
+
+        int currentOrdinal = dir.ordinal();
+
+        for(PathDirection candidate : PathDirection.VALUES) {
+            int nextY = heightAt.apply(
+                current.getX() + candidate.dx * stepDist,
+                current.getZ() + candidate.dz * stepDist
+            );
+            if(nextY < 0) continue;
+
+            int slope = Math.abs(nextY - currentY);
+            if(maxSlope > 0 && slope > maxSlope) continue;
+
+            float slopeScore;
+            if(maxSlope > 0) {
+                slopeScore = (float) slope / maxSlope;
+            }
+            else {
+                slopeScore = slope / 16f;
+            }
+
+            int ordinalDist = Math.abs(candidate.ordinal() - currentOrdinal);
+            int angularDist = Math.min(ordinalDist, 16 - ordinalDist);
+            float dirScore = (angularDist / 8f) * (1f - curviness);
+
+            float noise = random.nextFloat() * 0.15f;
+            float totalScore = slopeScore * slopeWeight + dirScore * (1f - slopeWeight) + noise;
+
+            if(totalScore < bestScore) {
+                bestScore = totalScore;
+                best = candidate;
             }
         }
 
         return best;
     }
 
-    private static int slopeOf(PathDirection dir, BlockPos current, int currentY, BiFunction<Integer, Integer, Integer> heightAt, int stepDist) {
-        int nextY = heightAt.apply(current.getX() + dir.dx * stepDist, current.getZ() + dir.dz * stepDist);
-        if (nextY < 0) return 0;
-        return Math.abs(nextY - currentY);
-    }
-
+    // always consumes exactly 3 randoms. Required for deterministic multi-chunk path generation
     private static PathDirection steer(PathDirection current, float curviness, RandomSource random) {
         float roll = random.nextFloat();
+        float turnRoll = random.nextFloat();
+        boolean flip = random.nextBoolean();
+
         if(roll > curviness) return current;
 
         int steps;
-        float turnRoll = random.nextFloat();
         if(turnRoll < 0.5f) steps = 1;
         else if(turnRoll < 0.85f) steps = 2;
         else steps = 3;
 
-        if(random.nextBoolean()) steps = -steps;
+        if(flip) steps = -steps;
         return current.rotate(steps);
     }
 

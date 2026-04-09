@@ -9,7 +9,8 @@
   "fill_block": "minecraft:dirt",
   "width": { "min": 2, "max": 3 },
   "curviness": 0.45,
-  "slope_avoidance": 0.65,
+  "max_slope_per_step": 5,
+  "slope_cost_weight": 0.6,
   "slope_handling": { "cut_tolerance": 3, "fill_tolerance": 2 },
   "fade": { "start_blocks": 12, "end_blocks": 20 }
 }

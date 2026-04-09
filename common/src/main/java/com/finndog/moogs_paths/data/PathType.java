@@ -12,7 +12,8 @@ public record PathType(
     ResourceLocation fillBlock,
     WidthRange width,
     float curviness,
-    float slopeAvoidance,
+    int maxSlopePerStep,
+    float slopeCostWeight,
     SlopeHandling slopeHandling,
     FadeSettings fade
 ) {
@@ -50,7 +51,8 @@ public record PathType(
         ResourceLocation.CODEC.fieldOf("fill_block").forGetter(PathType::fillBlock),
         WidthRange.CODEC.fieldOf("width").forGetter(PathType::width),
         Codec.FLOAT.fieldOf("curviness").forGetter(PathType::curviness),
-        Codec.FLOAT.optionalFieldOf("slope_avoidance", 0.0f).forGetter(PathType::slopeAvoidance),
+        Codec.INT.optionalFieldOf("max_slope_per_step", 0).forGetter(PathType::maxSlopePerStep),
+        Codec.FLOAT.optionalFieldOf("slope_cost_weight", 0.0f).forGetter(PathType::slopeCostWeight),
         SlopeHandling.CODEC.fieldOf("slope_handling").forGetter(PathType::slopeHandling),
         FadeSettings.CODEC.fieldOf("fade").forGetter(PathType::fade)
     ).apply(instance, PathType::new));
