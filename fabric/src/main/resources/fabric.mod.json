@@ -1,6 +1,6 @@
 {
     "schemaVersion": 1,
-    "id": "mod_id",
+    "id": "moogs_paths",
     "version": "${version}",
     "name": "${mod_name}",
     "description": "${description}",
@@ -8,11 +8,12 @@
         "${mod_author}"
     ],
     "contact": {
-        "homepage": "https://fabricmc.net/",
-        "sources": "https://github.com/FabricMC/fabric-example-mod"
+        "homepage": "https://github.com/FinnSetchell/MoogsPaths",
+        "sources": "https://github.com/FinnSetchell/MoogsPaths",
+        "discord": "https://discord.gg/S5nffJbuvA"
     },
     "license": "${license}",
-    "icon": "assets/modid/${mod_id}.png",
+    "icon": "assets/moogs_paths/icon.png",
     "environment": "*",
     "entrypoints": {
         "main": [
@@ -28,9 +29,6 @@
         "fabric": "*",
         "minecraft": "${minecraft_version}",
         "java": ">=17"
-    },
-    "suggests": {
-        "another-mod": "*"
     }
 }
   
