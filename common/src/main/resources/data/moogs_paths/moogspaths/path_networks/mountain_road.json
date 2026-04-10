@@ -1,0 +1,16 @@
+{
+  "path_type": "moogs_paths:mountain_cobble_road",
+  "scale": "local",
+  "biome_filter": {
+    "type": "any"
+  },
+  "weight": 10,
+  "region_size": 32,
+  "branches": {
+    "min_branches": 1,
+    "max_branches": 2,
+    "length_fraction": 0.5
+  },
+  "structure_sets": [],
+  "feature_decorator_sets": []
+}

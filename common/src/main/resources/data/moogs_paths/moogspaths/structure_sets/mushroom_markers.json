@@ -1,7 +1,7 @@
 {
   "structures": [
     {
-      "nbt": "moogs_paths:stone_marker",
+      "nbt": "moogs_paths:mushroom_marker",
       "rotation": "random",
       "weight": 1,
       "offset": [

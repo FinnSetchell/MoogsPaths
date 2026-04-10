@@ -1,11 +1,14 @@
 {
-  "path_type": "moogs_paths:forest_dirt_trail",
+  "path_type": "moogs_paths:birch_forest_trail",
   "scale": "local",
   "biome_filter": {
-    "type": "tag",
-    "tag": "minecraft:is_forest"
+    "type": "whitelist",
+    "biomes": [
+      "minecraft:birch_forest",
+      "minecraft:old_growth_birch_forest"
+    ]
   },
-  "weight": 10,
+  "weight": 12,
   "region_size": 32,
   "branches": {
     "min_branches": 1,
@@ -20,7 +23,7 @@
   ],
   "feature_decorator_sets": [
     {
-      "id": "moogs_paths:forest_edge_flora",
+      "id": "moogs_paths:birch_edge_flora",
       "weight": 1
     }
   ]

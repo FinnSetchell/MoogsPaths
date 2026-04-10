@@ -1,15 +1,23 @@
 {
   "surface_blocks": [
     {
-      "block": "minecraft:dirt_path",
-      "weight": 4
+      "block": "minecraft:coarse_dirt",
+      "weight": 3
     },
     {
-      "block": "minecraft:coarse_dirt",
+      "block": "minecraft:dirt_path",
+      "weight": 2
+    },
+    {
+      "block": "minecraft:gravel",
       "weight": 1
     }
   ],
   "edge_blocks": [
+    {
+      "block": "minecraft:dirt",
+      "weight": 2
+    },
     {
       "block": "minecraft:grass_block",
       "weight": 1
@@ -20,9 +28,9 @@
     "min": 2,
     "max": 3
   },
-  "curviness": 0.45,
-  "max_slope_per_step": 2,
-  "slope_cost_weight": 0.9,
+  "curviness": 0.3,
+  "max_slope_per_step": 5,
+  "slope_cost_weight": 0.5,
   "slope_handling": {
     "cut_tolerance": 3,
     "fill_tolerance": 2

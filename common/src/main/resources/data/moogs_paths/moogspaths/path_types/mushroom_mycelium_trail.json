@@ -1,7 +1,7 @@
 {
   "surface_blocks": [
     {
-      "block": "minecraft:dirt_path",
+      "block": "minecraft:mycelium",
       "weight": 4
     },
     {
@@ -11,24 +11,24 @@
   ],
   "edge_blocks": [
     {
-      "block": "minecraft:grass_block",
+      "block": "minecraft:mycelium",
       "weight": 1
     }
   ],
   "fill_block": "minecraft:dirt",
   "width": {
-    "min": 2,
-    "max": 3
+    "min": 1,
+    "max": 2
   },
-  "curviness": 0.45,
-  "max_slope_per_step": 2,
-  "slope_cost_weight": 0.9,
+  "curviness": 0.5,
+  "max_slope_per_step": 3,
+  "slope_cost_weight": 0.5,
   "slope_handling": {
-    "cut_tolerance": 3,
+    "cut_tolerance": 2,
     "fill_tolerance": 2
   },
   "fade": {
-    "start_blocks": 12,
-    "end_blocks": 20
+    "start_blocks": 8,
+    "end_blocks": 14
   }
 }

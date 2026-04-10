@@ -1,0 +1,19 @@
+{
+  "features": [
+    {
+      "feature": "minecraft:flower_plains",
+      "weight": 2
+    },
+    {
+      "feature": "minecraft:flower_forest",
+      "weight": 1
+    },
+    {
+      "feature": "minecraft:patch_grass",
+      "weight": 1
+    }
+  ],
+  "density": 0.2,
+  "side": "both",
+  "scatter_width": 4
+}

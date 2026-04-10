@@ -1,7 +1,7 @@
 {
   "structures": [
     {
-      "nbt": "moogs_paths:stone_marker",
+      "nbt": "moogs_paths:swamp_post",
       "rotation": "random",
       "weight": 1,
       "offset": [
@@ -12,7 +12,7 @@
     }
   ],
   "placement": "interval",
-  "spacing": 64,
-  "spacing_variance": 32,
-  "flatness_tolerance": 3
+  "spacing": 72,
+  "spacing_variance": 36,
+  "flatness_tolerance": 2
 }

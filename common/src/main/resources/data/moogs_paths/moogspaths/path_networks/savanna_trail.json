@@ -1,12 +1,12 @@
 {
-  "path_type": "moogs_paths:forest_dirt_trail",
+  "path_type": "moogs_paths:savanna_dirt_trail",
   "scale": "local",
   "biome_filter": {
     "type": "tag",
-    "tag": "minecraft:is_forest"
+    "tag": "minecraft:is_savanna"
   },
   "weight": 10,
-  "region_size": 32,
+  "region_size": 40,
   "branches": {
     "min_branches": 1,
     "max_branches": 2,
@@ -14,13 +14,13 @@
   },
   "structure_sets": [
     {
-      "id": "moogs_paths:stone_markers",
+      "id": "moogs_paths:savanna_posts",
       "weight": 1
     }
   ],
   "feature_decorator_sets": [
     {
-      "id": "moogs_paths:forest_edge_flora",
+      "id": "moogs_paths:savanna_edge_scrub",
       "weight": 1
     }
   ]

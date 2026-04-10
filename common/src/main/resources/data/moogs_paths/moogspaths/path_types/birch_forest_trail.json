@@ -2,7 +2,7 @@
   "surface_blocks": [
     {
       "block": "minecraft:dirt_path",
-      "weight": 4
+      "weight": 3
     },
     {
       "block": "minecraft:coarse_dirt",
@@ -20,9 +20,9 @@
     "min": 2,
     "max": 3
   },
-  "curviness": 0.45,
-  "max_slope_per_step": 2,
-  "slope_cost_weight": 0.9,
+  "curviness": 0.35,
+  "max_slope_per_step": 4,
+  "slope_cost_weight": 0.55,
   "slope_handling": {
     "cut_tolerance": 3,
     "fill_tolerance": 2

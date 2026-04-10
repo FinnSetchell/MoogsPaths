@@ -1,8 +1,8 @@
 {
   "surface_blocks": [
     {
-      "block": "minecraft:dirt_path",
-      "weight": 4
+      "block": "minecraft:podzol",
+      "weight": 3
     },
     {
       "block": "minecraft:coarse_dirt",
@@ -20,15 +20,15 @@
     "min": 2,
     "max": 3
   },
-  "curviness": 0.45,
-  "max_slope_per_step": 2,
-  "slope_cost_weight": 0.9,
+  "curviness": 0.4,
+  "max_slope_per_step": 5,
+  "slope_cost_weight": 0.65,
   "slope_handling": {
     "cut_tolerance": 3,
     "fill_tolerance": 2
   },
   "fade": {
-    "start_blocks": 12,
-    "end_blocks": 20
+    "start_blocks": 10,
+    "end_blocks": 16
   }
 }

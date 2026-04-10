@@ -1,0 +1,42 @@
+{
+  "surface_blocks": [
+    {
+      "block": "minecraft:coarse_dirt",
+      "weight": 3
+    },
+    {
+      "block": "minecraft:mud",
+      "weight": 2
+    },
+    {
+      "block": "minecraft:dirt",
+      "weight": 1
+    }
+  ],
+  "edge_blocks": [
+    {
+      "block": "minecraft:moss_block",
+      "weight": 2
+    },
+    {
+      "block": "minecraft:grass_block",
+      "weight": 1
+    }
+  ],
+  "fill_block": "minecraft:dirt",
+  "width": {
+    "min": 1,
+    "max": 2
+  },
+  "curviness": 0.65,
+  "max_slope_per_step": 4,
+  "slope_cost_weight": 0.8,
+  "slope_handling": {
+    "cut_tolerance": 2,
+    "fill_tolerance": 1
+  },
+  "fade": {
+    "start_blocks": 8,
+    "end_blocks": 14
+  }
+}

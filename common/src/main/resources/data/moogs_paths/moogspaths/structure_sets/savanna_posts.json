@@ -1,0 +1,38 @@
+{
+  "structures": [
+    {
+      "nbt": "moogs_paths:savana_post_1",
+      "rotation": "random",
+      "weight": 1,
+      "offset": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "nbt": "moogs_paths:savana_post_2",
+      "rotation": "random",
+      "weight": 1,
+      "offset": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "nbt": "moogs_paths:savana_post_3",
+      "rotation": "random",
+      "weight": 1,
+      "offset": [
+        0,
+        0,
+        0
+      ]
+    }
+  ],
+  "placement": "interval",
+  "spacing": 64,
+  "spacing_variance": 32,
+  "flatness_tolerance": 3
+}

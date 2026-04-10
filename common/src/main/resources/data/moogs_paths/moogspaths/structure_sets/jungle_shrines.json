@@ -1,7 +1,7 @@
 {
   "structures": [
     {
-      "nbt": "moogs_paths:stone_marker",
+      "nbt": "moogs_paths:jungle_shrine",
       "rotation": "random",
       "weight": 1,
       "offset": [
@@ -12,7 +12,7 @@
     }
   ],
   "placement": "interval",
-  "spacing": 64,
-  "spacing_variance": 32,
+  "spacing": 80,
+  "spacing_variance": 40,
   "flatness_tolerance": 3
 }

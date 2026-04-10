@@ -1,0 +1,38 @@
+{
+  "surface_blocks": [
+    {
+      "block": "minecraft:sandstone",
+      "weight": 3
+    },
+    {
+      "block": "minecraft:smooth_sandstone",
+      "weight": 1
+    },
+    {
+      "block": "minecraft:sand",
+      "weight": 2
+    }
+  ],
+  "edge_blocks": [
+    {
+      "block": "minecraft:sand",
+      "weight": 1
+    }
+  ],
+  "fill_block": "minecraft:sandstone",
+  "width": {
+    "min": 3,
+    "max": 5
+  },
+  "curviness": 0.15,
+  "max_slope_per_step": 2,
+  "slope_cost_weight": 0.3,
+  "slope_handling": {
+    "cut_tolerance": 3,
+    "fill_tolerance": 3
+  },
+  "fade": {
+    "start_blocks": 14,
+    "end_blocks": 24
+  }
+}

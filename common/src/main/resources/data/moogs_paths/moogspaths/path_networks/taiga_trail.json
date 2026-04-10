@@ -1,9 +1,9 @@
 {
-  "path_type": "moogs_paths:forest_dirt_trail",
+  "path_type": "moogs_paths:taiga_podzol_path",
   "scale": "local",
   "biome_filter": {
     "type": "tag",
-    "tag": "minecraft:is_forest"
+    "tag": "minecraft:is_taiga"
   },
   "weight": 10,
   "region_size": 32,
@@ -14,13 +14,13 @@
   },
   "structure_sets": [
     {
-      "id": "moogs_paths:stone_markers",
+      "id": "moogs_paths:taiga_markers",
       "weight": 1
     }
   ],
   "feature_decorator_sets": [
     {
-      "id": "moogs_paths:forest_edge_flora",
+      "id": "moogs_paths:taiga_edge_flora",
       "weight": 1
     }
   ]

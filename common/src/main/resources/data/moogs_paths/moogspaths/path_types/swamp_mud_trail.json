@@ -1,0 +1,39 @@
+{
+  "surface_blocks": [
+    { "block": "minecraft:mud", "weight": 3 },
+    { "block": "minecraft:clay", "weight": 1 },
+    { "block": "minecraft:dirt", "weight": 1 }
+  ],
+  "edge_blocks": [
+    { "block": "minecraft:moss_block", "weight": 2 },
+    { "block": "minecraft:clay", "weight": 1 }
+  ],
+  "fill_block": "minecraft:mud",
+  "width": {
+    "min": 1,
+    "max": 2
+  },
+  "curviness": 0.6,
+  "max_slope_per_step": 2,
+  "slope_cost_weight": 0.4,
+  "slope_handling": {
+    "cut_tolerance": 1,
+    "fill_tolerance": 1
+  },
+  "fade": {
+    "start_blocks": 8,
+    "end_blocks": 12
+  },
+  "water_settings": {
+    "surface_blocks": [
+      { "block": "minecraft:dark_oak_planks", "weight": 3 },
+      { "block": "minecraft:spruce_planks", "weight": 2 },
+      { "block": "minecraft:oak_planks", "weight": 1 }
+    ],
+    "edge_blocks": [
+      { "block": "minecraft:dark_oak_slab", "weight": 2, "properties": { "type": "top" } },
+      { "block": "minecraft:dark_oak_fence", "weight": 1 },
+      { "block": "minecraft:air", "weight": 3 }
+    ]
+  }
+}

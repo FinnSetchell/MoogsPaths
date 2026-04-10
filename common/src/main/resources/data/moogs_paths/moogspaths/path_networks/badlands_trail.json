@@ -1,9 +1,9 @@
 {
-  "path_type": "moogs_paths:forest_dirt_trail",
+  "path_type": "moogs_paths:badlands_terracotta_trail",
   "scale": "local",
   "biome_filter": {
     "type": "tag",
-    "tag": "minecraft:is_forest"
+    "tag": "minecraft:is_badlands"
   },
   "weight": 10,
   "region_size": 32,
@@ -14,14 +14,9 @@
   },
   "structure_sets": [
     {
-      "id": "moogs_paths:stone_markers",
+      "id": "moogs_paths:badlands_markers",
       "weight": 1
     }
   ],
-  "feature_decorator_sets": [
-    {
-      "id": "moogs_paths:forest_edge_flora",
-      "weight": 1
-    }
-  ]
+  "feature_decorator_sets": []
 }

@@ -1,25 +1,23 @@
 {
-  "path_type": "moogs_paths:plains_gravel_road",
+  "path_type": "moogs_paths:meadow_grass_trail",
   "scale": "local",
   "biome_filter": {
     "type": "whitelist",
     "biomes": [
-      "minecraft:plains",
       "minecraft:meadow"
     ]
   },
-  "weight": 5,
-  "region_size": 48,
+  "weight": 10,
+  "region_size": 40,
   "branches": {
     "min_branches": 0,
     "max_branches": 1,
     "length_fraction": 0.4
   },
   "structure_sets": [],
-  "feature_decorator_sets": [],
-  "bush_decorator_sets": [
+  "feature_decorator_sets": [
     {
-      "id": "moogs_paths:plains_bushes",
+      "id": "moogs_paths:meadow_edge_flowers",
       "weight": 1
     }
   ]

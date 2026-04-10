@@ -1,0 +1,38 @@
+{
+  "surface_blocks": [
+    {
+      "block": "minecraft:snow_block",
+      "weight": 3
+    },
+    {
+      "block": "minecraft:packed_ice",
+      "weight": 2
+    },
+    {
+      "block": "minecraft:ice",
+      "weight": 1
+    }
+  ],
+  "edge_blocks": [
+    {
+      "block": "minecraft:snow_block",
+      "weight": 1
+    }
+  ],
+  "fill_block": "minecraft:snow_block",
+  "width": {
+    "min": 2,
+    "max": 3
+  },
+  "curviness": 0.3,
+  "max_slope_per_step": 6,
+  "slope_cost_weight": 0.7,
+  "slope_handling": {
+    "cut_tolerance": 3,
+    "fill_tolerance": 2
+  },
+  "fade": {
+    "start_blocks": 10,
+    "end_blocks": 18
+  }
+}
