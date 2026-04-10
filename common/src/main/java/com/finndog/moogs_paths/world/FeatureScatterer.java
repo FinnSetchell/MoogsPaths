@@ -35,42 +35,58 @@ public final class FeatureScatterer {
     private static void scatterSet(WorldGenLevel level, ChunkGenerator generator, Registry<PlacedFeature> featureRegistry, List<BlockPos> waypoints, FeatureDecoratorSet set, int chunkX, int chunkZ, RandomSource random) {
         if(waypoints.size() < 2) return;
 
+        int reach = set.scatterWidth() + 1;
+
         for(int i = 0; i < waypoints.size() - 1; i++) {
             BlockPos from = waypoints.get(i);
             BlockPos to = waypoints.get(i + 1);
 
-            int segDx = to.getX() - from.getX();
-            int segDz = to.getZ() - from.getZ();
-            int perpX = -segDz;
-            int perpZ = segDx;
-            float perpLen = (float) Math.sqrt(perpX * perpX + perpZ * perpZ);
-            if(perpLen == 0) continue;
+            // Per-segment seed for cross-chunk consistency and skipping
+            long segmentSeed = random.nextLong();
+            if(!mightIntersect(from, to, reach, chunkX, chunkZ)) continue;
 
-            bresenham(from.getX(), from.getZ(), to.getX(), to.getZ(), (cx, cz) -> {
-                if(random.nextFloat() >= set.density()) return;
+            RandomSource segRandom = RandomSource.create(segmentSeed);
+            int dx = to.getX() - from.getX();
+            int dz = to.getZ() - from.getZ();
+            float length = (float) Math.sqrt(dx * dx + dz * dz);
+            if(length == 0) continue;
 
-                PlacedFeature feature = pickWeighted(set.features(), featureRegistry, random);
-                if(feature == null) return;
+            float parX = dx / length;
+            float parZ = dz / length;
+            float perpX = -parZ;
+            float perpZ = parX;
 
-                int side = sideSign(set.side(), random);
-                if(side == 0) {
-                    tryPlace(level, generator, feature, cx, cz, chunkX, chunkZ, random);
-                    return;
+            for(int d = 0; d < (int) length; d++) {
+                if(segRandom.nextFloat() >= set.density()) continue;
+
+                PlacedFeature feature = pickWeighted(set.features(), featureRegistry, segRandom);
+                if(feature == null) continue;
+
+                int side = sideSign(set.side(), segRandom);
+                int offset = side == 0 ? 0 : 1 + (set.scatterWidth() > 1 ? segRandom.nextInt(set.scatterWidth()) : 0);
+
+                int bx = from.getX() + Math.round(parX * d + perpX * offset * side);
+                int bz = from.getZ() + Math.round(parZ * d + perpZ * offset * side);
+
+                if((bx >> 4) == chunkX && (bz >> 4) == chunkZ) {
+                    tryPlace(level, generator, feature, bx, bz, segRandom);
                 }
-
-                int offset = 1 + (set.scatterWidth() > 1 ? random.nextInt(set.scatterWidth()) : 0);
-                int bx = cx + Math.round(perpX / perpLen * offset * side);
-                int bz = cz + Math.round(perpZ / perpLen * offset * side);
-                tryPlace(level, generator, feature, bx, bz, chunkX, chunkZ, random);
-            });
+            }
         }
     }
 
-    private static void tryPlace(WorldGenLevel level, ChunkGenerator generator, PlacedFeature feature, int bx, int bz, int chunkX, int chunkZ, RandomSource random) {
-        if((bx >> 4) != chunkX || (bz >> 4) != chunkZ) return;
+    private static void tryPlace(WorldGenLevel level, ChunkGenerator generator, PlacedFeature feature, int bx, int bz, RandomSource random) {
         int sy = level.getHeight(Heightmap.Types.WORLD_SURFACE, bx, bz);
         if(sy <= level.getMinBuildHeight()) return;
         feature.feature().value().place(level, generator, random, new BlockPos(bx, sy, bz));
+    }
+
+    private static boolean mightIntersect(BlockPos from, BlockPos to, int reach, int chunkX, int chunkZ) {
+        int minX = Math.min(from.getX(), to.getX()) - reach;
+        int maxX = Math.max(from.getX(), to.getX()) + reach;
+        int minZ = Math.min(from.getZ(), to.getZ()) - reach;
+        int maxZ = Math.max(from.getZ(), to.getZ()) + reach;
+        return maxX >= chunkX * 16 && minX <= chunkX * 16 + 15 && maxZ >= chunkZ * 16 && minZ <= chunkZ * 16 + 15;
     }
 
     private static int sideSign(FeatureDecoratorSet.Side side, RandomSource random) {
@@ -96,26 +112,5 @@ public final class FeatureScatterer {
             }
         }
         return null;
-    }
-
-    private static void bresenham(int x1, int z1, int x2, int z2, XZConsumer fn) {
-        int dx = Math.abs(x2 - x1);
-        int dz = Math.abs(z2 - z1);
-        int sx = x1 < x2 ? 1 : -1;
-        int sz = z1 < z2 ? 1 : -1;
-        int err = dx - dz;
-        int x = x1, z = z1;
-        while(true) {
-            fn.accept(x, z);
-            if(x == x2 && z == z2) break;
-            int e2 = 2 * err;
-            if(e2 > -dz) { err -= dz; x += sx; }
-            if(e2 < dx) { err += dx; z += sz; }
-        }
-    }
-
-    @FunctionalInterface
-    private interface XZConsumer {
-        void accept(int x, int z);
     }
 }
