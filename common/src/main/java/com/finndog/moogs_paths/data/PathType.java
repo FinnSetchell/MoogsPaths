@@ -5,6 +5,8 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 public record PathType(
     List<WeightedBlock> surfaceBlocks,
@@ -15,12 +17,14 @@ public record PathType(
     int maxSlopePerStep,
     float slopeCostWeight,
     SlopeHandling slopeHandling,
-    FadeSettings fade
+    FadeSettings fade,
+    Optional<WaterSettings> waterSettings
 ) {
-    public record WeightedBlock(ResourceLocation block, int weight) {
+    public record WeightedBlock(ResourceLocation block, int weight, Map<String, String> properties) {
         public static final Codec<WeightedBlock> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             ResourceLocation.CODEC.fieldOf("block").forGetter(WeightedBlock::block),
-            Codec.INT.fieldOf("weight").forGetter(WeightedBlock::weight)
+            Codec.INT.fieldOf("weight").forGetter(WeightedBlock::weight),
+            Codec.unboundedMap(Codec.STRING, Codec.STRING).optionalFieldOf("properties", Map.of()).forGetter(WeightedBlock::properties)
         ).apply(instance, WeightedBlock::new));
     }
 
@@ -45,6 +49,13 @@ public record PathType(
         ).apply(instance, FadeSettings::new));
     }
 
+    public record WaterSettings(List<WeightedBlock> surfaceBlocks, List<WeightedBlock> edgeBlocks) {
+        public static final Codec<WaterSettings> CODEC = RecordCodecBuilder.create(instance -> instance.group(
+            Codec.list(WeightedBlock.CODEC).fieldOf("surface_blocks").forGetter(WaterSettings::surfaceBlocks),
+            Codec.list(WeightedBlock.CODEC).fieldOf("edge_blocks").forGetter(WaterSettings::edgeBlocks)
+        ).apply(instance, WaterSettings::new));
+    }
+
     public static final Codec<PathType> CODEC = RecordCodecBuilder.create(instance -> instance.group(
         Codec.list(WeightedBlock.CODEC).fieldOf("surface_blocks").forGetter(PathType::surfaceBlocks),
         Codec.list(WeightedBlock.CODEC).fieldOf("edge_blocks").forGetter(PathType::edgeBlocks),
@@ -54,6 +65,7 @@ public record PathType(
         Codec.INT.optionalFieldOf("max_slope_per_step", 0).forGetter(PathType::maxSlopePerStep),
         Codec.FLOAT.optionalFieldOf("slope_cost_weight", 0.0f).forGetter(PathType::slopeCostWeight),
         SlopeHandling.CODEC.fieldOf("slope_handling").forGetter(PathType::slopeHandling),
-        FadeSettings.CODEC.fieldOf("fade").forGetter(PathType::fade)
+        FadeSettings.CODEC.fieldOf("fade").forGetter(PathType::fade),
+        WaterSettings.CODEC.optionalFieldOf("water_settings").forGetter(PathType::waterSettings)
     ).apply(instance, PathType::new));
 }

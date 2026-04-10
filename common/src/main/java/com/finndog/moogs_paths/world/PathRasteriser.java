@@ -8,20 +8,17 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.level.levelgen.Heightmap;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public final class PathRasteriser {
     private PathRasteriser() {}
-
-    @FunctionalInterface
-    private interface XZConsumer {
-        void accept(int x, int z);
-    }
 
     //////////////////////////////
 
@@ -31,16 +28,40 @@ public final class PathRasteriser {
         int stepDist = PathWalker.stepDistance(pathType.width().max());
         int totalSegments = waypoints.size() - 1;
 
+        // Pre-scan water positions before any blocks are placed so later segments
+        // don't see planks placed by earlier segments and misdetect them as land.
+        Set<Long> waterPositions = pathType.waterSettings().isPresent()
+            ? scanWaterPositions(level, chunkX, chunkZ)
+            : null;
+
         for(int i = 0; i < totalSegments; i++) {
             BlockPos from = waypoints.get(i);
             BlockPos to = waypoints.get(i + 1);
             if(!mightIntersect(from, to, halfWidth, chunkX, chunkZ)) continue;
             float fade = fadeFactor(pathType, i, totalSegments, stepDist);
-            rasteriseSegmentInChunk(level, from, to, pathType, halfWidth, fade, chunkX, chunkZ, random);
+            rasteriseSegmentInChunk(level, from, to, pathType, halfWidth, fade, chunkX, chunkZ, random, waterPositions);
         }
     }
 
-    private static void rasteriseSegmentInChunk(WorldGenLevel level, BlockPos from, BlockPos to, PathType pathType, int halfWidth, float fade, int chunkX, int chunkZ, RandomSource random) {
+    // Scans every surface position in the chunk and records which ones have fluid at sy-1.
+    private static Set<Long> scanWaterPositions(WorldGenLevel level, int chunkX, int chunkZ) {
+        Set<Long> result = new HashSet<>();
+        int minX = chunkX * 16;
+        int minZ = chunkZ * 16;
+        BlockPos.MutableBlockPos mpos = new BlockPos.MutableBlockPos();
+        for(int x = minX; x < minX + 16; x++) {
+            for(int z = minZ; z < minZ + 16; z++) {
+                int sy = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+                mpos.set(x, sy - 1, z);
+                if(!level.getFluidState(mpos).isEmpty()) {
+                    result.add((long) x << 32 | (z & 0xFFFFFFFFL));
+                }
+            }
+        }
+        return result;
+    }
+
+    private static void rasteriseSegmentInChunk(WorldGenLevel level, BlockPos from, BlockPos to, PathType pathType, int halfWidth, float fade, int chunkX, int chunkZ, RandomSource random, Set<Long> waterPositions) {
         int chunkMinX = chunkX * 16;
         int chunkMaxX = chunkMinX + 15;
         int chunkMinZ = chunkZ * 16;
@@ -52,7 +73,7 @@ public final class PathRasteriser {
 
         Set<Long> centerPositions = new HashSet<>();
         List<Long> processPoints = new ArrayList<>();
-        bresenham(from.getX(), from.getZ(), to.getX(), to.getZ(), (cx, cz) -> {
+        PathGeometryUtils.bresenham(from.getX(), from.getZ(), to.getX(), to.getZ(), (cx, cz) -> {
             long key = (long) cx << 32 | (cz & 0xFFFFFFFFL);
             if(cx >= chunkMinX && cx <= chunkMaxX && cz >= chunkMinZ && cz <= chunkMaxZ)
                 centerPositions.add(key);
@@ -70,6 +91,7 @@ public final class PathRasteriser {
 
             int centerY = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, cx, cz);
             if(centerY <= level.getMinBuildHeight()) continue;
+            int centerEffectiveY = centerY - 1;
 
             for(int ox = -halfWidth; ox <= halfWidth; ox++) {
                 for(int oz = -halfWidth; oz <= halfWidth; oz++) {
@@ -82,21 +104,45 @@ public final class PathRasteriser {
 
                     int sy = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, bx, bz);
                     if(sy <= level.getMinBuildHeight()) continue;
-                    mpos.set(bx, sy - 1, bz);
-                    if(!level.getFluidState(mpos).isEmpty()) continue;
 
-                    int diff = sy - centerY;
+                    long posKey = (long) bx << 32 | (bz & 0xFFFFFFFFL);
+                    boolean isWater = waterPositions != null && waterPositions.contains(posKey);
+                    if(!isWater && waterPositions != null) {
+                        // allowWater path but this tile is land — fall through to normal logic
+                    }
+                    else if(waterPositions == null) {
+                        // no water settings — check live for the skip-if-fluid guard
+                        mpos.set(bx, sy - 1, bz);
+                        if(!level.getFluidState(mpos).isEmpty()) continue;
+                    }
+
+                    int diff = (sy - 1) - centerEffectiveY;
                     if(diff > pathType.slopeHandling().cutTolerance()) continue;
                     if(-diff > fillTolerance) continue;
 
-                    long posKey = (long) bx << 32 | (bz & 0xFFFFFFFFL);
-                    if(halfWidth > 0 && manhattan == halfWidth && !pathType.edgeBlocks().isEmpty()
-                            && !centerPositions.contains(posKey)) {
-                        level.setBlock(mpos, pick(pathType.edgeBlocks(), random), Block.UPDATE_CLIENTS);
+                    mpos.set(bx, sy - 1, bz);
+                    boolean isEdge = halfWidth > 0 && manhattan == halfWidth && !centerPositions.contains(posKey);
+
+                    if(isWater) {
+                        PathType.WaterSettings ws = pathType.waterSettings().get();
+                        List<PathType.WeightedBlock> waterBlocks = isEdge && !ws.edgeBlocks().isEmpty() ? ws.edgeBlocks() : ws.surfaceBlocks();
+                        BlockState picked = pick(waterBlocks, random);
+                        if(!picked.isAir()) {
+                            level.setBlock(mpos, picked, 3);
+                        }
+                    }
+                    else if(isEdge && !pathType.edgeBlocks().isEmpty()) {
+                        BlockState edgeState = pick(pathType.edgeBlocks(), random);
+                        if(!edgeState.isAir()) {
+                            level.setBlock(mpos, edgeState, 3);
+                        }
                     }
                     else {
-                        level.setBlock(mpos, pick(pathType.surfaceBlocks(), random), Block.UPDATE_CLIENTS);
-                        fillBelow(level, mpos, bx, sy - 2, bz, fillState, fillTolerance);
+                        BlockState surfaceState = pick(pathType.surfaceBlocks(), random);
+                        if(!surfaceState.isAir()) {
+                            level.setBlock(mpos, surfaceState, 3);
+                            fillBelow(level, mpos, bx, sy - 2, bz, fillState, fillTolerance);
+                        }
                     }
                 }
             }
@@ -107,7 +153,7 @@ public final class PathRasteriser {
         for(int depth = 0; depth < maxFill; depth++) {
             mpos.set(x, startY - depth, z);
             if(level.getBlockState(mpos).isAir()) {
-                level.setBlock(mpos, fillState, Block.UPDATE_CLIENTS);
+                level.setBlock(mpos, fillState, 3);
             }
             else break;
         }
@@ -124,6 +170,7 @@ public final class PathRasteriser {
     }
 
     private static BlockState pick(List<PathType.WeightedBlock> entries, RandomSource random) {
+        if(entries.isEmpty()) return Blocks.AIR.defaultBlockState();
         int total = 0;
         for(PathType.WeightedBlock e : entries) total += e.weight();
         int roll = random.nextInt(Math.max(1, total));
@@ -131,14 +178,31 @@ public final class PathRasteriser {
         for(PathType.WeightedBlock e : entries) {
             cumulative += e.weight();
             if(roll < cumulative) {
-                return BuiltInRegistries.BLOCK.getOptional(e.block())
-                    .orElse(Blocks.DIRT)
-                    .defaultBlockState();
+                Block block = BuiltInRegistries.BLOCK.getOptional(e.block()).orElse(Blocks.DIRT);
+                BlockState state = block.defaultBlockState();
+                for(Map.Entry<String, String> prop : e.properties().entrySet()) {
+                    state = applyProperty(state, prop.getKey(), prop.getValue());
+                }
+                return state;
             }
         }
         return BuiltInRegistries.BLOCK.getOptional(entries.get(0).block())
             .orElse(Blocks.DIRT)
             .defaultBlockState();
+    }
+
+    private static BlockState applyProperty(BlockState state, String key, String value) {
+        for(Property<?> prop : state.getBlock().getStateDefinition().getProperties()) {
+            if(prop.getName().equals(key)) {
+                return tryApplyValue(state, prop, value);
+            }
+        }
+        return state;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <T extends Comparable<T>> BlockState tryApplyValue(BlockState state, Property<T> prop, String value) {
+        return prop.getValue(value).map(v -> state.setValue(prop, v)).orElse(state);
     }
 
     private static boolean mightIntersect(BlockPos from, BlockPos to, int halfWidth, int chunkX, int chunkZ) {
@@ -151,21 +215,5 @@ public final class PathRasteriser {
         int minZ = Math.min(from.getZ(), to.getZ()) - halfWidth;
         int maxZ = Math.max(from.getZ(), to.getZ()) + halfWidth;
         return maxX >= chunkMinX && minX <= chunkMaxX && maxZ >= chunkMinZ && minZ <= chunkMaxZ;
-    }
-
-    private static void bresenham(int x1, int z1, int x2, int z2, XZConsumer fn) {
-        int dx = Math.abs(x2 - x1);
-        int dz = Math.abs(z2 - z1);
-        int sx = x1 < x2 ? 1 : -1;
-        int sz = z1 < z2 ? 1 : -1;
-        int err = dx - dz;
-        int x = x1, z = z1;
-        while(true) {
-            fn.accept(x, z);
-            if(x == x2 && z == z2) break;
-            int e2 = 2 * err;
-            if(e2 > -dz) { err -= dz; x += sx; }
-            if(e2 < dx) { err += dx; z += sz; }
-        }
     }
 }

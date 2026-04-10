@@ -21,9 +21,11 @@ public final class PathWalker {
         var branches = network.branches();
         int branchCount = random.nextInt(Math.max(1, branches.maxBranches() - branches.minBranches() + 1)) + branches.minBranches();
 
-        for(int i = 0; i < branchCount; i++) {
-            BlockPos branchStart = mainPath.get(random.nextInt(mainPath.size()));
-            result.add(walkSingle(branchStart, network, pathType, random, branches.lengthFraction(), heightAt));
+        if(mainPath.size() >= 2) {
+            for(int i = 0; i < branchCount; i++) {
+                BlockPos branchStart = mainPath.get(random.nextInt(mainPath.size()));
+                result.add(walkSingle(branchStart, network, pathType, random, branches.lengthFraction(), heightAt));
+            }
         }
 
         return result;
@@ -34,7 +36,7 @@ public final class PathWalker {
         int targetLength = Math.round((random.nextInt(Math.max(1, scale.lengthMax - scale.lengthMin + 1)) + scale.lengthMin) * lengthFraction);
 
         PathDirection dir = PathDirection.VALUES[random.nextInt(16)];
-        int width = random.nextInt(pathType.width().max() - pathType.width().min() + 1) + pathType.width().min();
+        int width = random.nextInt(Math.max(1, pathType.width().max() - pathType.width().min() + 1)) + pathType.width().min();
         int stepDist = stepDistance(width);
 
         List<BlockPos> waypoints = new ArrayList<>();
@@ -60,7 +62,7 @@ public final class PathWalker {
         return waypoints;
     }
 
-    // scores all 16 directions and returns the best one, or null if all are impassable
+    // returns null if all directions are impassable (dead end)
     private static PathDirection terrainAwareSteer(BlockPos current, PathDirection dir, PathType pathType, RandomSource random, BiFunction<Integer, Integer, Integer> heightAt, int stepDist) {
         int currentY = heightAt.apply(current.getX(), current.getZ());
         if(currentY < 0) return steer(dir, pathType.curviness(), random);
@@ -75,21 +77,32 @@ public final class PathWalker {
         int currentOrdinal = dir.ordinal();
 
         for(PathDirection candidate : PathDirection.VALUES) {
-            int nextY = heightAt.apply(
-                current.getX() + candidate.dx * stepDist,
-                current.getZ() + candidate.dz * stepDist
-            );
-            if(nextY < 0) continue;
+            int maxSlopeSeen = 0;
+            boolean impassable = false;
+            boolean anyLoaded = false;
+            int prevY = currentY;
 
-            int slope = Math.abs(nextY - currentY);
-            if(maxSlope > 0 && slope > maxSlope) continue;
+            for(int t = 1; t <= stepDist; t++) {
+                int sy = heightAt.apply(
+                    current.getX() + candidate.dx * t,
+                    current.getZ() + candidate.dz * t
+                );
+                if(sy < 0) continue;
+                anyLoaded = true;
+                int s = Math.abs(sy - prevY);
+                if(maxSlope > 0 && s > maxSlope) { impassable = true; break; }
+                if(s > maxSlopeSeen) maxSlopeSeen = s;
+                prevY = sy;
+            }
+
+            if(impassable) continue;
 
             float slopeScore;
-            if(maxSlope > 0) {
-                slopeScore = (float) slope / maxSlope;
+            if(!anyLoaded) {
+                slopeScore = 0.5f; // fully unloaded, penalise but don't block
             }
             else {
-                slopeScore = slope / 16f;
+                slopeScore = maxSlope > 0 ? (float) maxSlopeSeen / maxSlope : maxSlopeSeen / 16f;
             }
 
             int ordinalDist = Math.abs(candidate.ordinal() - currentOrdinal);
@@ -108,7 +121,7 @@ public final class PathWalker {
         return best;
     }
 
-    // always consumes exactly 3 randoms. Required for deterministic multi-chunk path generation
+    // always consumes exactly 3 randoms, early return happens after all 3 are consumed
     private static PathDirection steer(PathDirection current, float curviness, RandomSource random) {
         float roll = random.nextFloat();
         float turnRoll = random.nextFloat();
