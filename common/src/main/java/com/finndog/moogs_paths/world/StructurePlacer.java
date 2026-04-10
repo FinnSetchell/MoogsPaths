@@ -91,7 +91,7 @@ public final class StructurePlacer {
             pos.getZ() - sizeZ / 2 + entry.offset()[2]
         );
 
-        template.placeInWorld(level, placementPos, placementPos, settings, level.getRandom(), 2);
+        template.placeInWorld(level, placementPos, placementPos, settings, level.getRandom(), 3);
     }
 
     private static boolean isFlatEnough(WorldGenLevel level, BlockPos center, int tolerance) {

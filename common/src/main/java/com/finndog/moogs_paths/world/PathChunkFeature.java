@@ -17,6 +17,7 @@ import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
 
@@ -37,10 +38,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
 
         int maxRadius = PathDataManager.getNetworksMaxRadius();
 
-        boolean[] placed = {false};
-
-       BlockPos currentCenter = new BlockPos(chunkX * 16 + 8, 64, chunkZ * 16 + 8);
-        Holder<Biome> currentBiome = level.getBiome(currentCenter);
+        AtomicBoolean placed = new AtomicBoolean(false);
 
         for(Map.Entry<Integer, List<PathNetworkType>> entry : byRegionSize.entrySet()) {
             int regionSize = entry.getKey();
@@ -60,7 +58,8 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                     RandomSource pickRandom = RandomSource.create(pathSeed);
                     PathNetworkType network = pickWeighted(networks, pickRandom);
 
-                    if(!network.biomeFilter().test(currentBiome)) return;
+                    Holder<Biome> originBiome = level.getBiome(originPos);
+                    if(!network.biomeFilter().test(originBiome)) return;
 
                     Optional<PathType> pathTypeOpt = PathDataManager.getPathType(network.pathType());
                     if(pathTypeOpt.isEmpty()) {
@@ -69,12 +68,14 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                     }
                     PathType pathType = pathTypeOpt.get();
 
-                    RandomSource walkRandom = RandomSource.create(pathSeed ^ 0x1L);
-                    List<List<BlockPos>> allPaths = PathWalker.walkWithBranches(originPos, network, pathType, walkRandom,
-                        (x, z) -> {
-                            if (Math.abs((x >> 4) - chunkX) > 7 || Math.abs((z >> 4) - chunkZ) > 7) return -1;
-                            return level.getHeight(Heightmap.Types.WORLD_SURFACE_WG, x, z);
-                        });
+                    List<List<BlockPos>> allPaths = PathDataManager.getOrComputeWaypoints(pathSeed, () -> {
+                        RandomSource walkRandom = RandomSource.create(pathSeed ^ 0x1L);
+                        return PathWalker.walkWithBranches(originPos, network, pathType, walkRandom,
+                            (x, z) -> {
+                                if (Math.abs((x >> 4) - chunkX) > 7 || Math.abs((z >> 4) - chunkZ) > 7) return -1;
+                                return level.getHeight(Heightmap.Types.WORLD_SURFACE_WG, x, z);
+                            });
+                    });
 
                     for(int branchIdx = 0; branchIdx < allPaths.size(); branchIdx++) {
                         List<BlockPos> waypoints = allPaths.get(branchIdx);
@@ -95,13 +96,18 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                             RandomSource featureRandom = RandomSource.create(branchSeed ^ 0x6C62272E07BB0142L);
                             FeatureScatterer.scatterInChunk(level, generator, waypoints, network.featureDecoratorSets(), chunkX, chunkZ, featureRandom);
                         }
+
+                        if(!network.bushDecoratorSets().isEmpty()) {
+                            RandomSource bushRandom = RandomSource.create(branchSeed ^ 0x3BFDA1C6E09D2578L);
+                            BushPlacer.placeInChunk(level, waypoints, network.bushDecoratorSets(), chunkX, chunkZ, bushRandom);
+                        }
                     }
 
-                    placed[0] = true;
+                    placed.set(true);
                 });
         }
 
-        return placed[0];
+        return placed.get();
     }
 
     private static PathNetworkType pickWeighted(List<PathNetworkType> eligible, RandomSource random) {

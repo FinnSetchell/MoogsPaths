@@ -12,18 +12,26 @@ import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
 import net.minecraft.util.profiling.ProfilerFiller;
 
+import net.minecraft.core.BlockPos;
+
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public final class PathDataManager {
 
     private static final Gson GSON = new GsonBuilder().create();
 
+    // keyed by pathSeed, computed once per path origin and shared across all chunks that touch it
+    private static final ConcurrentHashMap<Long, List<List<BlockPos>>> WAYPOINT_CACHE = new ConcurrentHashMap<>();
+
     // volatile: apply() runs on the main thread; worldgen threads read these concurrently
     private static volatile Map<ResourceLocation, PathType> PATH_TYPES = Map.of();
     private static volatile Map<ResourceLocation, PathNetworkType> PATH_NETWORKS = Map.of();
     private static volatile Map<ResourceLocation, StructureSet> STRUCTURE_SETS = Map.of();
     private static volatile Map<ResourceLocation, FeatureDecoratorSet> DECORATOR_SETS = Map.of();
+    private static volatile Map<ResourceLocation, BushDecoratorSet> BUSH_DECORATOR_SETS = Map.of();
     private static volatile Map<ResourceLocation, Optional<StructureTemplate>> CACHED_TEMPLATES = Map.of();
     private static volatile Map<Integer, List<PathNetworkType>> NETWORKS_BY_REGION_SIZE = Map.of();
     private static volatile int NETWORKS_MAX_RADIUS = 1000;
@@ -42,12 +50,15 @@ public final class PathDataManager {
                 @Override
                 protected void apply(Map<ResourceLocation, JsonElement> map, ResourceManager rm, ProfilerFiller profiler) {
                     Map<ResourceLocation, PathType> fresh = new HashMap<>();
-                    map.forEach((id, json) ->
+                    map.forEach((id, json) -> {
+                        if(json.isJsonObject() && json.getAsJsonObject().has("slope_avoidance"))
+                            Constants.LOG.warn("Path type {} has removed field 'slope_avoidance' - use 'max_slope_per_step' and 'slope_cost_weight' instead", id);
                         PathType.CODEC.parse(JsonOps.INSTANCE, json)
                             .resultOrPartial(e -> Constants.LOG.error("Failed to load path type {}: {}", id, e))
-                            .ifPresent(pt -> fresh.put(id, pt))
-                    );
+                            .ifPresent(pt -> fresh.put(id, pt));
+                    });
                     PATH_TYPES = Collections.unmodifiableMap(fresh);
+                    WAYPOINT_CACHE.clear();
                     Constants.LOG.info("Loaded {} path types", PATH_TYPES.size());
                 }
             }
@@ -64,6 +75,7 @@ public final class PathDataManager {
                             .ifPresent(pn -> fresh.put(id, pn))
                     );
                     PATH_NETWORKS = Collections.unmodifiableMap(fresh);
+                    WAYPOINT_CACHE.clear();
                     NETWORKS_BY_REGION_SIZE = Collections.unmodifiableMap(
                         fresh.values().stream().collect(Collectors.groupingBy(PathNetworkType::regionSize)));
                     NETWORKS_MAX_RADIUS = fresh.values().stream()
@@ -107,6 +119,22 @@ public final class PathDataManager {
             }
         );
 
+        listeners.put(new ResourceLocation(Constants.MOD_ID, "bush_decorator_sets_listener"),
+            new SimpleJsonResourceReloadListener(GSON, "moogspaths/bush_decorator_sets") {
+                @Override
+                protected void apply(Map<ResourceLocation, JsonElement> map, ResourceManager rm, ProfilerFiller profiler) {
+                    Map<ResourceLocation, BushDecoratorSet> fresh = new HashMap<>();
+                    map.forEach((id, json) ->
+                        BushDecoratorSet.CODEC.parse(JsonOps.INSTANCE, json)
+                            .resultOrPartial(e -> Constants.LOG.error("Failed to load bush decorator set {}: {}", id, e))
+                            .ifPresent(bs -> fresh.put(id, bs))
+                    );
+                    BUSH_DECORATOR_SETS = Collections.unmodifiableMap(fresh);
+                    Constants.LOG.info("Loaded {} bush decorator sets", BUSH_DECORATOR_SETS.size());
+                }
+            }
+        );
+
         return listeners;
     }
 
@@ -128,12 +156,32 @@ public final class PathDataManager {
         return Optional.ofNullable(DECORATOR_SETS.get(id));
     }
 
-    public static Collection<PathNetworkType> getAllNetworks() {
-        return PATH_NETWORKS.values();
+    public static Optional<BushDecoratorSet> getBushDecoratorSet(ResourceLocation id) {
+        return Optional.ofNullable(BUSH_DECORATOR_SETS.get(id));
     }
 
-    public static Set<ResourceLocation> getAllNetworkIds() {
-        return PATH_NETWORKS.keySet();
+    public static Map<ResourceLocation, PathType> getPathTypesSnapshot() {
+        return PATH_TYPES;
+    }
+
+    public static Map<ResourceLocation, PathNetworkType> getPathNetworksSnapshot() {
+        return PATH_NETWORKS;
+    }
+
+    public static Map<ResourceLocation, StructureSet> getStructureSetsSnapshot() {
+        return STRUCTURE_SETS;
+    }
+
+    public static Map<ResourceLocation, FeatureDecoratorSet> getDecoratorSetsSnapshot() {
+        return DECORATOR_SETS;
+    }
+
+    public static Map<ResourceLocation, BushDecoratorSet> getBushDecoratorSetsSnapshot() {
+        return BUSH_DECORATOR_SETS;
+    }
+
+    public static Map<ResourceLocation, Optional<StructureTemplate>> getCachedTemplatesSnapshot() {
+        return CACHED_TEMPLATES;
     }
 
     public static Map<Integer, List<PathNetworkType>> getNetworksByRegionSize() {
@@ -148,16 +196,13 @@ public final class PathDataManager {
         return CACHED_TEMPLATES.getOrDefault(id, Optional.empty());
     }
 
-    public static int getCachedTemplateCount() {
-        return CACHED_TEMPLATES.size();
-    }
-
-    public static Collection<ResourceLocation> getAllStructureIds() {
-        return CACHED_TEMPLATES.keySet();
+    public static List<List<BlockPos>> getOrComputeWaypoints(long pathSeed, Supplier<List<List<BlockPos>>> computer) {
+        return WAYPOINT_CACHE.computeIfAbsent(pathSeed, k -> computer.get());
     }
 
     public static void onServerStart(StructureTemplateManager manager) {
         templateManager = manager;
+        WAYPOINT_CACHE.clear();
         reloadTemplates();
     }
 

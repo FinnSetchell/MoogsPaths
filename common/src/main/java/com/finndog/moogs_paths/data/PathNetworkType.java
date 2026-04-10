@@ -14,7 +14,8 @@ public record PathNetworkType(
     int regionSize,
     BranchSettings branches,
     List<WeightedRef> structureSets,
-    List<WeightedRef> featureDecoratorSets
+    List<WeightedRef> featureDecoratorSets,
+    List<WeightedRef> bushDecoratorSets
 ) {
 
     public static final Codec<PathNetworkType> CODEC = RecordCodecBuilder.create(instance -> instance.group(
@@ -24,8 +25,9 @@ public record PathNetworkType(
         Codec.INT.fieldOf("weight").forGetter(PathNetworkType::weight),
         Codec.INT.fieldOf("region_size").forGetter(PathNetworkType::regionSize),
         BranchSettings.CODEC.fieldOf("branches").forGetter(PathNetworkType::branches),
-        WeightedRef.CODEC.listOf().fieldOf("structure_sets").forGetter(PathNetworkType::structureSets),
-        WeightedRef.CODEC.listOf().fieldOf("feature_decorator_sets").forGetter(PathNetworkType::featureDecoratorSets)
+        WeightedRef.CODEC.listOf().optionalFieldOf("structure_sets", List.of()).forGetter(PathNetworkType::structureSets),
+        WeightedRef.CODEC.listOf().optionalFieldOf("feature_decorator_sets", List.of()).forGetter(PathNetworkType::featureDecoratorSets),
+        WeightedRef.CODEC.listOf().optionalFieldOf("bush_decorator_sets", List.of()).forGetter(PathNetworkType::bushDecoratorSets)
     ).apply(instance, PathNetworkType::new));
 
     public record BranchSettings(int minBranches, int maxBranches, float lengthFraction) {
