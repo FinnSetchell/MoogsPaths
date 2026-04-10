@@ -12,7 +12,7 @@ import net.minecraft.world.level.biome.Biome;
 
 import java.util.List;
 
-public sealed interface BiomeFilter permits BiomeFilter.Any, BiomeFilter.Whitelist, BiomeFilter.Blacklist, BiomeFilter.TagFilter, BiomeFilter.And {
+public sealed interface BiomeFilter permits BiomeFilter.Any, BiomeFilter.Whitelist, BiomeFilter.Blacklist, BiomeFilter.TagFilter, BiomeFilter.NotTagFilter, BiomeFilter.And {
 
     boolean test(Holder<Biome> biome);
 
@@ -23,6 +23,7 @@ public sealed interface BiomeFilter permits BiomeFilter.Any, BiomeFilter.Whiteli
             if(filter instanceof Whitelist) return "whitelist";
             if(filter instanceof Blacklist) return "blacklist";
             if(filter instanceof TagFilter) return "tag";
+            if(filter instanceof NotTagFilter) return "not_tag";
             if(filter instanceof And) return "and";
             throw new IllegalArgumentException("Unknown BiomeFilter type: " + filter);
         },
@@ -31,6 +32,7 @@ public sealed interface BiomeFilter permits BiomeFilter.Any, BiomeFilter.Whiteli
             case "whitelist" -> Whitelist.CODEC.codec();
             case "blacklist" -> Blacklist.CODEC.codec();
             case "tag" -> TagFilter.CODEC.codec();
+            case "not_tag" -> NotTagFilter.CODEC.codec();
             case "and" -> And.CODEC.codec();
             default -> throw new IllegalArgumentException("Unknown BiomeFilter type: " + type);
         }
@@ -79,6 +81,17 @@ public sealed interface BiomeFilter permits BiomeFilter.Any, BiomeFilter.Whiteli
         @Override
         public boolean test(Holder<Biome> biome) {
             return biome.is(TagKey.create(Registries.BIOME, tag));
+        }
+    }
+
+    record NotTagFilter(ResourceLocation tag) implements BiomeFilter {
+        static final MapCodec<NotTagFilter> CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
+            ResourceLocation.CODEC.fieldOf("tag").forGetter(NotTagFilter::tag)
+        ).apply(instance, NotTagFilter::new));
+
+        @Override
+        public boolean test(Holder<Biome> biome) {
+            return !biome.is(TagKey.create(Registries.BIOME, tag));
         }
     }
 
