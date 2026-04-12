@@ -2,11 +2,15 @@ package com.finndog.moogs_paths.world;
 
 import net.minecraft.util.RandomSource;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 public final class PathRegionSelector {
     private PathRegionSelector() {}
+
+    private static final Map<Long, int[]> ORIGIN_CACHE = new ConcurrentHashMap<>();
 
     public static int regionX(int chunkX, int regionSize) {
         return Math.floorDiv(chunkX, regionSize);
@@ -17,11 +21,14 @@ public final class PathRegionSelector {
     }
 
     public static int[] originChunk(long worldSeed, int regionX, int regionZ, int regionSize) {
-        long hash = worldSeed ^ ((long) regionX * 341873128712L) ^ ((long) regionZ * 132897987541L);
-        RandomSource r = RandomSource.create(hash);
-        int offsetX = r.nextInt(regionSize);
-        int offsetZ = r.nextInt(regionSize);
-        return new int[]{ regionX * regionSize + offsetX, regionZ * regionSize + offsetZ };
+        long key = worldSeed ^ ((long) regionX << 34) ^ ((long) regionZ << 2) ^ (long) regionSize;
+        return ORIGIN_CACHE.computeIfAbsent(key, k -> {
+            long hash = worldSeed ^ ((long) regionX * 341873128712L) ^ ((long) regionZ * 132897987541L);
+            RandomSource r = RandomSource.create(hash);
+            int offsetX = r.nextInt(regionSize);
+            int offsetZ = r.nextInt(regionSize);
+            return new int[]{ regionX * regionSize + offsetX, regionZ * regionSize + offsetZ };
+        });
     }
 
     public static Stream<int[]> originsInRange(long worldSeed, int chunkX, int chunkZ, int maxBlockRadius, int regionSize) {

@@ -37,7 +37,7 @@ public final class PathsDebugCommand {
                     .then(literal("region").executes(ctx -> debugRegion(ctx.getSource())))
                     .then(literal("networks").executes(ctx -> debugNetworks(ctx.getSource())))
                     .then(literal("structures").executes(ctx -> debugStructures(ctx.getSource())))
-                    .then(literal("clear").executes(ctx -> debugClear(ctx.getSource())))
+                    .then(literal("reload").executes(ctx -> debugReload(ctx.getSource())))
                 )
                 .then(literal("locate")
                     .executes(ctx -> locatePath(ctx.getSource(), null))
@@ -226,7 +226,7 @@ public final class PathsDebugCommand {
         return 1;
     }
 
-    private static int debugClear(CommandSourceStack src) {
+    private static int debugReload(CommandSourceStack src) {
         src.sendSuccess(() -> Component.literal("[paths] Reloading datapacks..."), false);
         var packIds = src.getServer().getResourceManager().listPacks()
             .map(pack -> pack.packId())
