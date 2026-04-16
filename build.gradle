@@ -1,4 +1,35 @@
 plugins {
     id 'fabric-loom' version '1.9-SNAPSHOT' apply(false)
     id 'net.neoforged.moddev.legacyforge' version '2.0.77' apply(false)
+    id 'me.modmuss50.mod-publish-plugin' version '1.1.0'
+}
+
+def extractChangelog() {
+    def text = file("CHANGELOG.md").text
+    def sections = text.split("(?m)(?=^## )")
+    def section = sections.find { it.startsWith("## [${project.version}]") }
+    if (section) {
+        return section.replaceFirst(/^## \[.*?\].*\n/, '').trim()
+    }
+    return ""
+}
+
+evaluationDependsOn(':fabric')
+evaluationDependsOn(':forge')
+
+publishMods {
+    file = project(':fabric').tasks.named('remapJar').flatMap { it.archiveFile }
+    additionalFiles.from(project(':forge').tasks.named('jar').flatMap { it.archiveFile })
+    changelog = extractChangelog()
+    version = project.version
+    type = STABLE
+    modLoaders.add("fabric")
+    modLoaders.add("forge")
+
+    github {
+        accessToken = providers.environmentVariable("GITHUB_TOKEN")
+        repository = "FinnSetchell/MoogsPaths"
+        commitish = "main"
+        tagName = providers.environmentVariable("GITHUB_REF_NAME").orElse("v${project.version}")
+    }
 }
