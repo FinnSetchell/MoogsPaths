@@ -12,7 +12,7 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.minecraft.world.level.levelgen.placement.PlacedFeature;
+import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
 
 import java.util.*;
 
@@ -22,7 +22,7 @@ public final class FeatureScatterer {
     private static final Set<ResourceLocation> WARNED_MISSING = Collections.synchronizedSet(new HashSet<>());
 
     public static void scatterInChunk(WorldGenLevel level, ChunkGenerator generator, List<BlockPos> waypoints, List<PathNetworkType.WeightedRef> decoratorSetRefs, int chunkX, int chunkZ, RandomSource random) {
-        Registry<PlacedFeature> featureRegistry = level.registryAccess().registryOrThrow(Registries.PLACED_FEATURE);
+        Registry<ConfiguredFeature<?, ?>> featureRegistry = level.registryAccess().registryOrThrow(Registries.CONFIGURED_FEATURE);
 
         for(PathNetworkType.WeightedRef ref : decoratorSetRefs) {
             PathDataManager.getDecoratorSet(ref.id()).ifPresent(set ->
@@ -32,7 +32,7 @@ public final class FeatureScatterer {
 
     //////////////////////////////
 
-    private static void scatterSet(WorldGenLevel level, ChunkGenerator generator, Registry<PlacedFeature> featureRegistry, List<BlockPos> waypoints, FeatureDecoratorSet set, int chunkX, int chunkZ, RandomSource random) {
+    private static void scatterSet(WorldGenLevel level, ChunkGenerator generator, Registry<ConfiguredFeature<?, ?>> featureRegistry, List<BlockPos> waypoints, FeatureDecoratorSet set, int chunkX, int chunkZ, RandomSource random) {
         if(waypoints.size() < 2) return;
 
         int reach = set.scatterWidth() + 1;
@@ -59,7 +59,7 @@ public final class FeatureScatterer {
             for(int d = 0; d < (int) length; d++) {
                 if(segRandom.nextFloat() >= set.density()) continue;
 
-                PlacedFeature feature = pickWeighted(set.features(), featureRegistry, segRandom);
+                ConfiguredFeature<?, ?> feature = pickWeighted(set.features(), featureRegistry, segRandom);
                 if(feature == null) continue;
 
                 int side = sideSign(set.side(), segRandom);
@@ -75,10 +75,10 @@ public final class FeatureScatterer {
         }
     }
 
-    private static void tryPlace(WorldGenLevel level, ChunkGenerator generator, PlacedFeature feature, int bx, int bz, RandomSource random) {
+    private static void tryPlace(WorldGenLevel level, ChunkGenerator generator, ConfiguredFeature<?, ?> feature, int bx, int bz, RandomSource random) {
         int sy = level.getHeight(Heightmap.Types.WORLD_SURFACE, bx, bz);
         if(sy <= level.getMinBuildHeight()) return;
-        feature.feature().value().place(level, generator, random, new BlockPos(bx, sy, bz));
+        feature.place(level, generator, random, new BlockPos(bx, sy, bz));
     }
 
     private static boolean mightIntersect(BlockPos from, BlockPos to, int reach, int chunkX, int chunkZ) {
@@ -98,7 +98,7 @@ public final class FeatureScatterer {
         };
     }
 
-    private static PlacedFeature pickWeighted(List<FeatureDecoratorSet.FeatureEntry> entries, Registry<PlacedFeature> registry, RandomSource random) {
+    private static ConfiguredFeature<?, ?> pickWeighted(List<FeatureDecoratorSet.FeatureEntry> entries, Registry<ConfiguredFeature<?, ?>> registry, RandomSource random) {
         int total = 0;
         for(FeatureDecoratorSet.FeatureEntry e : entries) total += e.weight();
         int roll = random.nextInt(Math.max(1, total));
@@ -106,8 +106,8 @@ public final class FeatureScatterer {
         for(FeatureDecoratorSet.FeatureEntry e : entries) {
             cumulative += e.weight();
             if(roll < cumulative) {
-                PlacedFeature feature = registry.getOptional(e.feature()).orElse(null);
-                if(feature == null && WARNED_MISSING.add(e.feature())) Constants.LOG.warn("Placed feature not found: {}", e.feature());
+                ConfiguredFeature<?, ?> feature = registry.getOptional(e.feature()).orElse(null);
+                if(feature == null && WARNED_MISSING.add(e.feature())) Constants.LOG.warn("Configured feature not found: {}", e.feature());
                 return feature;
             }
         }
