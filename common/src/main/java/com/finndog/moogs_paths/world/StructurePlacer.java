@@ -1,5 +1,6 @@
 package com.finndog.moogs_paths.world;
 
+import com.finndog.moogs_paths.data.BiomeFilter;
 import com.finndog.moogs_paths.data.PathDataManager;
 import com.finndog.moogs_paths.data.PathNetworkType;
 import com.finndog.moogs_paths.data.StructureSet;
@@ -19,20 +20,20 @@ import java.util.Optional;
 public final class StructurePlacer {
     private StructurePlacer() {}
 
-    public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<PathNetworkType.WeightedRef> structureSetRefs, int chunkX, int chunkZ, RandomSource random) {
+    public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<PathNetworkType.WeightedRef> structureSetRefs, BiomeFilter biomeFilter, int chunkX, int chunkZ, RandomSource random) {
         for(PathNetworkType.WeightedRef ref : structureSetRefs) {
             PathDataManager.getStructureSet(ref.id()).ifPresent(set ->
-                placeSet(level, waypoints, set, chunkX, chunkZ, random));
+                placeSet(level, waypoints, set, biomeFilter, chunkX, chunkZ, random));
         }
     }
 
     //////////////////////////////
 
-    private static void placeSet(WorldGenLevel level, List<BlockPos> waypoints, StructureSet set, int chunkX, int chunkZ, RandomSource random) {
+    private static void placeSet(WorldGenLevel level, List<BlockPos> waypoints, StructureSet set, BiomeFilter biomeFilter, int chunkX, int chunkZ, RandomSource random) {
         if(set.placement() == StructureSet.PlacementMode.ENDPOINT) {
-            tryPlace(level, waypoints.get(0), set, chunkX, chunkZ, random);
+            tryPlace(level, waypoints.get(0), set, biomeFilter, chunkX, chunkZ, random);
             if(waypoints.size() > 1) {
-                tryPlace(level, waypoints.get(waypoints.size() - 1), set, chunkX, chunkZ, random);
+                tryPlace(level, waypoints.get(waypoints.size() - 1), set, biomeFilter, chunkX, chunkZ, random);
             }
             return;
         }
@@ -50,14 +51,14 @@ public final class StructurePlacer {
         for(BlockPos waypoint : waypoints) {
             distanceSinceLast += stepDist;
             if(distanceSinceLast >= nextThreshold) {
-                tryPlace(level, waypoint, set, chunkX, chunkZ, random);
+                tryPlace(level, waypoint, set, biomeFilter, chunkX, chunkZ, random);
                 distanceSinceLast = 0;
                 nextThreshold = nextSpacing(set, random);
             }
         }
     }
 
-    private static void tryPlace(WorldGenLevel level, BlockPos waypoint, StructureSet set, int chunkX, int chunkZ, RandomSource random) {
+    private static void tryPlace(WorldGenLevel level, BlockPos waypoint, StructureSet set, BiomeFilter biomeFilter, int chunkX, int chunkZ, RandomSource random) {
         StructureSet.StructureEntry entry = pickWeighted(set.structures(), random);
         Rotation rotation = parseRotation(entry.rotation(), random);
 
@@ -67,6 +68,7 @@ public final class StructurePlacer {
         if(!level.getFluidState(new BlockPos(waypoint.getX(), surfaceY - 1, waypoint.getZ())).isEmpty()) return;
         BlockPos pos = new BlockPos(waypoint.getX(), surfaceY - 1, waypoint.getZ());
 
+        if(!biomeFilter.test(level.getBiome(pos))) return;
         if(!isFlatEnough(level, pos, set.flatnessTolerance())) return;
 
         Optional<StructureTemplate> templateOpt = PathDataManager.getCachedTemplate(entry.nbt());

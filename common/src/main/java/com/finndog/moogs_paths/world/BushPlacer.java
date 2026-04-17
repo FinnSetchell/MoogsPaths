@@ -1,5 +1,6 @@
 package com.finndog.moogs_paths.world;
 
+import com.finndog.moogs_paths.data.BiomeFilter;
 import com.finndog.moogs_paths.data.BushDecoratorSet;
 import com.finndog.moogs_paths.data.FeatureDecoratorSet;
 import com.finndog.moogs_paths.data.PathDataManager;
@@ -23,14 +24,14 @@ public final class BushPlacer {
 
     //////////////////////////////
 
-    public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<PathNetworkType.WeightedRef> bushSetRefs, int chunkX, int chunkZ, RandomSource random) {
+    public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<PathNetworkType.WeightedRef> bushSetRefs, BiomeFilter biomeFilter, int chunkX, int chunkZ, RandomSource random) {
         for(PathNetworkType.WeightedRef ref : bushSetRefs) {
             PathDataManager.getBushDecoratorSet(ref.id()).ifPresent(set ->
-                placeSet(level, waypoints, set, chunkX, chunkZ, random));
+                placeSet(level, waypoints, set, biomeFilter, chunkX, chunkZ, random));
         }
     }
 
-    private static void placeSet(WorldGenLevel level, List<BlockPos> waypoints, BushDecoratorSet set, int chunkX, int chunkZ, RandomSource random) {
+    private static void placeSet(WorldGenLevel level, List<BlockPos> waypoints, BushDecoratorSet set, BiomeFilter biomeFilter, int chunkX, int chunkZ, RandomSource random) {
         if(waypoints.size() < 2 || set.blocks().isEmpty()) return;
 
         int totalWeight = set.blocks().stream().mapToInt(BushDecoratorSet.WeightedBlock::weight).sum();
@@ -88,6 +89,8 @@ public final class BushPlacer {
 
                 // Call placement if any part of the bush might be in this chunk
                 if(cx + size >= chunkMinX && cx - size <= chunkMaxX && cz + size >= chunkMinZ && cz - size <= chunkMaxZ) {
+                    int centerY = level.getHeight(Heightmap.Types.WORLD_SURFACE, cx, cz);
+                    if(!biomeFilter.test(level.getBiome(new BlockPos(cx, centerY, cz)))) continue;
                     BlockState block = pick(set.blocks(), totalWeight, segRandom);
                     placeBush(level, cx, cz, size, parX, parZ, block, chunkX, chunkZ, segRandom, set.minHeight(), set.maxHeight());
                 }

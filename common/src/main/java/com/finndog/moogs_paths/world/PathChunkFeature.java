@@ -93,18 +93,18 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                         // Structure placer needs the same random sequence in every chunk
                         if(!network.structureSets().isEmpty()) {
                             RandomSource structureRandom = RandomSource.create(branchSeed ^ 0x9E3779B97F4A7C15L);
-                            StructurePlacer.placeInChunk(level, waypoints, network.structureSets(), chunkX, chunkZ, structureRandom);
+                            StructurePlacer.placeInChunk(level, waypoints, network.structureSets(), network.biomeFilter(), chunkX, chunkZ, structureRandom);
                         }
 
                         // Feature scatterer needs the same random sequence in every chunk
                         if(!network.featureDecoratorSets().isEmpty()) {
                             RandomSource featureRandom = RandomSource.create(branchSeed ^ 0x6C62272E07BB0142L);
-                            FeatureScatterer.scatterInChunk(level, generator, waypoints, network.featureDecoratorSets(), chunkX, chunkZ, featureRandom);
+                            FeatureScatterer.scatterInChunk(level, generator, waypoints, network.featureDecoratorSets(), network.biomeFilter(), chunkX, chunkZ, featureRandom);
                         }
 
                         if(!network.bushDecoratorSets().isEmpty()) {
                             RandomSource bushRandom = RandomSource.create(branchSeed ^ 0x3BFDA1C6E09D2578L);
-                            BushPlacer.placeInChunk(level, waypoints, network.bushDecoratorSets(), chunkX, chunkZ, bushRandom);
+                            BushPlacer.placeInChunk(level, waypoints, network.bushDecoratorSets(), network.biomeFilter(), chunkX, chunkZ, bushRandom);
                         }
                     }
 
