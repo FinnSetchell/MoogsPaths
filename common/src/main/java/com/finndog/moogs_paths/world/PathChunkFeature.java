@@ -21,7 +21,6 @@ import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
 
@@ -45,82 +44,82 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
         int maxRadius = PathDataManager.getNetworksMaxRadius();
         RandomState randomState = level.getLevel().getChunkSource().randomState();
 
-        AtomicBoolean placed = new AtomicBoolean(false);
+        boolean placed = false;
 
         for(Map.Entry<Integer, List<PathNetworkType>> entry : byRegionSize.entrySet()) {
             int regionSize = entry.getKey();
             List<PathNetworkType> networks = entry.getValue();
+            List<int[]> origins = PathRegionSelector.originsInRange(worldSeed, chunkX, chunkZ, maxRadius, regionSize).toList();
 
-            PathRegionSelector.originsInRange(worldSeed, chunkX, chunkZ, maxRadius, regionSize)
-                .forEach(origin -> {
-                    int originChunkX = origin[0];
-                    int originChunkZ = origin[1];
-                    int originBlockX = originChunkX * 16 + 8;
-                    int originBlockZ = originChunkZ * 16 + 8;
-                    int originSurfaceY = generator.getBaseHeight(originBlockX, originBlockZ, Heightmap.Types.WORLD_SURFACE_WG, level, randomState);
-                    BlockPos originPos = new BlockPos(originBlockX, originSurfaceY, originBlockZ);
+            for(int[] origin : origins) {
+                int originChunkX = origin[0];
+                int originChunkZ = origin[1];
+                int originBlockX = originChunkX * 16 + 8;
+                int originBlockZ = originChunkZ * 16 + 8;
+                int originSurfaceY = generator.getBaseHeight(originBlockX, originBlockZ, Heightmap.Types.WORLD_SURFACE_WG, level, randomState);
+                BlockPos originPos = new BlockPos(originBlockX, originSurfaceY, originBlockZ);
 
-                    long pathSeed = worldSeed
-                        ^ ((long) originChunkX * 341873128712L)
-                        ^ ((long) originChunkZ * 132897987541L)
-                        ^ 0xABCDEF1234567890L;
+                long pathSeed = worldSeed
+                    ^ ((long) originChunkX * 341873128712L)
+                    ^ ((long) originChunkZ * 132897987541L)
+                    ^ 0xABCDEF1234567890L;
 
-                    RandomSource pickRandom = RandomSource.create(pathSeed);
-                    PathNetworkType network = pickWeighted(networks, pickRandom);
+                RandomSource pickRandom = RandomSource.create(pathSeed);
+                PathNetworkType network = pickWeighted(networks, pickRandom);
 
-                    Holder<Biome> originBiome = level.getBiome(originPos);
-                    if(originBiome.is(HAS_NO_PATHS)) return;
-                    if(!network.biomeFilter().test(originBiome)) return;
+                Holder<Biome> originBiome = level.getBiome(originPos);
+                if(originBiome.is(HAS_NO_PATHS)) continue;
+                if(!network.biomeFilter().test(originBiome)) continue;
 
-                    Optional<PathType> pathTypeOpt = PathDataManager.getPathType(network.pathType());
-                    if(pathTypeOpt.isEmpty()) {
-                        Constants.LOG.error("Missing path type: {}", network.pathType());
-                        return;
-                    }
-                    PathType pathType = pathTypeOpt.get();
+                Optional<PathType> pathTypeOpt = PathDataManager.getPathType(network.pathType());
+                if(pathTypeOpt.isEmpty()) {
+                    Constants.LOG.error("Missing path type: {}", network.pathType());
+                    continue;
+                }
+                PathType pathType = pathTypeOpt.get();
 
-                    List<List<BlockPos>> allPaths = PathDataManager.getOrComputeWaypoints(pathSeed, () -> {
-                        RandomSource walkRandom = RandomSource.create(pathSeed ^ 0x1L);
-                        return PathWalker.walkWithBranches(originPos, network, pathType, walkRandom,
-                            // generator.getBaseHeight is safe for any column since it runs noise directly
-                            // instead of reading a possibly-unloaded chunk's heightmap
-                            (x, z) -> {
-                                if (Math.abs((x >> 4) - chunkX) > 7 || Math.abs((z >> 4) - chunkZ) > 7) return -1;
-                                return generator.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, level, randomState);
-                            });
-                    });
-
-                    for(int branchIdx = 0; branchIdx < allPaths.size(); branchIdx++) {
-                        List<BlockPos> waypoints = allPaths.get(branchIdx);
-                        long branchSeed = pathSeed ^ ((long) branchIdx * 9999991L);
-
-                        // Rasteriser gets a per-chunk seed — cross-chunk consistency not needed here
-                        RandomSource rasterRandom = RandomSource.create(branchSeed ^ ((long) chunkX * 1234567L) ^ ((long) chunkZ * 9876543L));
-                        PathRasteriser.rasteriseInChunk(level, waypoints, pathType, chunkX, chunkZ, rasterRandom);
-
-                        // Structure placer needs the same random sequence in every chunk
-                        if(!network.structureSets().isEmpty()) {
-                            RandomSource structureRandom = RandomSource.create(branchSeed ^ 0x9E3779B97F4A7C15L);
-                            StructurePlacer.placeInChunk(level, waypoints, network.structureSets(), network.biomeFilter(), chunkX, chunkZ, structureRandom);
-                        }
-
-                        // Feature scatterer needs the same random sequence in every chunk
-                        if(!network.featureDecoratorSets().isEmpty()) {
-                            RandomSource featureRandom = RandomSource.create(branchSeed ^ 0x6C62272E07BB0142L);
-                            FeatureScatterer.scatterInChunk(level, generator, waypoints, network.featureDecoratorSets(), network.biomeFilter(), chunkX, chunkZ, featureRandom);
-                        }
-
-                        if(!network.bushDecoratorSets().isEmpty()) {
-                            RandomSource bushRandom = RandomSource.create(branchSeed ^ 0x3BFDA1C6E09D2578L);
-                            BushPlacer.placeInChunk(level, waypoints, network.bushDecoratorSets(), network.biomeFilter(), chunkX, chunkZ, bushRandom);
-                        }
-                    }
-
-                    placed.set(true);
+                List<List<BlockPos>> allPaths = PathDataManager.getOrComputeWaypoints(pathSeed, () -> {
+                    RandomSource walkRandom = RandomSource.create(pathSeed ^ 0x1L);
+                    return PathWalker.walkWithBranches(originPos, network, pathType, walkRandom,
+                        // generator.getBaseHeight is safe for any column since it runs noise directly
+                        // instead of reading a possibly-unloaded chunk's heightmap
+                        (x, z) -> {
+                            if(Math.abs((x >> 4) - chunkX) > 7 || Math.abs((z >> 4) - chunkZ) > 7) return -1;
+                            return generator.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, level, randomState);
+                        });
                 });
+
+                for(int branchIdx = 0; branchIdx < allPaths.size(); branchIdx++) {
+                    List<BlockPos> waypoints = allPaths.get(branchIdx);
+                    long branchSeed = pathSeed ^ ((long) branchIdx * 9999991L);
+
+                    // Rasteriser gets a per-chunk seed — cross-chunk consistency not needed here
+                    RandomSource rasterRandom = RandomSource.create(branchSeed ^ ((long) chunkX * 1234567L) ^ ((long) chunkZ * 9876543L));
+                    PathRasteriser.rasteriseInChunk(level, waypoints, pathType, chunkX, chunkZ, rasterRandom);
+
+                    // Structure placer needs the same random sequence in every chunk
+                    if(!network.structureSets().isEmpty()) {
+                        RandomSource structureRandom = RandomSource.create(branchSeed ^ 0x9E3779B97F4A7C15L);
+                        StructurePlacer.placeInChunk(level, waypoints, network.structureSets(), network.biomeFilter(), chunkX, chunkZ, structureRandom);
+                    }
+
+                    // Feature scatterer needs the same random sequence in every chunk
+                    if(!network.featureDecoratorSets().isEmpty()) {
+                        RandomSource featureRandom = RandomSource.create(branchSeed ^ 0x6C62272E07BB0142L);
+                        FeatureScatterer.scatterInChunk(level, generator, waypoints, network.featureDecoratorSets(), network.biomeFilter(), chunkX, chunkZ, featureRandom);
+                    }
+
+                    if(!network.bushDecoratorSets().isEmpty()) {
+                        RandomSource bushRandom = RandomSource.create(branchSeed ^ 0x3BFDA1C6E09D2578L);
+                        BushPlacer.placeInChunk(level, waypoints, network.bushDecoratorSets(), network.biomeFilter(), chunkX, chunkZ, bushRandom);
+                    }
+                }
+
+                placed = true;
+            }
         }
 
-        return placed.get();
+        return placed;
     }
 
     private static PathNetworkType pickWeighted(List<PathNetworkType> eligible, RandomSource random) {
