@@ -26,6 +26,18 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
 
     public static final TagKey<Biome> HAS_NO_PATHS = TagKey.create(Registries.BIOME, new ResourceLocation(Constants.MOD_ID, "has_no_paths"));
 
+    // arbitrary large primes / well-known constants used to derive distinct random streams from pathSeed
+    private static final long PATH_SEED_MIXER = 0xABCDEF1234567890L;
+    private static final long WALK_MIXER = 0x1L;
+    private static final long BRANCH_SEED_MULT = 9999991L;
+    private static final long RASTER_CHUNK_X_MULT = 1234567L;
+    private static final long RASTER_CHUNK_Z_MULT = 9876543L;
+    private static final long STRUCTURE_MIXER = 0x9E3779B97F4A7C15L;
+    private static final long FEATURE_MIXER = 0x6C62272E07BB0142L;
+    private static final long BUSH_MIXER = 0x3BFDA1C6E09D2578L;
+    private static final long ORIGIN_X_MULT = 341873128712L;
+    private static final long ORIGIN_Z_MULT = 132897987541L;
+
     public PathChunkFeature(Codec<NoneFeatureConfiguration> codec) {
         super(codec);
     }
@@ -60,9 +72,9 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                 BlockPos originPos = new BlockPos(originBlockX, originSurfaceY, originBlockZ);
 
                 long pathSeed = worldSeed
-                    ^ ((long) originChunkX * 341873128712L)
-                    ^ ((long) originChunkZ * 132897987541L)
-                    ^ 0xABCDEF1234567890L;
+                    ^ ((long) originChunkX * ORIGIN_X_MULT)
+                    ^ ((long) originChunkZ * ORIGIN_Z_MULT)
+                    ^ PATH_SEED_MIXER;
 
                 RandomSource pickRandom = RandomSource.create(pathSeed);
                 PathNetworkType network = pickWeighted(networks, pickRandom);
@@ -79,7 +91,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                 PathType pathType = pathTypeOpt.get();
 
                 List<List<BlockPos>> allPaths = PathDataManager.getOrComputeWaypoints(pathSeed, () -> {
-                    RandomSource walkRandom = RandomSource.create(pathSeed ^ 0x1L);
+                    RandomSource walkRandom = RandomSource.create(pathSeed ^ WALK_MIXER);
                     return PathWalker.walkWithBranches(originPos, network, pathType, walkRandom,
                         // generator.getBaseHeight is safe for any column since it runs noise directly
                         // instead of reading a possibly-unloaded chunk's heightmap
@@ -91,26 +103,26 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
 
                 for(int branchIdx = 0; branchIdx < allPaths.size(); branchIdx++) {
                     List<BlockPos> waypoints = allPaths.get(branchIdx);
-                    long branchSeed = pathSeed ^ ((long) branchIdx * 9999991L);
+                    long branchSeed = pathSeed ^ ((long) branchIdx * BRANCH_SEED_MULT);
 
                     // Rasteriser gets a per-chunk seed — cross-chunk consistency not needed here
-                    RandomSource rasterRandom = RandomSource.create(branchSeed ^ ((long) chunkX * 1234567L) ^ ((long) chunkZ * 9876543L));
+                    RandomSource rasterRandom = RandomSource.create(branchSeed ^ ((long) chunkX * RASTER_CHUNK_X_MULT) ^ ((long) chunkZ * RASTER_CHUNK_Z_MULT));
                     PathRasteriser.rasteriseInChunk(level, waypoints, pathType, chunkX, chunkZ, rasterRandom);
 
                     // Structure placer needs the same random sequence in every chunk
                     if(!network.structureSets().isEmpty()) {
-                        RandomSource structureRandom = RandomSource.create(branchSeed ^ 0x9E3779B97F4A7C15L);
+                        RandomSource structureRandom = RandomSource.create(branchSeed ^ STRUCTURE_MIXER);
                         StructurePlacer.placeInChunk(level, waypoints, network.structureSets(), network.biomeFilter(), chunkX, chunkZ, structureRandom);
                     }
 
                     // Feature scatterer needs the same random sequence in every chunk
                     if(!network.featureDecoratorSets().isEmpty()) {
-                        RandomSource featureRandom = RandomSource.create(branchSeed ^ 0x6C62272E07BB0142L);
+                        RandomSource featureRandom = RandomSource.create(branchSeed ^ FEATURE_MIXER);
                         FeatureScatterer.scatterInChunk(level, generator, waypoints, network.featureDecoratorSets(), network.biomeFilter(), chunkX, chunkZ, featureRandom);
                     }
 
                     if(!network.bushDecoratorSets().isEmpty()) {
-                        RandomSource bushRandom = RandomSource.create(branchSeed ^ 0x3BFDA1C6E09D2578L);
+                        RandomSource bushRandom = RandomSource.create(branchSeed ^ BUSH_MIXER);
                         BushPlacer.placeInChunk(level, waypoints, network.bushDecoratorSets(), network.biomeFilter(), chunkX, chunkZ, bushRandom);
                     }
                 }
