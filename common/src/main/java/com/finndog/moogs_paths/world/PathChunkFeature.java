@@ -7,6 +7,9 @@ import com.finndog.moogs_paths.data.PathType;
 import com.mojang.serialization.Codec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.tags.TagKey;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
@@ -21,6 +24,8 @@ import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
+
+    public static final TagKey<Biome> HAS_NO_PATHS = TagKey.create(Registries.BIOME, new ResourceLocation(Constants.MOD_ID, "has_no_paths"));
 
     public PathChunkFeature(Codec<NoneFeatureConfiguration> codec) {
         super(codec);
@@ -64,6 +69,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                     PathNetworkType network = pickWeighted(networks, pickRandom);
 
                     Holder<Biome> originBiome = level.getBiome(originPos);
+                    if(originBiome.is(HAS_NO_PATHS)) return;
                     if(!network.biomeFilter().test(originBiome)) return;
 
                     Optional<PathType> pathTypeOpt = PathDataManager.getPathType(network.pathType());
