@@ -2,8 +2,9 @@ package com.finndog.moogs_paths.world;
 
 import net.minecraft.util.RandomSource;
 
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
@@ -12,7 +13,15 @@ public final class PathRegionSelector {
 
     private record OriginKey(long worldSeed, int regionX, int regionZ, int regionSize) {}
 
-    private static final Map<OriginKey, int[]> ORIGIN_CACHE = new ConcurrentHashMap<>();
+    private static final int ORIGIN_CACHE_CAP = 1024;
+    private static final Map<OriginKey, int[]> ORIGIN_CACHE = Collections.synchronizedMap(
+        new LinkedHashMap<>(ORIGIN_CACHE_CAP, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<OriginKey, int[]> eldest) {
+                return size() > ORIGIN_CACHE_CAP;
+            }
+        }
+    );
 
     public static int regionX(int chunkX, int regionSize) {
         return Math.floorDiv(chunkX, regionSize);
