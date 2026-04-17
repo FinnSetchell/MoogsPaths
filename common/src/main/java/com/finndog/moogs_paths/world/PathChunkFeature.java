@@ -37,6 +37,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
     private static final long BUSH_MIXER = 0x3BFDA1C6E09D2578L;
     private static final long ORIGIN_X_MULT = 341873128712L;
     private static final long ORIGIN_Z_MULT = 132897987541L;
+    private static final long ORIGIN_REGION_SIZE_MULT = 27182818284L;
 
     public PathChunkFeature(Codec<NoneFeatureConfiguration> codec) {
         super(codec);
@@ -74,6 +75,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                 long pathSeed = worldSeed
                     ^ ((long) originChunkX * ORIGIN_X_MULT)
                     ^ ((long) originChunkZ * ORIGIN_Z_MULT)
+                    ^ ((long) regionSize * ORIGIN_REGION_SIZE_MULT)
                     ^ PATH_SEED_MIXER;
 
                 RandomSource pickRandom = RandomSource.create(pathSeed);
