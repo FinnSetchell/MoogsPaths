@@ -123,11 +123,10 @@ public final class PathsDebugCommand {
         int dist = (int) Math.sqrt(nearest.distSq());
 
         // Offset the TP point past the start fade zone so path blocks are actually visible.
-        // walkSingle consumes: nextInt(lengthRange) then nextInt(16) for direction.
         PathNetworkType nearestNetwork = nearest.network();
         RandomSource walkRandom = RandomSource.create(nearest.pathSeed() ^ 0x1L);
         walkRandom.nextInt(Math.max(1, nearestNetwork.scale().lengthMax - nearestNetwork.scale().lengthMin + 1));
-        PathDirection initialDir = PathDirection.VALUES[walkRandom.nextInt(16)];
+        PathDirection initialDir = PathDirection.VALUES[walkRandom.nextInt(8)];
         int fadeOffset = PathDataManager.getPathType(nearestNetwork.pathType())
             .map(pt -> pt.fade().startBlocks() + 10)
             .orElse(30);
