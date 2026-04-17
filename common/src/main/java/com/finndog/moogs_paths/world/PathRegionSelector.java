@@ -10,7 +10,9 @@ import java.util.stream.Stream;
 public final class PathRegionSelector {
     private PathRegionSelector() {}
 
-    private static final Map<Long, int[]> ORIGIN_CACHE = new ConcurrentHashMap<>();
+    private record OriginKey(long worldSeed, int regionX, int regionZ, int regionSize) {}
+
+    private static final Map<OriginKey, int[]> ORIGIN_CACHE = new ConcurrentHashMap<>();
 
     public static int regionX(int chunkX, int regionSize) {
         return Math.floorDiv(chunkX, regionSize);
@@ -21,8 +23,7 @@ public final class PathRegionSelector {
     }
 
     public static int[] originChunk(long worldSeed, int regionX, int regionZ, int regionSize) {
-        long key = worldSeed ^ ((long) regionX << 34) ^ ((long) regionZ << 2) ^ (long) regionSize;
-        return ORIGIN_CACHE.computeIfAbsent(key, k -> {
+        return ORIGIN_CACHE.computeIfAbsent(new OriginKey(worldSeed, regionX, regionZ, regionSize), k -> {
             long hash = worldSeed ^ ((long) regionX * 341873128712L) ^ ((long) regionZ * 132897987541L);
             RandomSource r = RandomSource.create(hash);
             int offsetX = r.nextInt(regionSize);

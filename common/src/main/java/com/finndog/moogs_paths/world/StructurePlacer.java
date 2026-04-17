@@ -85,10 +85,11 @@ public final class StructurePlacer {
         boolean rotated90 = rotation == Rotation.CLOCKWISE_90 || rotation == Rotation.COUNTERCLOCKWISE_90;
         int sizeX = rotated90 ? rawSize.getZ() : rawSize.getX();
         int sizeZ = rotated90 ? rawSize.getX() : rawSize.getZ();
+        Vec3i offset = entry.offset();
         BlockPos placementPos = new BlockPos(
-            pos.getX() - sizeX / 2 + entry.offset()[0],
-            pos.getY() + entry.offset()[1],
-            pos.getZ() - sizeZ / 2 + entry.offset()[2]
+            pos.getX() - sizeX / 2 + offset.getX(),
+            pos.getY() + offset.getY(),
+            pos.getZ() - sizeZ / 2 + offset.getZ()
         );
 
         template.placeInWorld(level, placementPos, placementPos, settings, level.getRandom(), 3);
@@ -121,14 +122,13 @@ public final class StructurePlacer {
         return entries.get(0);
     }
 
-    private static Rotation parseRotation(String rotation, RandomSource random) {
+    private static Rotation parseRotation(StructureSet.RotationSetting rotation, RandomSource random) {
         return switch(rotation) {
-            case "none" -> Rotation.NONE;
-            case "clockwise_90" -> Rotation.CLOCKWISE_90;
-            case "counterclockwise_90" -> Rotation.COUNTERCLOCKWISE_90;
-            case "180" -> Rotation.CLOCKWISE_180;
-            case "random" -> Rotation.values()[random.nextInt(4)];
-            default -> Rotation.NONE;
+            case NONE -> Rotation.NONE;
+            case CLOCKWISE_90 -> Rotation.CLOCKWISE_90;
+            case CLOCKWISE_180 -> Rotation.CLOCKWISE_180;
+            case COUNTERCLOCKWISE_90 -> Rotation.COUNTERCLOCKWISE_90;
+            case RANDOM -> Rotation.values()[random.nextInt(4)];
         };
     }
 }

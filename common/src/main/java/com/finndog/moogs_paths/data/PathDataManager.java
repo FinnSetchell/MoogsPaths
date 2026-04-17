@@ -15,7 +15,6 @@ import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.core.BlockPos;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -23,8 +22,17 @@ public final class PathDataManager {
 
     private static final Gson GSON = new GsonBuilder().create();
 
+    private static final int WAYPOINT_CACHE_MAX_SIZE = 256;
+
     // keyed by pathSeed, computed once per path origin and shared across all chunks that touch it
-    private static final ConcurrentHashMap<Long, List<List<BlockPos>>> WAYPOINT_CACHE = new ConcurrentHashMap<>();
+    // bounded LRU so far-away paths can be evicted during long exploration sessions
+    private static final Map<Long, List<List<BlockPos>>> WAYPOINT_CACHE = Collections.synchronizedMap(
+        new LinkedHashMap<>(16, 0.75f, true) {
+            @Override
+            protected boolean removeEldestEntry(Map.Entry<Long, List<List<BlockPos>>> eldest) {
+                return size() > WAYPOINT_CACHE_MAX_SIZE;
+            }
+        });
 
     // volatile: apply() runs on the main thread; worldgen threads read these concurrently
     private static volatile Map<ResourceLocation, PathType> PATH_TYPES = Map.of();

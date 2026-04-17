@@ -11,20 +11,9 @@ public enum PathDirection {
 
     public static final PathDirection[] VALUES = values();
 
-    private static final PathDirection[][] DELTA_TABLE = new PathDirection[5][5];
-    static {
-        for (PathDirection d : VALUES) {
-            DELTA_TABLE[d.dx + 2][d.dz + 2] = d;
-        }
-    }
-
     PathDirection(int dx, int dz) {
         this.dx = dx;
         this.dz = dz;
-    }
-
-    public static PathDirection fromDelta(int dx, int dz) {
-        return DELTA_TABLE[dx + 2][dz + 2];
     }
 
     public PathDirection rotate(int steps) {

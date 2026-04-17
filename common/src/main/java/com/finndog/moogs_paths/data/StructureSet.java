@@ -2,6 +2,7 @@ package com.finndog.moogs_paths.data;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.core.Vec3i;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.StringRepresentable;
 
@@ -25,18 +26,15 @@ public record StructureSet(
 
     public record StructureEntry(
             ResourceLocation nbt,
-            String rotation,
+            RotationSetting rotation,
             int weight,
-            int[] offset
+            Vec3i offset
     ) {
         public static final Codec<StructureEntry> CODEC = RecordCodecBuilder.create(instance -> instance.group(
                 ResourceLocation.CODEC.fieldOf("nbt").forGetter(StructureEntry::nbt),
-                Codec.STRING.fieldOf("rotation").forGetter(StructureEntry::rotation),
+                RotationSetting.CODEC.fieldOf("rotation").forGetter(StructureEntry::rotation),
                 Codec.INT.fieldOf("weight").forGetter(StructureEntry::weight),
-                Codec.list(Codec.INT).xmap(
-                        list -> new int[]{list.get(0), list.get(1), list.get(2)},
-                        arr -> List.of(arr[0], arr[1], arr[2])
-                ).fieldOf("offset").forGetter(StructureEntry::offset)
+                Vec3i.CODEC.fieldOf("offset").forGetter(StructureEntry::offset)
         ).apply(instance, StructureEntry::new));
     }
 
@@ -53,6 +51,27 @@ public record StructureSet(
         final String name;
 
         PlacementMode(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String getSerializedName() {
+            return name;
+        }
+    }
+
+    public enum RotationSetting implements StringRepresentable {
+        NONE("none"),
+        CLOCKWISE_90("clockwise_90"),
+        CLOCKWISE_180("clockwise_180"),
+        COUNTERCLOCKWISE_90("counterclockwise_90"),
+        RANDOM("random");
+
+        public static final Codec<RotationSetting> CODEC = StringRepresentable.fromEnum(RotationSetting::values);
+
+        final String name;
+
+        RotationSetting(String name) {
             this.name = name;
         }
 
