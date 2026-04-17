@@ -46,7 +46,7 @@ public final class PathDataManager {
         Map<ResourceLocation, SimpleJsonResourceReloadListener> listeners = new LinkedHashMap<>();
 
         listeners.put(new ResourceLocation(Constants.MOD_ID, "path_types_listener"),
-            new SimpleJsonResourceReloadListener(GSON, "moogspaths/path_types") {
+            new SimpleJsonResourceReloadListener(GSON, "path_types") {
                 @Override
                 protected void apply(Map<ResourceLocation, JsonElement> map, ResourceManager rm, ProfilerFiller profiler) {
                     Map<ResourceLocation, PathType> fresh = new HashMap<>();
@@ -65,7 +65,7 @@ public final class PathDataManager {
         );
 
         listeners.put(new ResourceLocation(Constants.MOD_ID, "path_networks_listener"),
-            new SimpleJsonResourceReloadListener(GSON, "moogspaths/path_networks") {
+            new SimpleJsonResourceReloadListener(GSON, "path_networks") {
                 @Override
                 protected void apply(Map<ResourceLocation, JsonElement> map, ResourceManager rm, ProfilerFiller profiler) {
                     Map<ResourceLocation, PathNetworkType> fresh = new HashMap<>();
@@ -87,7 +87,7 @@ public final class PathDataManager {
         );
 
         listeners.put(new ResourceLocation(Constants.MOD_ID, "structure_sets_listener"),
-            new SimpleJsonResourceReloadListener(GSON, "moogspaths/structure_sets") {
+            new SimpleJsonResourceReloadListener(GSON, "structure_sets") {
                 @Override
                 protected void apply(Map<ResourceLocation, JsonElement> map, ResourceManager rm, ProfilerFiller profiler) {
                     Map<ResourceLocation, StructureSet> fresh = new HashMap<>();
@@ -104,7 +104,7 @@ public final class PathDataManager {
         );
 
         listeners.put(new ResourceLocation(Constants.MOD_ID, "decorator_sets_listener"),
-            new SimpleJsonResourceReloadListener(GSON, "moogspaths/feature_decorator_sets") {
+            new SimpleJsonResourceReloadListener(GSON, "feature_decorator_sets") {
                 @Override
                 protected void apply(Map<ResourceLocation, JsonElement> map, ResourceManager rm, ProfilerFiller profiler) {
                     Map<ResourceLocation, FeatureDecoratorSet> fresh = new HashMap<>();
@@ -120,7 +120,7 @@ public final class PathDataManager {
         );
 
         listeners.put(new ResourceLocation(Constants.MOD_ID, "bush_decorator_sets_listener"),
-            new SimpleJsonResourceReloadListener(GSON, "moogspaths/bush_decorator_sets") {
+            new SimpleJsonResourceReloadListener(GSON, "bush_decorator_sets") {
                 @Override
                 protected void apply(Map<ResourceLocation, JsonElement> map, ResourceManager rm, ProfilerFiller profiler) {
                     Map<ResourceLocation, BushDecoratorSet> fresh = new HashMap<>();

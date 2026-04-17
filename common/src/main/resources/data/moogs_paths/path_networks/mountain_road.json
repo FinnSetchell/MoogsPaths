@@ -1,0 +1,23 @@
+{
+  "path_type": "moogs_paths:mountain_road",
+  "scale": "local",
+  "biome_filter": {
+    "type": "tag",
+    "tag": "minecraft:is_mountain"
+  },
+  "weight": 7,
+  "region_size": 16,
+  "branches": {
+    "min_branches": 0,
+    "max_branches": 3,
+    "length_fraction": 0.3
+  },
+  "structure_sets": [
+    {
+      "id": "moogs_paths:simple_andesite_lamp",
+      "weight": 1
+    }
+  ],
+  "feature_decorator_sets": [],
+  "bush_decorator_sets": []
+}
