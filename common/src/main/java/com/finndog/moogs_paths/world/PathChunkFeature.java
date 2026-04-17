@@ -12,6 +12,7 @@ import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
@@ -37,6 +38,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
         if(byRegionSize.isEmpty()) return false;
 
         int maxRadius = PathDataManager.getNetworksMaxRadius();
+        RandomState randomState = level.getLevel().getChunkSource().randomState();
 
         AtomicBoolean placed = new AtomicBoolean(false);
 
@@ -48,7 +50,10 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                 .forEach(origin -> {
                     int originChunkX = origin[0];
                     int originChunkZ = origin[1];
-                    BlockPos originPos = new BlockPos(originChunkX * 16 + 8, 64, originChunkZ * 16 + 8);
+                    int originBlockX = originChunkX * 16 + 8;
+                    int originBlockZ = originChunkZ * 16 + 8;
+                    int originSurfaceY = generator.getBaseHeight(originBlockX, originBlockZ, Heightmap.Types.WORLD_SURFACE_WG, level, randomState);
+                    BlockPos originPos = new BlockPos(originBlockX, originSurfaceY, originBlockZ);
 
                     long pathSeed = worldSeed
                         ^ ((long) originChunkX * 341873128712L)
