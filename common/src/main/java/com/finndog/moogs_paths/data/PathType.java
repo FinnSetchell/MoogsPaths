@@ -18,7 +18,8 @@ public record PathType(
     float slopeCostWeight,
     SlopeHandling slopeHandling,
     FadeSettings fade,
-    Optional<WaterSettings> waterSettings
+    Optional<WaterSettings> waterSettings,
+    List<WeightedBlock> slabBlocks
 ) {
     public record WeightedBlock(ResourceLocation block, int weight, Map<String, String> properties) {
         public static final Codec<WeightedBlock> CODEC = RecordCodecBuilder.create(instance -> instance.group(
@@ -52,13 +53,13 @@ public record PathType(
     public record WaterSettings(List<WeightedBlock> surfaceBlocks, List<WeightedBlock> edgeBlocks) {
         public static final Codec<WaterSettings> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.list(WeightedBlock.CODEC).fieldOf("surface_blocks").forGetter(WaterSettings::surfaceBlocks),
-            Codec.list(WeightedBlock.CODEC).fieldOf("edge_blocks").forGetter(WaterSettings::edgeBlocks)
+            Codec.list(WeightedBlock.CODEC).optionalFieldOf("edge_blocks", List.of()).forGetter(WaterSettings::edgeBlocks)
         ).apply(instance, WaterSettings::new));
     }
 
     public static final Codec<PathType> CODEC = RecordCodecBuilder.create(instance -> instance.group(
         Codec.list(WeightedBlock.CODEC).fieldOf("surface_blocks").forGetter(PathType::surfaceBlocks),
-        Codec.list(WeightedBlock.CODEC).fieldOf("edge_blocks").forGetter(PathType::edgeBlocks),
+        Codec.list(WeightedBlock.CODEC).optionalFieldOf("edge_blocks", List.of()).forGetter(PathType::edgeBlocks),
         ResourceLocation.CODEC.fieldOf("fill_block").forGetter(PathType::fillBlock),
         WidthRange.CODEC.fieldOf("width").forGetter(PathType::width),
         Codec.FLOAT.fieldOf("curviness").forGetter(PathType::curviness),
@@ -66,6 +67,7 @@ public record PathType(
         Codec.FLOAT.optionalFieldOf("slope_cost_weight", 0.0f).forGetter(PathType::slopeCostWeight),
         SlopeHandling.CODEC.fieldOf("slope_handling").forGetter(PathType::slopeHandling),
         FadeSettings.CODEC.fieldOf("fade").forGetter(PathType::fade),
-        WaterSettings.CODEC.optionalFieldOf("water_settings").forGetter(PathType::waterSettings)
+        WaterSettings.CODEC.optionalFieldOf("water_settings").forGetter(PathType::waterSettings),
+        Codec.list(WeightedBlock.CODEC).optionalFieldOf("slab_blocks", List.of()).forGetter(PathType::slabBlocks)
     ).apply(instance, PathType::new));
 }

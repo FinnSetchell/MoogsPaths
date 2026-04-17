@@ -5,6 +5,7 @@ import com.finndog.moogs_paths.data.FeatureDecoratorSet;
 import com.finndog.moogs_paths.data.PathDataManager;
 import com.finndog.moogs_paths.data.PathNetworkType;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
@@ -88,13 +89,13 @@ public final class BushPlacer {
                 // Call placement if any part of the bush might be in this chunk
                 if(cx + size >= chunkMinX && cx - size <= chunkMaxX && cz + size >= chunkMinZ && cz - size <= chunkMaxZ) {
                     BlockState block = pick(set.blocks(), totalWeight, segRandom);
-                    placeBush(level, cx, cz, size, parX, parZ, block, chunkX, chunkZ, segRandom);
+                    placeBush(level, cx, cz, size, parX, parZ, block, chunkX, chunkZ, segRandom, set.minHeight(), set.maxHeight());
                 }
             }
         }
     }
 
-    private static void placeBush(WorldGenLevel level, int cx, int cz, int size, float parX, float parZ, BlockState block, int chunkX, int chunkZ, RandomSource random) {
+    private static void placeBush(WorldGenLevel level, int cx, int cz, int size, float parX, float parZ, BlockState block, int chunkX, int chunkZ, RandomSource random, int minHeight, int maxHeight) {
         float perpX = -parZ;
         float perpZ = parX;
         float longR = size;
@@ -121,14 +122,17 @@ public final class BushPlacer {
                 mpos.set(px, sy - 1, pz);
                 if(!level.getFluidState(mpos).isEmpty()) continue;
 
-                // Center-weighted column height
-                float twoTallChance = Math.max(0.0f, 0.35f - Math.abs(across) * 0.15f);
-                int height = random.nextFloat() < twoTallChance ? 2 : 1;
+                int heightRange = maxHeight - minHeight;
+                int height = minHeight + (heightRange > 0 ? random.nextInt(heightRange + 1) : 0);
 
                 for(int dy = 0; dy < height; dy++) {
                     mpos.set(px, sy + dy, pz);
                     if(level.getBlockState(mpos).isAir()) {
-                        level.setBlock(mpos, block, Block.UPDATE_CLIENTS);
+                        BlockState toPlace = block;
+                        for(Direction dir : Direction.Plane.HORIZONTAL) {
+                            toPlace = toPlace.updateShape(dir, level.getBlockState(mpos.relative(dir)), level, mpos, mpos.relative(dir));
+                        }
+                        level.setBlock(mpos, toPlace, Block.UPDATE_ALL);
                     }
                 }
             }

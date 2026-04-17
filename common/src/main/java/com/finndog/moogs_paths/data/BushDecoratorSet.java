@@ -14,7 +14,9 @@ public record BushDecoratorSet(
     int maxOffset,
     int minSize,
     int maxSize,
-    int minSpacing
+    int minSpacing,
+    int minHeight,
+    int maxHeight
 ) {
     public record WeightedBlock(ResourceLocation block, int weight) {
         public static final Codec<WeightedBlock> CODEC = RecordCodecBuilder.create(instance -> instance.group(
@@ -31,6 +33,8 @@ public record BushDecoratorSet(
         Codec.INT.fieldOf("max_offset").forGetter(BushDecoratorSet::maxOffset),
         Codec.INT.fieldOf("min_size").forGetter(BushDecoratorSet::minSize),
         Codec.INT.fieldOf("max_size").forGetter(BushDecoratorSet::maxSize),
-        Codec.INT.optionalFieldOf("min_spacing", 0).forGetter(BushDecoratorSet::minSpacing)
+        Codec.INT.optionalFieldOf("min_spacing", 0).forGetter(BushDecoratorSet::minSpacing),
+        Codec.INT.optionalFieldOf("min_height", 1).forGetter(BushDecoratorSet::minHeight),
+        Codec.INT.optionalFieldOf("max_height", 2).forGetter(BushDecoratorSet::maxHeight)
     ).apply(instance, BushDecoratorSet::new));
 }

@@ -8,7 +8,9 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.Property;
+import net.minecraft.world.level.block.state.properties.SlabType;
 import net.minecraft.world.level.levelgen.Heightmap;
 
 import java.util.ArrayList;
@@ -67,8 +69,9 @@ public final class PathRasteriser {
         int chunkMinZ = chunkZ * 16;
         int chunkMaxZ = chunkMinZ + 15;
 
-        BlockState fillState = BuiltInRegistries.BLOCK.getOptional(pathType.fillBlock())
-            .orElse(Blocks.DIRT).defaultBlockState();
+        Block fillBlockResolved = BuiltInRegistries.BLOCK.getOptional(pathType.fillBlock()).orElse(Blocks.DIRT);
+        BlockState fillState = fillBlockResolved.defaultBlockState();
+        boolean skipFill = fillBlockResolved == Blocks.STRUCTURE_VOID;
         int fillTolerance = pathType.slopeHandling().fillTolerance();
 
         Set<Long> centerPositions = new HashSet<>();
@@ -141,7 +144,13 @@ public final class PathRasteriser {
                         BlockState surfaceState = pick(pathType.surfaceBlocks(), random);
                         if(!surfaceState.isAir()) {
                             level.setBlock(mpos, surfaceState, 3);
-                            fillBelow(level, mpos, bx, sy - 2, bz, fillState, fillTolerance);
+                            if(!skipFill) fillBelow(level, mpos, bx, sy - 2, bz, fillState, fillTolerance);
+                            if(diff == -1 && !pathType.slabBlocks().isEmpty()) {
+                                BlockState slabState = pick(pathType.slabBlocks(), random);
+                                if(slabState.hasProperty(BlockStateProperties.SLAB_TYPE))
+                                    slabState = slabState.setValue(BlockStateProperties.SLAB_TYPE, SlabType.BOTTOM);
+                                level.setBlock(mpos.set(bx, sy, bz), slabState, 3);
+                            }
                         }
                     }
                 }
@@ -179,6 +188,7 @@ public final class PathRasteriser {
             cumulative += e.weight();
             if(roll < cumulative) {
                 Block block = BuiltInRegistries.BLOCK.getOptional(e.block()).orElse(Blocks.DIRT);
+                if(block == Blocks.STRUCTURE_VOID) return Blocks.AIR.defaultBlockState();
                 BlockState state = block.defaultBlockState();
                 for(Map.Entry<String, String> prop : e.properties().entrySet()) {
                     state = applyProperty(state, prop.getKey(), prop.getValue());
@@ -186,9 +196,9 @@ public final class PathRasteriser {
                 return state;
             }
         }
-        return BuiltInRegistries.BLOCK.getOptional(entries.get(0).block())
-            .orElse(Blocks.DIRT)
-            .defaultBlockState();
+        Block fallback = BuiltInRegistries.BLOCK.getOptional(entries.get(0).block()).orElse(Blocks.DIRT);
+        if(fallback == Blocks.STRUCTURE_VOID) return Blocks.AIR.defaultBlockState();
+        return fallback.defaultBlockState();
     }
 
     private static BlockState applyProperty(BlockState state, String key, String value) {
