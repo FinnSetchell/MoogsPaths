@@ -34,36 +34,14 @@ public final class FeatureScatterer {
     //////////////////////////////
 
     private static void scatterSet(WorldGenLevel level, ChunkGenerator generator, Registry<ConfiguredFeature<?, ?>> featureRegistry, List<BlockPos> waypoints, FeatureDecoratorSet set, BiomeFilter biomeFilter, int chunkX, int chunkZ, RandomSource random) {
-        if(waypoints.size() < 2) return;
-
         int reach = set.scatterWidth() + 1;
 
-        for(int i = 0; i < waypoints.size() - 1; i++) {
-            BlockPos from = waypoints.get(i);
-            BlockPos to = waypoints.get(i + 1);
-
-            // Per-segment seed for cross-chunk consistency and skipping
-            long segmentSeed = random.nextLong();
-            if(!mightIntersect(from, to, reach, chunkX, chunkZ)) continue;
-
-            RandomSource segRandom = RandomSource.create(segmentSeed);
-            int dx = to.getX() - from.getX();
-            int dz = to.getZ() - from.getZ();
-            float length = (float) Math.sqrt(dx * dx + dz * dz);
-            if(length == 0) continue;
-
-            float parX = dx / length;
-            float parZ = dz / length;
-            float perpX = -parZ;
-            float perpZ = parX;
-
-            for(int d = 0; d < (int) length; d++) {
-                if(segRandom.nextFloat() >= set.density()) continue;
-
+        WaypointScatterer.scatter(waypoints, set.density(), reach, chunkX, chunkZ, random,
+            (from, d, parX, parZ, perpX, perpZ, segRandom) -> {
                 ConfiguredFeature<?, ?> feature = pickWeighted(set.features(), featureRegistry, segRandom);
-                if(feature == null) continue;
+                if(feature == null) return;
 
-                int side = sideSign(set.side(), segRandom);
+                int side = WaypointScatterer.sideSign(set.side(), segRandom);
                 int offset = side == 0 ? 0 : 1 + (set.scatterWidth() > 1 ? segRandom.nextInt(set.scatterWidth()) : 0);
 
                 int bx = from.getX() + Math.round(parX * d + perpX * offset * side);
@@ -72,8 +50,7 @@ public final class FeatureScatterer {
                 if((bx >> 4) == chunkX && (bz >> 4) == chunkZ) {
                     tryPlace(level, generator, feature, bx, bz, biomeFilter, segRandom);
                 }
-            }
-        }
+            });
     }
 
     private static void tryPlace(WorldGenLevel level, ChunkGenerator generator, ConfiguredFeature<?, ?> feature, int bx, int bz, BiomeFilter biomeFilter, RandomSource random) {
@@ -82,23 +59,6 @@ public final class FeatureScatterer {
         BlockPos pos = new BlockPos(bx, sy, bz);
         if(!biomeFilter.test(level.getBiome(pos))) return;
         feature.place(level, generator, random, pos);
-    }
-
-    private static boolean mightIntersect(BlockPos from, BlockPos to, int reach, int chunkX, int chunkZ) {
-        int minX = Math.min(from.getX(), to.getX()) - reach;
-        int maxX = Math.max(from.getX(), to.getX()) + reach;
-        int minZ = Math.min(from.getZ(), to.getZ()) - reach;
-        int maxZ = Math.max(from.getZ(), to.getZ()) + reach;
-        return maxX >= chunkX * 16 && minX <= chunkX * 16 + 15 && maxZ >= chunkZ * 16 && minZ <= chunkZ * 16 + 15;
-    }
-
-    private static int sideSign(FeatureDecoratorSet.Side side, RandomSource random) {
-        return switch(side) {
-            case LEFT -> -1;
-            case RIGHT -> 1;
-            case BOTH -> random.nextBoolean() ? 1 : -1;
-            case CENTER -> 0;
-        };
     }
 
     private static ConfiguredFeature<?, ?> pickWeighted(List<FeatureDecoratorSet.FeatureEntry> entries, Registry<ConfiguredFeature<?, ?>> registry, RandomSource random) {
