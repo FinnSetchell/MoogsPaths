@@ -161,9 +161,17 @@ public final class PathDataManager {
                 Constants.LOG.warn("Path network {} references missing path_type {}", netId, net.pathType());
                 warnings++;
             }
+            if(net.weight() <= 0) {
+                Constants.LOG.warn("Path network {} has non-positive weight {}", netId, net.weight());
+                warnings++;
+            }
             for(PathNetworkType.WeightedRef ref : net.structureSets()) {
                 if(!STRUCTURE_SETS.containsKey(ref.id())) {
                     Constants.LOG.warn("Path network {} references missing structure_set {}", netId, ref.id());
+                    warnings++;
+                }
+                if(ref.weight() <= 0) {
+                    Constants.LOG.warn("Path network {} has non-positive structure_set weight for {}", netId, ref.id());
                     warnings++;
                 }
             }
@@ -172,15 +180,78 @@ public final class PathDataManager {
                     Constants.LOG.warn("Path network {} references missing feature_decorator_set {}", netId, ref.id());
                     warnings++;
                 }
+                if(ref.weight() <= 0) {
+                    Constants.LOG.warn("Path network {} has non-positive feature_decorator_set weight for {}", netId, ref.id());
+                    warnings++;
+                }
             }
             for(PathNetworkType.WeightedRef ref : net.bushDecoratorSets()) {
                 if(!BUSH_DECORATOR_SETS.containsKey(ref.id())) {
                     Constants.LOG.warn("Path network {} references missing bush_decorator_set {}", netId, ref.id());
                     warnings++;
                 }
+                if(ref.weight() <= 0) {
+                    Constants.LOG.warn("Path network {} has non-positive bush_decorator_set weight for {}", netId, ref.id());
+                    warnings++;
+                }
             }
         }
-        if(warnings > 0) Constants.LOG.warn("moogs_paths: {} cross-reference warning(s) during reload", warnings);
+
+        for(Map.Entry<ResourceLocation, PathType> entry : PATH_TYPES.entrySet()) {
+            ResourceLocation id = entry.getKey();
+            PathType pt = entry.getValue();
+            warnings += checkPathTypeBlockWeights(id, "surface_blocks", pt.surfaceBlocks());
+            warnings += checkPathTypeBlockWeights(id, "edge_blocks", pt.edgeBlocks());
+            warnings += checkPathTypeBlockWeights(id, "slab_blocks", pt.slabBlocks());
+            if(pt.waterSettings().isPresent()) {
+                PathType.WaterSettings ws = pt.waterSettings().get();
+                warnings += checkPathTypeBlockWeights(id, "water_settings.surface_blocks", ws.surfaceBlocks());
+                warnings += checkPathTypeBlockWeights(id, "water_settings.edge_blocks", ws.edgeBlocks());
+            }
+        }
+
+        for(Map.Entry<ResourceLocation, StructureSet> entry : STRUCTURE_SETS.entrySet()) {
+            ResourceLocation id = entry.getKey();
+            for(StructureSet.StructureEntry e : entry.getValue().structures()) {
+                if(e.weight() <= 0) {
+                    Constants.LOG.warn("Structure set {} has non-positive weight for {}", id, e.nbt());
+                    warnings++;
+                }
+            }
+        }
+
+        for(Map.Entry<ResourceLocation, FeatureDecoratorSet> entry : DECORATOR_SETS.entrySet()) {
+            ResourceLocation id = entry.getKey();
+            for(FeatureDecoratorSet.FeatureEntry e : entry.getValue().features()) {
+                if(e.weight() <= 0) {
+                    Constants.LOG.warn("Feature decorator set {} has non-positive weight for {}", id, e.feature());
+                    warnings++;
+                }
+            }
+        }
+
+        for(Map.Entry<ResourceLocation, BushDecoratorSet> entry : BUSH_DECORATOR_SETS.entrySet()) {
+            ResourceLocation id = entry.getKey();
+            for(BushDecoratorSet.WeightedBlock e : entry.getValue().blocks()) {
+                if(e.weight() <= 0) {
+                    Constants.LOG.warn("Bush decorator set {} has non-positive weight for {}", id, e.block());
+                    warnings++;
+                }
+            }
+        }
+
+        if(warnings > 0) Constants.LOG.warn("moogs_paths: {} validation warning(s) during reload", warnings);
+    }
+
+    private static int checkPathTypeBlockWeights(ResourceLocation id, String fieldName, List<PathType.WeightedBlock> blocks) {
+        int warnings = 0;
+        for(PathType.WeightedBlock b : blocks) {
+            if(b.weight() <= 0) {
+                Constants.LOG.warn("Path type {} has non-positive {} weight for {}", id, fieldName, b.block());
+                warnings++;
+            }
+        }
+        return warnings;
     }
 
     //////////////////////////////
