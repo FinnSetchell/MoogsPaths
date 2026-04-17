@@ -141,11 +141,46 @@ public final class PathDataManager {
                     );
                     BUSH_DECORATOR_SETS = Collections.unmodifiableMap(fresh);
                     Constants.LOG.info("Loaded {} bush decorator sets", BUSH_DECORATOR_SETS.size());
+                    validateReferences();
                 }
             }
         );
 
         return listeners;
+    }
+
+    // LinkedHashMap preserves registration order so the bush listener runs last
+    // and sees every other map fully populated when validating cross-references
+    private static void validateReferences() {
+        int warnings = 0;
+        for(Map.Entry<ResourceLocation, PathNetworkType> entry : PATH_NETWORKS.entrySet()) {
+            ResourceLocation netId = entry.getKey();
+            PathNetworkType net = entry.getValue();
+
+            if(!PATH_TYPES.containsKey(net.pathType())) {
+                Constants.LOG.warn("Path network {} references missing path_type {}", netId, net.pathType());
+                warnings++;
+            }
+            for(PathNetworkType.WeightedRef ref : net.structureSets()) {
+                if(!STRUCTURE_SETS.containsKey(ref.id())) {
+                    Constants.LOG.warn("Path network {} references missing structure_set {}", netId, ref.id());
+                    warnings++;
+                }
+            }
+            for(PathNetworkType.WeightedRef ref : net.featureDecoratorSets()) {
+                if(!DECORATOR_SETS.containsKey(ref.id())) {
+                    Constants.LOG.warn("Path network {} references missing feature_decorator_set {}", netId, ref.id());
+                    warnings++;
+                }
+            }
+            for(PathNetworkType.WeightedRef ref : net.bushDecoratorSets()) {
+                if(!BUSH_DECORATOR_SETS.containsKey(ref.id())) {
+                    Constants.LOG.warn("Path network {} references missing bush_decorator_set {}", netId, ref.id());
+                    warnings++;
+                }
+            }
+        }
+        if(warnings > 0) Constants.LOG.warn("moogs_paths: {} cross-reference warning(s) during reload", warnings);
     }
 
     //////////////////////////////
