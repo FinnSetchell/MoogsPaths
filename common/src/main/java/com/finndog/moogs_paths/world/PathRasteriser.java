@@ -3,6 +3,7 @@ package com.finndog.moogs_paths.world;
 import com.finndog.moogs_paths.data.PathType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
@@ -132,12 +133,14 @@ public final class PathRasteriser {
                         BlockState picked = pick(waterBlocks, random);
                         if(!picked.isAir()) {
                             level.setBlock(mpos, picked, 3);
+                            clearAbove(level, mpos, bx, sy, bz);
                         }
                     }
                     else if(isEdge && !pathType.edgeBlocks().isEmpty()) {
                         BlockState edgeState = pick(pathType.edgeBlocks(), random);
                         if(!edgeState.isAir()) {
                             level.setBlock(mpos, edgeState, 3);
+                            clearAbove(level, mpos, bx, sy, bz);
                         }
                     }
                     else {
@@ -150,11 +153,27 @@ public final class PathRasteriser {
                                 if(slabState.hasProperty(BlockStateProperties.SLAB_TYPE))
                                     slabState = slabState.setValue(BlockStateProperties.SLAB_TYPE, SlabType.BOTTOM);
                                 level.setBlock(mpos.set(bx, sy, bz), slabState, 3);
+                                clearAbove(level, mpos, bx, sy + 1, bz);
+                            }
+                            else {
+                                clearAbove(level, mpos, bx, sy, bz);
                             }
                         }
                     }
                 }
             }
+        }
+    }
+
+    private static void clearAbove(WorldGenLevel level, BlockPos.MutableBlockPos mpos, int x, int startY, int z) {
+        for(int dy = 0; dy < 6; dy++) {
+            mpos.set(x, startY + dy, z);
+            BlockState s = level.getBlockState(mpos);
+            if(s.isAir()) return;
+            if(s.canBeReplaced() || s.is(BlockTags.LEAVES) || s.is(BlockTags.LOGS) || s.is(BlockTags.FLOWERS) || s.is(BlockTags.SAPLINGS)) {
+                level.setBlock(mpos, Blocks.AIR.defaultBlockState(), 3);
+            }
+            else return;
         }
     }
 

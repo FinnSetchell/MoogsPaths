@@ -2,5 +2,5 @@
   "type": "forge:add_features",
   "biomes": "#minecraft:is_overworld",
   "features": "moogs_paths:path_gen",
-  "step": "local_modifications"
+  "step": "vegetal_decoration"
 }
