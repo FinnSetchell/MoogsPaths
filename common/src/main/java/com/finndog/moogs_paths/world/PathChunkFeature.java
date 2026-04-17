@@ -76,9 +76,11 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                     List<List<BlockPos>> allPaths = PathDataManager.getOrComputeWaypoints(pathSeed, () -> {
                         RandomSource walkRandom = RandomSource.create(pathSeed ^ 0x1L);
                         return PathWalker.walkWithBranches(originPos, network, pathType, walkRandom,
+                            // generator.getBaseHeight is safe for any column since it runs noise directly
+                            // instead of reading a possibly-unloaded chunk's heightmap
                             (x, z) -> {
                                 if (Math.abs((x >> 4) - chunkX) > 7 || Math.abs((z >> 4) - chunkZ) > 7) return -1;
-                                return level.getHeight(Heightmap.Types.WORLD_SURFACE_WG, x, z);
+                                return generator.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, level, randomState);
                             });
                     });
 
