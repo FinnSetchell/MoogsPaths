@@ -2,6 +2,7 @@ package com.finndog.moogs_paths.commands;
 
 import com.finndog.moogs_paths.data.PathDataManager;
 import com.finndog.moogs_paths.data.PathNetworkType;
+import com.finndog.moogs_paths.world.PathChunkFeature;
 import com.finndog.moogs_paths.world.PathDirection;
 import com.finndog.moogs_paths.world.PathRegionSelector;
 import com.mojang.brigadier.CommandDispatcher;
@@ -94,9 +95,10 @@ public final class PathsDebugCommand {
             PathRegionSelector.originsInRange(worldSeed, chunkX, chunkZ, searchRadius, regionSize)
                 .forEach(origin -> {
                     long pathSeed = worldSeed
-                        ^ ((long) origin[0] * 341873128712L)
-                        ^ ((long) origin[1] * 132897987541L)
-                        ^ 0xABCDEF1234567890L;
+                        ^ ((long) origin[0] * PathChunkFeature.ORIGIN_X_MULT)
+                        ^ ((long) origin[1] * PathChunkFeature.ORIGIN_Z_MULT)
+                        ^ ((long) regionSize * PathChunkFeature.ORIGIN_REGION_SIZE_MULT)
+                        ^ PathChunkFeature.PATH_SEED_MIXER;
                     RandomSource pickRandom = RandomSource.create(pathSeed);
                     Map.Entry<ResourceLocation, PathNetworkType> picked = pickWeightedEntry(networksInGroup, pickRandom);
 
@@ -124,7 +126,7 @@ public final class PathsDebugCommand {
 
         // Offset the TP point past the start fade zone so path blocks are actually visible.
         PathNetworkType nearestNetwork = nearest.network();
-        RandomSource walkRandom = RandomSource.create(nearest.pathSeed() ^ 0x1L);
+        RandomSource walkRandom = RandomSource.create(nearest.pathSeed() ^ PathChunkFeature.WALK_MIXER);
         walkRandom.nextInt(Math.max(1, nearestNetwork.scale().lengthMax - nearestNetwork.scale().lengthMin + 1));
         PathDirection initialDir = PathDirection.VALUES[walkRandom.nextInt(8)];
         int fadeOffset = PathDataManager.getPathType(nearestNetwork.pathType())

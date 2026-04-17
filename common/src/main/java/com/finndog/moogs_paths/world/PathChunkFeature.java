@@ -27,17 +27,17 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
     public static final TagKey<Biome> HAS_NO_PATHS = TagKey.create(Registries.BIOME, new ResourceLocation(Constants.MOD_ID, "has_no_paths"));
 
     // arbitrary large primes / well-known constants used to derive distinct random streams from pathSeed
-    private static final long PATH_SEED_MIXER = 0xABCDEF1234567890L;
-    private static final long WALK_MIXER = 0x1L;
+    public static final long PATH_SEED_MIXER = 0xABCDEF1234567890L;
+    public static final long WALK_MIXER = 0x1L;
+    public static final long ORIGIN_X_MULT = 341873128712L;
+    public static final long ORIGIN_Z_MULT = 132897987541L;
+    public static final long ORIGIN_REGION_SIZE_MULT = 27182818284L;
     private static final long BRANCH_SEED_MULT = 9999991L;
     private static final long RASTER_CHUNK_X_MULT = 1234567L;
     private static final long RASTER_CHUNK_Z_MULT = 9876543L;
     private static final long STRUCTURE_MIXER = 0x9E3779B97F4A7C15L;
     private static final long FEATURE_MIXER = 0x6C62272E07BB0142L;
     private static final long BUSH_MIXER = 0x3BFDA1C6E09D2578L;
-    private static final long ORIGIN_X_MULT = 341873128712L;
-    private static final long ORIGIN_Z_MULT = 132897987541L;
-    private static final long ORIGIN_REGION_SIZE_MULT = 27182818284L;
 
     public PathChunkFeature(Codec<NoneFeatureConfiguration> codec) {
         super(codec);
