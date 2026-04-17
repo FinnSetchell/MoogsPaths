@@ -35,7 +35,7 @@ public final class PathWalker {
         ScaleSettings scale = network.scale();
         int targetLength = Math.round((random.nextInt(Math.max(1, scale.lengthMax - scale.lengthMin + 1)) + scale.lengthMin) * lengthFraction);
 
-        PathDirection dir = PathDirection.VALUES[random.nextInt(16)];
+        PathDirection dir = PathDirection.VALUES[random.nextInt(8)];
         int width = random.nextInt(Math.max(1, pathType.width().max() - pathType.width().min() + 1)) + pathType.width().min();
         int stepDist = stepDistance(width);
 
@@ -106,8 +106,8 @@ public final class PathWalker {
             }
 
             int ordinalDist = Math.abs(candidate.ordinal() - currentOrdinal);
-            int angularDist = Math.min(ordinalDist, 16 - ordinalDist);
-            float dirScore = (angularDist / 8f) * (1f - curviness);
+            int angularDist = Math.min(ordinalDist, 8 - ordinalDist);
+            float dirScore = (angularDist / 4f) * (1f - curviness);
 
             float noise = random.nextFloat() * 0.15f;
             float totalScore = slopeScore * slopeWeight + dirScore * (1f - slopeWeight) + noise;
@@ -129,11 +129,7 @@ public final class PathWalker {
 
         if(roll > curviness) return current;
 
-        int steps;
-        if(turnRoll < 0.5f) steps = 1;
-        else if(turnRoll < 0.85f) steps = 2;
-        else steps = 3;
-
+        int steps = turnRoll < 0.7f ? 1 : 2;
         if(flip) steps = -steps;
         return current.rotate(steps);
     }
