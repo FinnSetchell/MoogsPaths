@@ -15,6 +15,7 @@ import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.core.BlockPos;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
@@ -40,11 +41,12 @@ public final class PathDataManager {
     private static volatile Map<ResourceLocation, StructureSet> STRUCTURE_SETS = Map.of();
     private static volatile Map<ResourceLocation, FeatureDecoratorSet> DECORATOR_SETS = Map.of();
     private static volatile Map<ResourceLocation, BushDecoratorSet> BUSH_DECORATOR_SETS = Map.of();
-    private static volatile Map<ResourceLocation, Optional<StructureTemplate>> CACHED_TEMPLATES = Map.of();
+    // lazy cache: templates are fetched on first request and cleared on every reload
+    private static final Map<ResourceLocation, Optional<StructureTemplate>> CACHED_TEMPLATES = new ConcurrentHashMap<>();
     private static volatile Map<Integer, List<PathNetworkType>> NETWORKS_BY_REGION_SIZE = Map.of();
     private static volatile int NETWORKS_MAX_RADIUS = 1000;
 
-    private static StructureTemplateManager templateManager;
+    private static volatile StructureTemplateManager templateManager;
 
     private PathDataManager() {}
 
@@ -105,8 +107,8 @@ public final class PathDataManager {
                             .ifPresent(ss -> fresh.put(id, ss))
                     );
                     STRUCTURE_SETS = Collections.unmodifiableMap(fresh);
+                    CACHED_TEMPLATES.clear();
                     Constants.LOG.info("Loaded {} structure sets", STRUCTURE_SETS.size());
-                    reloadTemplates();
                 }
             }
         );
@@ -201,7 +203,13 @@ public final class PathDataManager {
     }
 
     public static Optional<StructureTemplate> getCachedTemplate(ResourceLocation id) {
-        return CACHED_TEMPLATES.getOrDefault(id, Optional.empty());
+        StructureTemplateManager mgr = templateManager;
+        if(mgr == null) return Optional.empty();
+        return CACHED_TEMPLATES.computeIfAbsent(id, key -> {
+            Optional<StructureTemplate> tmpl = mgr.get(key);
+            if(tmpl.isEmpty()) Constants.LOG.warn("Structure template not found: {}", key);
+            return tmpl;
+        });
     }
 
     public static List<List<BlockPos>> getOrComputeWaypoints(long pathSeed, Supplier<List<List<BlockPos>>> computer) {
@@ -211,23 +219,6 @@ public final class PathDataManager {
     public static void onServerStart(StructureTemplateManager manager) {
         templateManager = manager;
         WAYPOINT_CACHE.clear();
-        reloadTemplates();
-    }
-
-    private static void reloadTemplates() {
-        if(templateManager == null) return;
-        Map<ResourceLocation, Optional<StructureTemplate>> fresh = new HashMap<>();
-        STRUCTURE_SETS.values().forEach(set ->
-            set.structures().forEach(entry -> {
-                ResourceLocation id = entry.nbt();
-                if(!fresh.containsKey(id)) {
-                    Optional<StructureTemplate> tmpl = templateManager.get(id);
-                    if(tmpl.isEmpty()) Constants.LOG.warn("Structure template not found: {}", id);
-                    fresh.put(id, tmpl);
-                }
-            })
-        );
-        CACHED_TEMPLATES = Collections.unmodifiableMap(fresh);
-        Constants.LOG.info("Cached {} structure templates", CACHED_TEMPLATES.size());
+        CACHED_TEMPLATES.clear();
     }
 }
