@@ -10,14 +10,12 @@ import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.Property;
 import net.minecraft.world.level.block.state.properties.SlabType;
 import net.minecraft.world.level.levelgen.Heightmap;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 public final class PathRasteriser {
@@ -208,30 +206,12 @@ public final class PathRasteriser {
             if(roll < cumulative) {
                 Block block = BuiltInRegistries.BLOCK.getOptional(e.block()).orElse(Blocks.DIRT);
                 if(block == Blocks.STRUCTURE_VOID) return Blocks.AIR.defaultBlockState();
-                BlockState state = block.defaultBlockState();
-                for(Map.Entry<String, String> prop : e.properties().entrySet()) {
-                    state = applyProperty(state, prop.getKey(), prop.getValue());
-                }
-                return state;
+                return block.defaultBlockState();
             }
         }
         Block fallback = BuiltInRegistries.BLOCK.getOptional(entries.get(0).block()).orElse(Blocks.DIRT);
         if(fallback == Blocks.STRUCTURE_VOID) return Blocks.AIR.defaultBlockState();
         return fallback.defaultBlockState();
-    }
-
-    private static BlockState applyProperty(BlockState state, String key, String value) {
-        for(Property<?> prop : state.getBlock().getStateDefinition().getProperties()) {
-            if(prop.getName().equals(key)) {
-                return tryApplyValue(state, prop, value);
-            }
-        }
-        return state;
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <T extends Comparable<T>> BlockState tryApplyValue(BlockState state, Property<T> prop, String value) {
-        return prop.getValue(value).map(v -> state.setValue(prop, v)).orElse(state);
     }
 
     private static boolean mightIntersect(BlockPos from, BlockPos to, int halfWidth, int chunkX, int chunkZ) {

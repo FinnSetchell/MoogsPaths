@@ -5,7 +5,6 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 public record PathType(
@@ -21,11 +20,10 @@ public record PathType(
     Optional<WaterSettings> waterSettings,
     List<WeightedBlock> slabBlocks
 ) {
-    public record WeightedBlock(ResourceLocation block, int weight, Map<String, String> properties) {
+    public record WeightedBlock(ResourceLocation block, int weight) {
         public static final Codec<WeightedBlock> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             ResourceLocation.CODEC.fieldOf("block").forGetter(WeightedBlock::block),
-            Codec.INT.fieldOf("weight").forGetter(WeightedBlock::weight),
-            Codec.unboundedMap(Codec.STRING, Codec.STRING).optionalFieldOf("properties", Map.of()).forGetter(WeightedBlock::properties)
+            Codec.INT.fieldOf("weight").forGetter(WeightedBlock::weight)
         ).apply(instance, WeightedBlock::new));
     }
 
