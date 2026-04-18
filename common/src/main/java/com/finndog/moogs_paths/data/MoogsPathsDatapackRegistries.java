@@ -7,9 +7,15 @@ import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 public final class MoogsPathsDatapackRegistries {
+
+    private static volatile DerivedNetworkViews cachedDerivedViews = null;
 
     public static final ResourceKey<Registry<PathType>> PATH_TYPE =
         ResourceKey.createRegistryKey(new ResourceLocation(Constants.MOD_ID, "path_type"));
@@ -57,6 +63,33 @@ public final class MoogsPathsDatapackRegistries {
     public static Registry<PathNetworkType> pathNetworkRegistry(RegistryAccess access) {
         return access.registryOrThrow(PATH_NETWORK);
     }
+
+    public static Map<Integer, List<PathNetworkType>> networksByRegionSize(RegistryAccess access) {
+        return derivedViews(access).byRegionSize;
+    }
+
+    public static int networksMaxRadius(RegistryAccess access) {
+        return derivedViews(access).maxRadius;
+    }
+
+    public static void invalidateDerivedViews() {
+        cachedDerivedViews = null;
+    }
+
+    private static DerivedNetworkViews derivedViews(RegistryAccess access) {
+        DerivedNetworkViews views = cachedDerivedViews;
+        if(views == null) {
+            Registry<PathNetworkType> registry = access.registryOrThrow(PATH_NETWORK);
+            Map<Integer, List<PathNetworkType>> byRegion = Collections.unmodifiableMap(
+                registry.stream().collect(Collectors.groupingBy(PathNetworkType::regionSize)));
+            int maxRadius = registry.stream().mapToInt(n -> n.scale().lengthMax).max().orElse(1000);
+            views = new DerivedNetworkViews(byRegion, maxRadius);
+            cachedDerivedViews = views;
+        }
+        return views;
+    }
+
+    private record DerivedNetworkViews(Map<Integer, List<PathNetworkType>> byRegionSize, int maxRadius) {}
 
     private MoogsPathsDatapackRegistries() {}
 }

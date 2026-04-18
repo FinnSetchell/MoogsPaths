@@ -52,10 +52,10 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
         int chunkX = ctx.origin().getX() >> 4;
         int chunkZ = ctx.origin().getZ() >> 4;
 
-        Map<Integer, List<PathNetworkType>> byRegionSize = PathDataManager.getNetworksByRegionSize();
+        Map<Integer, List<PathNetworkType>> byRegionSize = MoogsPathsDatapackRegistries.networksByRegionSize(level.registryAccess());
         if(byRegionSize.isEmpty()) return false;
 
-        int maxRadius = PathDataManager.getNetworksMaxRadius();
+        int maxRadius = MoogsPathsDatapackRegistries.networksMaxRadius(level.registryAccess());
         RandomState randomState = level.getLevel().getChunkSource().randomState();
 
         boolean placed = false;
