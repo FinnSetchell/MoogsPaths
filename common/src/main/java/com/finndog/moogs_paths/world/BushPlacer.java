@@ -2,7 +2,7 @@ package com.finndog.moogs_paths.world;
 
 import com.finndog.moogs_paths.data.BiomeFilter;
 import com.finndog.moogs_paths.data.BushDecoratorSet;
-import com.finndog.moogs_paths.data.PathDataManager;
+import com.finndog.moogs_paths.data.MoogsPathsDatapackRegistries;
 import com.finndog.moogs_paths.data.PathNetworkType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -25,7 +25,7 @@ public final class BushPlacer {
 
     public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<PathNetworkType.WeightedRef> bushSetRefs, BiomeFilter biomeFilter, int chunkX, int chunkZ, RandomSource random) {
         for(PathNetworkType.WeightedRef ref : bushSetRefs) {
-            PathDataManager.getBushDecoratorSet(ref.id()).ifPresent(set ->
+            MoogsPathsDatapackRegistries.getBushDecoratorSet(level.registryAccess(), ref.id()).ifPresent(set ->
                 placeSet(level, waypoints, set, biomeFilter, chunkX, chunkZ, random));
         }
     }

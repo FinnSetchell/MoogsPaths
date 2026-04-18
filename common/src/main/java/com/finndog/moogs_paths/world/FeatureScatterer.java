@@ -3,7 +3,7 @@ package com.finndog.moogs_paths.world;
 import com.finndog.moogs_paths.Constants;
 import com.finndog.moogs_paths.data.BiomeFilter;
 import com.finndog.moogs_paths.data.FeatureDecoratorSet;
-import com.finndog.moogs_paths.data.PathDataManager;
+import com.finndog.moogs_paths.data.MoogsPathsDatapackRegistries;
 import com.finndog.moogs_paths.data.PathNetworkType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Registry;
@@ -26,7 +26,7 @@ public final class FeatureScatterer {
         Registry<ConfiguredFeature<?, ?>> featureRegistry = level.registryAccess().registryOrThrow(Registries.CONFIGURED_FEATURE);
 
         for(PathNetworkType.WeightedRef ref : decoratorSetRefs) {
-            PathDataManager.getDecoratorSet(ref.id()).ifPresent(set ->
+            MoogsPathsDatapackRegistries.getFeatureDecoratorSet(level.registryAccess(), ref.id()).ifPresent(set ->
                 scatterSet(level, generator, featureRegistry, waypoints, set, biomeFilter, chunkX, chunkZ, random));
         }
     }

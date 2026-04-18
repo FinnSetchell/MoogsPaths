@@ -1,6 +1,7 @@
 package com.finndog.moogs_paths.world;
 
 import com.finndog.moogs_paths.data.BiomeFilter;
+import com.finndog.moogs_paths.data.MoogsPathsDatapackRegistries;
 import com.finndog.moogs_paths.data.PathDataManager;
 import com.finndog.moogs_paths.data.PathNetworkType;
 import com.finndog.moogs_paths.data.StructureSet;
@@ -22,7 +23,7 @@ public final class StructurePlacer {
 
     public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<PathNetworkType.WeightedRef> structureSetRefs, BiomeFilter biomeFilter, int chunkX, int chunkZ, RandomSource random) {
         for(PathNetworkType.WeightedRef ref : structureSetRefs) {
-            PathDataManager.getStructureSet(ref.id()).ifPresent(set ->
+            MoogsPathsDatapackRegistries.getStructureSet(level.registryAccess(), ref.id()).ifPresent(set ->
                 placeSet(level, waypoints, set, biomeFilter, chunkX, chunkZ, random));
         }
     }

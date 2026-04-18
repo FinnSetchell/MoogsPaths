@@ -1,5 +1,6 @@
 package com.finndog.moogs_paths.commands;
 
+import com.finndog.moogs_paths.data.MoogsPathsDatapackRegistries;
 import com.finndog.moogs_paths.data.PathDataManager;
 import com.finndog.moogs_paths.data.PathNetworkType;
 import com.finndog.moogs_paths.world.PathChunkFeature;
@@ -11,6 +12,7 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.arguments.ResourceLocationArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
@@ -44,7 +46,8 @@ public final class PathsDebugCommand {
                     .executes(ctx -> locatePath(ctx.getSource(), null))
                     .then(argument("network", ResourceLocationArgument.id())
                         .suggests((ctx, builder) -> {
-                            PathDataManager.getPathNetworksSnapshot().keySet().forEach(id -> builder.suggest(id.toString()));
+                            MoogsPathsDatapackRegistries.pathNetworkRegistry(ctx.getSource().registryAccess())
+                                .keySet().forEach(id -> builder.suggest(id.toString()));
                             return builder.buildFuture();
                         })
                         .executes(ctx -> locatePath(ctx.getSource(), ResourceLocationArgument.getId(ctx, "network")))
@@ -62,13 +65,13 @@ public final class PathsDebugCommand {
             return 0;
         }
 
-        Map<ResourceLocation, PathNetworkType> snapshot = PathDataManager.getPathNetworksSnapshot();
-        if(snapshot.isEmpty()) {
+        Registry<PathNetworkType> registry = MoogsPathsDatapackRegistries.pathNetworkRegistry(src.registryAccess());
+        if(registry.size() == 0) {
             src.sendFailure(Component.literal("[paths] No networks loaded"));
             return 0;
         }
 
-        if(networkFilter != null && !snapshot.containsKey(networkFilter)) {
+        if(networkFilter != null && !registry.containsKey(networkFilter)) {
             src.sendFailure(Component.literal("[paths] Unknown network: " + networkFilter));
             return 0;
         }
@@ -80,7 +83,9 @@ public final class PathsDebugCommand {
         int chunkZ = playerBZ >> 4;
         int searchRadius = 10000;
 
-        List<Map.Entry<ResourceLocation, PathNetworkType>> allEntries = new ArrayList<>(snapshot.entrySet());
+        List<Map.Entry<ResourceLocation, PathNetworkType>> allEntries = registry.entrySet().stream()
+            .<Map.Entry<ResourceLocation, PathNetworkType>>map(e -> Map.entry(e.getKey().location(), e.getValue()))
+            .collect(Collectors.toList());
 
         Map<Integer, List<Map.Entry<ResourceLocation, PathNetworkType>>> byRegionSize = allEntries.stream()
             .collect(Collectors.groupingBy(e -> e.getValue().regionSize()));
@@ -129,7 +134,7 @@ public final class PathsDebugCommand {
         RandomSource walkRandom = RandomSource.create(nearest.pathSeed() ^ PathChunkFeature.WALK_MIXER);
         walkRandom.nextInt(Math.max(1, nearestNetwork.scale().lengthMax - nearestNetwork.scale().lengthMin + 1));
         PathDirection initialDir = PathDirection.VALUES[walkRandom.nextInt(8)];
-        int fadeOffset = PathDataManager.getPathType(nearestNetwork.pathType())
+        int fadeOffset = MoogsPathsDatapackRegistries.getPathType(src.registryAccess(), nearestNetwork.pathType())
             .map(pt -> pt.fade().startBlocks() + 10)
             .orElse(30);
         int reportBx = nearest.bx() + initialDir.dx * fadeOffset;
@@ -176,15 +181,15 @@ public final class PathsDebugCommand {
         int blockX = (int) player.getX();
         int blockZ = (int) player.getZ();
 
-        Map<ResourceLocation, PathNetworkType> snapshot = PathDataManager.getPathNetworksSnapshot();
-        if(snapshot.isEmpty()) {
+        Registry<PathNetworkType> registry = MoogsPathsDatapackRegistries.pathNetworkRegistry(src.registryAccess());
+        if(registry.size() == 0) {
             src.sendSuccess(() -> Component.literal("[paths] No networks loaded"), false);
             return 1;
         }
 
         src.sendSuccess(() -> Component.literal("[paths] Region info at your position:"), false);
 
-        snapshot.values().stream()
+        registry.stream()
             .map(PathNetworkType::regionSize)
             .distinct()
             .sorted()
@@ -197,14 +202,14 @@ public final class PathsDebugCommand {
     }
 
     private static int debugNetworks(CommandSourceStack src) {
-        Map<ResourceLocation, PathNetworkType> snapshot = PathDataManager.getPathNetworksSnapshot();
-        if(snapshot.isEmpty()) {
+        Registry<PathNetworkType> registry = MoogsPathsDatapackRegistries.pathNetworkRegistry(src.registryAccess());
+        if(registry.size() == 0) {
             src.sendSuccess(() -> Component.literal("[paths] No networks loaded"), false);
             return 1;
         }
 
-        src.sendSuccess(() -> Component.literal("[paths] Loaded networks (" + snapshot.size() + "):"), false);
-        for(PathNetworkType n : snapshot.values()) {
+        src.sendSuccess(() -> Component.literal("[paths] Loaded networks (" + registry.size() + "):"), false);
+        for(PathNetworkType n : registry) {
             String line = "  pathType=" + n.pathType()
                 + " scale=" + n.scale().lengthMin + "-" + n.scale().lengthMax
                 + " regionSize=" + n.regionSize()

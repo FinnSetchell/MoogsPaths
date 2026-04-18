@@ -1,6 +1,7 @@
 package com.finndog.moogs_paths.world;
 
 import com.finndog.moogs_paths.Constants;
+import com.finndog.moogs_paths.data.MoogsPathsDatapackRegistries;
 import com.finndog.moogs_paths.data.PathDataManager;
 import com.finndog.moogs_paths.data.PathNetworkType;
 import com.finndog.moogs_paths.data.PathType;
@@ -85,7 +86,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                 if(originBiome.is(HAS_NO_PATHS)) continue;
                 if(!network.biomeFilter().test(originBiome)) continue;
 
-                Optional<PathType> pathTypeOpt = PathDataManager.getPathType(network.pathType());
+                Optional<PathType> pathTypeOpt = MoogsPathsDatapackRegistries.getPathType(level.registryAccess(), network.pathType());
                 if(pathTypeOpt.isEmpty()) {
                     Constants.LOG.error("Missing path type: {}", network.pathType());
                     continue;

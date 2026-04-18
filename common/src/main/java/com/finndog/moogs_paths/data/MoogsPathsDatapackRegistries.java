@@ -3,8 +3,11 @@ package com.finndog.moogs_paths.data;
 import com.finndog.moogs_paths.Constants;
 import com.finndog.moogs_paths.platform.Services;
 import net.minecraft.core.Registry;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+
+import java.util.Optional;
 
 public final class MoogsPathsDatapackRegistries {
 
@@ -29,6 +32,30 @@ public final class MoogsPathsDatapackRegistries {
         Services.PLATFORM.registerDatapackRegistry(STRUCTURE_SET, StructureSet.CODEC);
         Services.PLATFORM.registerDatapackRegistry(FEATURE_DECORATOR_SET, FeatureDecoratorSet.CODEC);
         Services.PLATFORM.registerDatapackRegistry(BUSH_DECORATOR_SET, BushDecoratorSet.CODEC);
+    }
+
+    public static Optional<PathType> getPathType(RegistryAccess access, ResourceLocation id) {
+        return access.registryOrThrow(PATH_TYPE).getOptional(id);
+    }
+
+    public static Optional<PathNetworkType> getPathNetwork(RegistryAccess access, ResourceLocation id) {
+        return access.registryOrThrow(PATH_NETWORK).getOptional(id);
+    }
+
+    public static Optional<StructureSet> getStructureSet(RegistryAccess access, ResourceLocation id) {
+        return access.registryOrThrow(STRUCTURE_SET).getOptional(id);
+    }
+
+    public static Optional<FeatureDecoratorSet> getFeatureDecoratorSet(RegistryAccess access, ResourceLocation id) {
+        return access.registryOrThrow(FEATURE_DECORATOR_SET).getOptional(id);
+    }
+
+    public static Optional<BushDecoratorSet> getBushDecoratorSet(RegistryAccess access, ResourceLocation id) {
+        return access.registryOrThrow(BUSH_DECORATOR_SET).getOptional(id);
+    }
+
+    public static Registry<PathNetworkType> pathNetworkRegistry(RegistryAccess access) {
+        return access.registryOrThrow(PATH_NETWORK);
     }
 
     private MoogsPathsDatapackRegistries() {}
