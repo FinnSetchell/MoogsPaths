@@ -8,7 +8,6 @@ import com.finndog.moogs_paths.platform.Services;
 public class MoogsPathsCommon {
     public static void init() {
         MoogsPathsDatapackRegistries.register();
-        Services.PLATFORM.registerReloadListeners(PathDataManager.createListeners());
         Services.PLATFORM.registerServerStartingListener(server -> {
             MoogsPathsDatapackRegistries.invalidateDerivedViews();
             PathDataManager.onServerStart(server.getStructureManager());

@@ -5,16 +5,11 @@ import com.mojang.serialization.Codec;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.packs.resources.SimpleJsonResourceReloadListener;
 
-import java.util.Map;
 import java.util.function.Consumer;
 
 public interface IPlatformHelper {
-
-    void registerReloadListeners(Map<ResourceLocation, SimpleJsonResourceReloadListener> listeners);
 
     <T> void registerDatapackRegistry(ResourceKey<Registry<T>> key, Codec<T> codec);
 
