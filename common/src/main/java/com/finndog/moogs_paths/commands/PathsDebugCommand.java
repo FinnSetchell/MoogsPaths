@@ -241,7 +241,7 @@ public final class PathsDebugCommand {
             .thenRun(() -> {
                 PathDataManager.clearCaches();
                 MoogsPathsDatapackRegistries.invalidateDerivedViews();
-                src.sendSuccess(() -> Component.literal("[paths] Reload complete"), false);
+                src.sendSuccess(() -> Component.literal("[paths] Reload complete (note: path_type/path_network/structure_set/feature_decorator_set/bush_decorator_set are datapack registries and require a world restart on 1.20.1)"), false);
             });
         return 1;
     }
