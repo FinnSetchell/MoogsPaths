@@ -238,7 +238,11 @@ public final class PathsDebugCommand {
             .map(pack -> pack.packId())
             .toList();
         src.getServer().reloadResources(packIds)
-            .thenRun(() -> src.sendSuccess(() -> Component.literal("[paths] Reload complete"), false));
+            .thenRun(() -> {
+                PathDataManager.clearCaches();
+                MoogsPathsDatapackRegistries.invalidateDerivedViews();
+                src.sendSuccess(() -> Component.literal("[paths] Reload complete"), false);
+            });
         return 1;
     }
 }
