@@ -1,0 +1,25 @@
+{
+  "path_type": "moogs_paths:sandstone_highway",
+  "scale": {
+    "length_min": 800,
+    "length_max": 1800
+  },
+  "biome_filter": {
+    "type": "tag",
+    "tag": "minecraft:is_hot_overworld"
+  },
+  "weight": 5,
+  "region_size": 20,
+  "branches": {
+    "min_branches": 1,
+    "max_branches": 4,
+    "length_fraction": 0.4
+  },
+  "structure_sets": [
+    { "id": "moogs_paths:desert_lamps", "weight": 1 }
+  ],
+  "feature_decorator_sets": [
+    { "id": "moogs_paths:desert_dead_bushes_right", "weight": 1 }
+  ],
+  "bush_decorator_sets": []
+}

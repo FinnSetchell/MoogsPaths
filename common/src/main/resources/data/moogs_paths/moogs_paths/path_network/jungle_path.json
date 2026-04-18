@@ -1,0 +1,25 @@
+{
+  "path_type": "moogs_paths:mossy_jungle",
+  "scale": "local",
+  "biome_filter": {
+    "type": "and",
+    "filters": [
+      { "type": "tag", "tag": "minecraft:is_jungle" },
+      { "type": "not_tag", "tag": "minecraft:is_nether" }
+    ]
+  },
+  "weight": 6,
+  "region_size": 14,
+  "branches": {
+    "min_branches": 1,
+    "max_branches": 3,
+    "length_fraction": 0.35
+  },
+  "structure_sets": [
+    { "id": "moogs_paths:jungle_branch_shrines", "weight": 1 }
+  ],
+  "feature_decorator_sets": [],
+  "bush_decorator_sets": [
+    { "id": "moogs_paths:jungle_saplings", "weight": 1 }
+  ]
+}

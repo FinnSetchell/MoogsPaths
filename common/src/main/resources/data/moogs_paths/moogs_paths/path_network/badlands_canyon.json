@@ -1,0 +1,24 @@
+{
+  "path_type": "moogs_paths:red_sand_trail",
+  "scale": "regional",
+  "biome_filter": {
+    "type": "whitelist",
+    "biomes": [
+      "minecraft:badlands",
+      "minecraft:eroded_badlands",
+      "minecraft:wooded_badlands"
+    ]
+  },
+  "weight": 4,
+  "region_size": 24,
+  "branches": {
+    "min_branches": 0,
+    "max_branches": 2,
+    "length_fraction": 0.5
+  },
+  "structure_sets": [
+    { "id": "moogs_paths:badlands_markers", "weight": 1 }
+  ],
+  "feature_decorator_sets": [],
+  "bush_decorator_sets": []
+}

@@ -1,0 +1,10 @@
+{
+  "structures": [
+    { "nbt": "moogs_paths:badlands_marker_1", "rotation": "none", "weight": 3, "offset": [0, 0, 0] },
+    { "nbt": "moogs_paths:badlands_marker_2", "rotation": "clockwise_90", "weight": 2, "offset": [0, -1, 1] }
+  ],
+  "placement": "interval",
+  "spacing": 20,
+  "spacing_variance": 10,
+  "flatness_tolerance": 5
+}

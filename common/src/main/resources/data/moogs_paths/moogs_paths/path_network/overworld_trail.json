@@ -1,0 +1,34 @@
+{
+  "path_type": "moogs_paths:cobblestone_road",
+  "scale": "trail",
+  "biome_filter": {
+    "type": "blacklist",
+    "biomes": [
+      "minecraft:nether_wastes",
+      "minecraft:soul_sand_valley",
+      "minecraft:crimson_forest",
+      "minecraft:warped_forest",
+      "minecraft:basalt_deltas",
+      "minecraft:the_end",
+      "minecraft:small_end_islands",
+      "minecraft:end_midlands",
+      "minecraft:end_highlands",
+      "minecraft:end_barrens",
+      "minecraft:the_void"
+    ]
+  },
+  "weight": 3,
+  "region_size": 18,
+  "branches": {
+    "min_branches": 0,
+    "max_branches": 2,
+    "length_fraction": 0.3
+  },
+  "structure_sets": [
+    { "id": "moogs_paths:savanna_posts", "weight": 1 }
+  ],
+  "feature_decorator_sets": [
+    { "id": "moogs_paths:forest_flowers_left", "weight": 1 }
+  ],
+  "bush_decorator_sets": []
+}

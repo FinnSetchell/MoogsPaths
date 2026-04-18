@@ -1,0 +1,16 @@
+{
+  "blocks": [
+    { "block": "minecraft:jungle_leaves", "weight": 5 },
+    { "block": "minecraft:azalea_leaves", "weight": 2 },
+    { "block": "minecraft:flowering_azalea_leaves", "weight": 1 }
+  ],
+  "density": 0.5,
+  "side": "center",
+  "min_offset": 0,
+  "max_offset": 2,
+  "min_size": 1,
+  "max_size": 3,
+  "min_spacing": 4,
+  "min_height": 2,
+  "max_height": 4
+}

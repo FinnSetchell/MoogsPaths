@@ -1,0 +1,10 @@
+{
+  "structures": [
+    { "nbt": "moogs_paths:desert_lamp", "rotation": "none", "weight": 2, "offset": [0, 0, 0] },
+    { "nbt": "moogs_paths:desert_lamp", "rotation": "clockwise_180", "weight": 1, "offset": [0, -1, 0] }
+  ],
+  "placement": "endpoint",
+  "spacing": 1,
+  "spacing_variance": 0,
+  "flatness_tolerance": 4
+}

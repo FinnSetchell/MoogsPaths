@@ -1,0 +1,32 @@
+{
+  "surface_blocks": [
+    { "block": "minecraft:cobblestone", "weight": 4 },
+    { "block": "minecraft:mossy_cobblestone", "weight": 2 },
+    { "block": "minecraft:gravel", "weight": 2 },
+    { "block": "minecraft:structure_void", "weight": 1 }
+  ],
+  "edge_blocks": [
+    { "block": "minecraft:cobblestone", "weight": 2 },
+    { "block": "minecraft:mossy_cobblestone", "weight": 1 }
+  ],
+  "fill_block": "minecraft:cobblestone",
+  "width": {
+    "min": 2,
+    "max": 3
+  },
+  "curviness": 0.35,
+  "max_slope_per_step": 1,
+  "slope_cost_weight": 0.55,
+  "slope_handling": {
+    "cut_tolerance": 3,
+    "fill_tolerance": 4
+  },
+  "fade": {
+    "start_blocks": 10,
+    "end_blocks": 10
+  },
+  "slab_blocks": [
+    { "block": "minecraft:cobblestone_slab", "weight": 3 },
+    { "block": "minecraft:mossy_cobblestone_slab", "weight": 1 }
+  ]
+}

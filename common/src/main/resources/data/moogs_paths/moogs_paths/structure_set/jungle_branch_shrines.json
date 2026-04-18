@@ -1,0 +1,10 @@
+{
+  "structures": [
+    { "nbt": "moogs_paths:jungle_shrine", "rotation": "random", "weight": 2, "offset": [0, 0, 0] },
+    { "nbt": "moogs_paths:cherry_bench", "rotation": "random", "weight": 1, "offset": [0, 0, 0] }
+  ],
+  "placement": "branch_point",
+  "spacing": 1,
+  "spacing_variance": 0,
+  "flatness_tolerance": 6
+}

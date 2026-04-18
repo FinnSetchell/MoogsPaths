@@ -1,0 +1,36 @@
+{
+  "surface_blocks": [
+    { "block": "minecraft:moss_block", "weight": 4 },
+    { "block": "minecraft:mossy_cobblestone", "weight": 2 },
+    { "block": "minecraft:rooted_dirt", "weight": 1 }
+  ],
+  "edge_blocks": [
+    { "block": "minecraft:moss_block", "weight": 3 },
+    { "block": "minecraft:moss_carpet", "weight": 1 }
+  ],
+  "fill_block": "minecraft:dirt",
+  "width": {
+    "min": 2,
+    "max": 3
+  },
+  "curviness": 0.8,
+  "max_slope_per_step": 1,
+  "slope_cost_weight": 0.5,
+  "slope_handling": {
+    "cut_tolerance": 4,
+    "fill_tolerance": 2
+  },
+  "fade": {
+    "start_blocks": 10,
+    "end_blocks": 10
+  },
+  "water_settings": {
+    "surface_blocks": [
+      { "block": "minecraft:mossy_cobblestone", "weight": 2 },
+      { "block": "minecraft:moss_block", "weight": 1 }
+    ],
+    "edge_blocks": [
+      { "block": "minecraft:mossy_cobblestone", "weight": 1 }
+    ]
+  }
+}

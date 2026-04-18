@@ -1,0 +1,24 @@
+{
+  "surface_blocks": [
+    { "block": "minecraft:dirt_path", "weight": 5 },
+    { "block": "minecraft:coarse_dirt", "weight": 2 }
+  ],
+  "edge_blocks": [
+    { "block": "minecraft:podzol", "weight": 2 },
+    { "block": "minecraft:grass_block", "weight": 1 }
+  ],
+  "fill_block": "minecraft:dirt",
+  "width": {
+    "min": 1,
+    "max": 1
+  },
+  "curviness": 0.6,
+  "slope_handling": {
+    "cut_tolerance": 2,
+    "fill_tolerance": 2
+  },
+  "fade": {
+    "start_blocks": 0,
+    "end_blocks": 8
+  }
+}

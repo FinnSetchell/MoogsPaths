@@ -1,0 +1,28 @@
+{
+  "path_type": "moogs_paths:dirt_trail",
+  "scale": "trail",
+  "biome_filter": {
+    "type": "whitelist",
+    "biomes": [
+      "minecraft:plains",
+      "minecraft:sunflower_plains",
+      "minecraft:meadow"
+    ]
+  },
+  "weight": 8,
+  "region_size": 12,
+  "branches": {
+    "min_branches": 0,
+    "max_branches": 2,
+    "length_fraction": 0.25
+  },
+  "structure_sets": [
+    { "id": "moogs_paths:overworld_cairns", "weight": 1 }
+  ],
+  "feature_decorator_sets": [
+    { "id": "moogs_paths:plains_grass_both", "weight": 1 }
+  ],
+  "bush_decorator_sets": [
+    { "id": "moogs_paths:plains_bushes", "weight": 1 }
+  ]
+}
