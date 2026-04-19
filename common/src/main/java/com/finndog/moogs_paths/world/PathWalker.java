@@ -34,7 +34,41 @@ public final class PathWalker {
             }
         }
 
+        int iters = pathType.smoothingIterations();
+        if(iters > 0) {
+            for(int i = 0; i < result.size(); i++) {
+                result.set(i, chaikinSmooth(result.get(i), iters));
+            }
+        }
+
         return result;
+    }
+
+    // Chaikin corner-cutting: each iteration replaces every interior edge with two
+    // subdivision points at 1/4 and 3/4 along the edge, so 45-degree kinks inherited
+    // from the 8-direction walker round off into gradual curves. First and last
+    // waypoints are kept intact so endpoint/branch_point structure placement stays
+    // anchored exactly where the walker decided.
+    private static List<BlockPos> chaikinSmooth(List<BlockPos> raw, int iterations) {
+        if(raw.size() < 3) return raw;
+        List<BlockPos> current = raw;
+        for(int iter = 0; iter < iterations; iter++) {
+            List<BlockPos> next = new ArrayList<>(current.size() * 2);
+            next.add(current.get(0));
+            for(int i = 0; i < current.size() - 1; i++) {
+                BlockPos a = current.get(i);
+                BlockPos b = current.get(i + 1);
+                int qx = Math.round(0.75f * a.getX() + 0.25f * b.getX());
+                int qz = Math.round(0.75f * a.getZ() + 0.25f * b.getZ());
+                int rx = Math.round(0.25f * a.getX() + 0.75f * b.getX());
+                int rz = Math.round(0.25f * a.getZ() + 0.75f * b.getZ());
+                next.add(new BlockPos(qx, 0, qz));
+                next.add(new BlockPos(rx, 0, rz));
+            }
+            next.add(current.get(current.size() - 1));
+            current = next;
+        }
+        return current;
     }
 
     // Wraps the heightAt sampler in a HashMap cache keyed by (x, z). Adjacent candidate
