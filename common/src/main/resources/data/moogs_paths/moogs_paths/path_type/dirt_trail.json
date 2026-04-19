@@ -13,6 +13,7 @@
     "max": 1
   },
   "curviness": 0.6,
+  "smoothing_iterations": 3,
   "slope_handling": {
     "cut_tolerance": 2,
     "fill_tolerance": 2
