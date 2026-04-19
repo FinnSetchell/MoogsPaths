@@ -33,6 +33,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
     public static final long ORIGIN_X_MULT = 341873128712L;
     public static final long ORIGIN_Z_MULT = 132897987541L;
     public static final long ORIGIN_REGION_SIZE_MULT = 27182818284L;
+    private static final int BIOME_FILTER_Y = 64;
     private static final long BRANCH_SEED_MULT = 9999991L;
     private static final long RASTER_CHUNK_X_MULT = 1234567L;
     private static final long RASTER_CHUNK_Z_MULT = 9876543L;
@@ -55,7 +56,6 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
         Map<Integer, List<PathNetworkType>> byRegionSize = MoogsPathsDatapackRegistries.networksByRegionSize(level.registryAccess());
         if(byRegionSize.isEmpty()) return false;
 
-        int maxRadius = MoogsPathsDatapackRegistries.networksMaxRadius(level.registryAccess());
         RandomState randomState = level.getLevel().getChunkSource().randomState();
 
         boolean placed = false;
@@ -63,6 +63,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
         for(Map.Entry<Integer, List<PathNetworkType>> entry : byRegionSize.entrySet()) {
             int regionSize = entry.getKey();
             List<PathNetworkType> networks = entry.getValue();
+            int maxRadius = MoogsPathsDatapackRegistries.networksMaxRadiusForRegionSize(level.registryAccess(), regionSize);
             List<int[]> origins = PathRegionSelector.originsInRange(worldSeed, chunkX, chunkZ, maxRadius, regionSize).toList();
 
             for(int[] origin : origins) {
@@ -70,8 +71,6 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                 int originChunkZ = origin[1];
                 int originBlockX = originChunkX * 16 + 8;
                 int originBlockZ = originChunkZ * 16 + 8;
-                int originSurfaceY = generator.getBaseHeight(originBlockX, originBlockZ, Heightmap.Types.WORLD_SURFACE_WG, level, randomState);
-                BlockPos originPos = new BlockPos(originBlockX, originSurfaceY, originBlockZ);
 
                 long pathSeed = worldSeed
                     ^ ((long) originChunkX * ORIGIN_X_MULT)
@@ -82,9 +81,15 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                 RandomSource pickRandom = RandomSource.create(pathSeed);
                 PathNetworkType network = pickWeighted(networks, pickRandom);
 
-                Holder<Biome> originBiome = level.getBiome(originPos);
+                // biome filter first with a nominal surface-level Y; avoids the expensive getBaseHeight call
+                // for origins that will be rejected anyway. 3D biome variation at the surface is negligible
+                // enough that using a fixed Y matches what the actual surface Y would yield.
+                Holder<Biome> originBiome = level.getBiome(new BlockPos(originBlockX, BIOME_FILTER_Y, originBlockZ));
                 if(originBiome.is(HAS_NO_PATHS)) continue;
                 if(!network.biomeFilter().test(originBiome)) continue;
+
+                int originSurfaceY = generator.getBaseHeight(originBlockX, originBlockZ, Heightmap.Types.WORLD_SURFACE_WG, level, randomState);
+                BlockPos originPos = new BlockPos(originBlockX, originSurfaceY, originBlockZ);
 
                 Optional<PathType> pathTypeOpt = MoogsPathsDatapackRegistries.getPathType(level.registryAccess(), network.pathType());
                 if(pathTypeOpt.isEmpty()) {

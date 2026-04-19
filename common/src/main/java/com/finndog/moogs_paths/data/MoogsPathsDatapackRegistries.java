@@ -68,8 +68,8 @@ public final class MoogsPathsDatapackRegistries {
         return derivedViews(access).byRegionSize;
     }
 
-    public static int networksMaxRadius(RegistryAccess access) {
-        return derivedViews(access).maxRadius;
+    public static int networksMaxRadiusForRegionSize(RegistryAccess access, int regionSize) {
+        return derivedViews(access).maxRadiusByRegionSize.getOrDefault(regionSize, 1000);
     }
 
     public static void invalidateDerivedViews() {
@@ -82,14 +82,21 @@ public final class MoogsPathsDatapackRegistries {
             Registry<PathNetworkType> registry = access.registryOrThrow(PATH_NETWORK);
             Map<Integer, List<PathNetworkType>> byRegion = Collections.unmodifiableMap(
                 registry.stream().collect(Collectors.groupingBy(PathNetworkType::regionSize)));
-            int maxRadius = registry.stream().mapToInt(n -> n.scale().lengthMax).max().orElse(1000);
-            views = new DerivedNetworkViews(byRegion, maxRadius);
+            Map<Integer, Integer> maxByRegion = byRegion.entrySet().stream()
+                .collect(Collectors.toUnmodifiableMap(
+                    Map.Entry::getKey,
+                    e -> e.getValue().stream().mapToInt(n -> n.scale().lengthMax).max().orElse(1000)
+                ));
+            views = new DerivedNetworkViews(byRegion, maxByRegion);
             cachedDerivedViews = views;
         }
         return views;
     }
 
-    private record DerivedNetworkViews(Map<Integer, List<PathNetworkType>> byRegionSize, int maxRadius) {}
+    private record DerivedNetworkViews(
+        Map<Integer, List<PathNetworkType>> byRegionSize,
+        Map<Integer, Integer> maxRadiusByRegionSize
+    ) {}
 
     private MoogsPathsDatapackRegistries() {}
 }

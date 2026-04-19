@@ -1,6 +1,6 @@
 {
   "path_type": "moogs_paths:dirt_trail",
-  "scale": "grand",
+  "scale": "trail",
   "biome_filter": {
     "type": "any"
   },

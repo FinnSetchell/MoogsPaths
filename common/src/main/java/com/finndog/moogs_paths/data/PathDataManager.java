@@ -12,17 +12,12 @@ import java.util.function.Supplier;
 
 public final class PathDataManager {
 
-    private static final int WAYPOINT_CACHE_MAX_SIZE = 256;
+    private static final int WAYPOINT_CACHE_MAX_SIZE = 512;
 
-    // keyed by pathSeed, computed once per path origin and shared across all chunks that touch it
-    // bounded LRU so far-away paths can be evicted during long exploration sessions
-    private static final Map<Long, List<List<BlockPos>>> WAYPOINT_CACHE = Collections.synchronizedMap(
-        new LinkedHashMap<>(16, 0.75f, true) {
-            @Override
-            protected boolean removeEldestEntry(Map.Entry<Long, List<List<BlockPos>>> eldest) {
-                return size() > WAYPOINT_CACHE_MAX_SIZE;
-            }
-        });
+    // keyed by pathSeed, computed once per path origin and shared across all chunks that touch it.
+    // ConcurrentHashMap so different pathSeeds don't serialize - worldgen worker threads can
+    // compute distinct paths in parallel. Size-bounded via a coarse trim on overflow (no strict LRU).
+    private static final Map<Long, List<List<BlockPos>>> WAYPOINT_CACHE = new ConcurrentHashMap<>();
 
     // lazy cache: templates are fetched on first request and cleared on reload/server start
     private static final Map<ResourceLocation, Optional<StructureTemplate>> CACHED_TEMPLATES = new ConcurrentHashMap<>();
@@ -44,7 +39,22 @@ public final class PathDataManager {
     }
 
     public static List<List<BlockPos>> getOrComputeWaypoints(long pathSeed, Supplier<List<List<BlockPos>>> computer) {
-        return WAYPOINT_CACHE.computeIfAbsent(pathSeed, k -> computer.get());
+        List<List<BlockPos>> cached = WAYPOINT_CACHE.get(pathSeed);
+        if(cached != null) return cached;
+        List<List<BlockPos>> computed = WAYPOINT_CACHE.computeIfAbsent(pathSeed, k -> computer.get());
+        if(WAYPOINT_CACHE.size() > WAYPOINT_CACHE_MAX_SIZE) trimCache();
+        return computed;
+    }
+
+    private static void trimCache() {
+        // Coarse bulk trim: keep half, drop half. Cheap and avoids needing LRU bookkeeping
+        // under contention. Called only when cap is exceeded, so amortised cost is near zero.
+        int target = WAYPOINT_CACHE_MAX_SIZE / 2;
+        Iterator<Map.Entry<Long, List<List<BlockPos>>>> it = WAYPOINT_CACHE.entrySet().iterator();
+        while(it.hasNext() && WAYPOINT_CACHE.size() > target) {
+            it.next();
+            it.remove();
+        }
     }
 
     public static Map<ResourceLocation, Optional<StructureTemplate>> getCachedTemplatesSnapshot() {
