@@ -9,7 +9,7 @@
     ]
   },
   "weight": 6,
-  "region_size": 14,
+  "region_size": 28,
   "branches": {
     "min_branches": 1,
     "max_branches": 3,

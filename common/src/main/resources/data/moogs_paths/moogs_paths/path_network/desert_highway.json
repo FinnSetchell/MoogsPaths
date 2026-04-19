@@ -9,7 +9,7 @@
     "tag": "minecraft:is_hot_overworld"
   },
   "weight": 5,
-  "region_size": 20,
+  "region_size": 40,
   "branches": {
     "min_branches": 1,
     "max_branches": 4,

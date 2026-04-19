@@ -2,7 +2,7 @@
   "features": [
     { "feature": "minecraft:patch_dead_bush", "weight": 1 }
   ],
-  "density": 0.25,
+  "density": 0.08,
   "side": "right",
   "scatter_width": 4
 }
