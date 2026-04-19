@@ -13,9 +13,15 @@ public final class PathWalker {
     private PathWalker() {}
 
     public static List<List<BlockPos>> walkWithBranches(BlockPos origin, PathNetworkType network, PathType pathType, RandomSource random, BiFunction<Integer, Integer, Integer> heightAt) {
+        // Terrain-unaware path types (maxSlopePerStep == 0 && slopeCostWeight == 0) don't use
+        // heightmap samples for steering, so skip passing heightAt through and avoid ~thousands
+        // of getBaseHeight calls per walk.
+        BiFunction<Integer, Integer, Integer> effectiveHeightAt =
+            (pathType.maxSlopePerStep() == 0 && pathType.slopeCostWeight() == 0.0f) ? null : memoise(heightAt);
+
         List<List<BlockPos>> result = new ArrayList<>();
 
-        List<BlockPos> mainPath = walkSingle(origin, network, pathType, random, 1.0f, heightAt);
+        List<BlockPos> mainPath = walkSingle(origin, network, pathType, random, 1.0f, effectiveHeightAt);
         result.add(mainPath);
 
         var branches = network.branches();
@@ -24,11 +30,27 @@ public final class PathWalker {
         if(mainPath.size() >= 2) {
             for(int i = 0; i < branchCount; i++) {
                 BlockPos branchStart = mainPath.get(random.nextInt(mainPath.size()));
-                result.add(walkSingle(branchStart, network, pathType, random, branches.lengthFraction(), heightAt));
+                result.add(walkSingle(branchStart, network, pathType, random, branches.lengthFraction(), effectiveHeightAt));
             }
         }
 
         return result;
+    }
+
+    // Wraps the heightAt sampler in a HashMap cache keyed by (x, z). Adjacent candidate
+    // directions in terrainAwareSteer sample overlapping columns, so memoising eliminates
+    // redundant getBaseHeight noise evaluations across steps AND across branches.
+    private static BiFunction<Integer, Integer, Integer> memoise(BiFunction<Integer, Integer, Integer> source) {
+        if(source == null) return null;
+        HashMap<Long, Integer> cache = new HashMap<>();
+        return (x, z) -> {
+            long key = ((long) x << 32) | (z & 0xFFFFFFFFL);
+            Integer cached = cache.get(key);
+            if(cached != null) return cached;
+            int value = source.apply(x, z);
+            cache.put(key, value);
+            return value;
+        };
     }
 
     private static List<BlockPos> walkSingle(BlockPos origin, PathNetworkType network, PathType pathType, RandomSource random, float lengthFraction, BiFunction<Integer, Integer, Integer> heightAt) {

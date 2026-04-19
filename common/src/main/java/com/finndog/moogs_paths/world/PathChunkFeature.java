@@ -98,12 +98,19 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                 }
                 PathType pathType = pathTypeOpt.get();
 
-                List<List<BlockPos>> allPaths = PathDataManager.getOrComputeWaypoints(pathSeed, () -> {
+                PathDataManager.CachedPath cachedPath = PathDataManager.getOrComputeWaypoints(pathSeed, () -> {
                     RandomSource walkRandom = RandomSource.create(pathSeed ^ WALK_MIXER);
                     return PathWalker.walkWithBranches(originPos, network, pathType, walkRandom,
                         (x, z) -> generator.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, level, randomState));
                 });
 
+                // Early-out: the walked path's overall bbox is well-known by this point. If this
+                // chunk lies entirely outside the bbox (padded by path width), none of the per-branch
+                // segment/structure/feature loops can produce anything.
+                int bboxPad = pathType.width().max();
+                if(!intersectsWithPad(cachedPath, chunkX, chunkZ, bboxPad)) continue;
+
+                List<List<BlockPos>> allPaths = cachedPath.branches();
                 for(int branchIdx = 0; branchIdx < allPaths.size(); branchIdx++) {
                     List<BlockPos> waypoints = allPaths.get(branchIdx);
                     long branchSeed = pathSeed ^ ((long) branchIdx * BRANCH_SEED_MULT);
@@ -135,6 +142,15 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
         }
 
         return placed;
+    }
+
+    private static boolean intersectsWithPad(PathDataManager.CachedPath path, int chunkX, int chunkZ, int pad) {
+        int chunkMinX = (chunkX << 4) - pad;
+        int chunkMaxX = (chunkX << 4) + 15 + pad;
+        int chunkMinZ = (chunkZ << 4) - pad;
+        int chunkMaxZ = (chunkZ << 4) + 15 + pad;
+        return path.maxX() >= chunkMinX && path.minX() <= chunkMaxX
+            && path.maxZ() >= chunkMinZ && path.minZ() <= chunkMaxZ;
     }
 
     private static PathNetworkType pickWeighted(List<PathNetworkType> eligible, RandomSource random) {
