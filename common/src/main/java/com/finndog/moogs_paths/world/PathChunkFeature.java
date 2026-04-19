@@ -58,6 +58,12 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
 
         RandomState randomState = level.getLevel().getChunkSource().randomState();
 
+        // Shared across every network/origin/branch in this chunk: prevents two structures
+        // from claiming almost-identical (x,z) spots. Branches frequently reuse main-path
+        // waypoints, and MOTION_BLOCKING_NO_LEAVES sees previously placed structures, so
+        // without dedup a second placement lands on top of the first.
+        Set<Long> placedStructurePositions = new HashSet<>();
+
         boolean placed = false;
 
         for(Map.Entry<Integer, List<PathNetworkType>> entry : byRegionSize.entrySet()) {
@@ -122,7 +128,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                     // Structure placer needs the same random sequence in every chunk
                     if(!network.structureSets().isEmpty()) {
                         RandomSource structureRandom = RandomSource.create(branchSeed ^ STRUCTURE_MIXER);
-                        StructurePlacer.placeInChunk(level, waypoints, network.structureSets(), network.biomeFilter(), chunkX, chunkZ, structureRandom);
+                        StructurePlacer.placeInChunk(level, waypoints, network.structureSets(), network.biomeFilter(), chunkX, chunkZ, structureRandom, placedStructurePositions);
                     }
 
                     // Feature scatterer needs the same random sequence in every chunk

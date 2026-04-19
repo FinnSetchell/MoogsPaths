@@ -17,39 +17,45 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemp
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 public final class StructurePlacer {
     private StructurePlacer() {}
 
-    public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<PathNetworkType.WeightedRef> structureSetRefs, BiomeFilter biomeFilter, int chunkX, int chunkZ, RandomSource random) {
+    // Min centre-to-centre distance between two placed structures. Squared for cheap compares.
+    // 5 blocks keeps 3x3 and 5x5 NBTs from overlapping each other; mostly here to stop stacks
+    // at branch junctions where multiple branches share a waypoint.
+    private static final int MIN_STRUCTURE_SPACING_SQ = 5 * 5;
+
+    public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<PathNetworkType.WeightedRef> structureSetRefs, BiomeFilter biomeFilter, int chunkX, int chunkZ, RandomSource random, Set<Long> placedPositions) {
         for(PathNetworkType.WeightedRef ref : structureSetRefs) {
             MoogsPathsDatapackRegistries.getStructureSet(level.registryAccess(), ref.id()).ifPresent(set ->
-                placeSet(level, waypoints, set, biomeFilter, chunkX, chunkZ, random));
+                placeSet(level, waypoints, set, biomeFilter, chunkX, chunkZ, random, placedPositions));
         }
     }
 
     //////////////////////////////
 
-    private static void placeSet(WorldGenLevel level, List<BlockPos> waypoints, StructureSet set, BiomeFilter biomeFilter, int chunkX, int chunkZ, RandomSource random) {
+    private static void placeSet(WorldGenLevel level, List<BlockPos> waypoints, StructureSet set, BiomeFilter biomeFilter, int chunkX, int chunkZ, RandomSource random, Set<Long> placedPositions) {
         if(waypoints.isEmpty()) return;
 
         switch(set.placement()) {
             case ENDPOINT -> {
-                tryPlace(level, waypoints.get(0), set, biomeFilter, chunkX, chunkZ, random);
+                tryPlace(level, waypoints.get(0), set, biomeFilter, chunkX, chunkZ, random, placedPositions);
                 if(waypoints.size() > 1) {
-                    tryPlace(level, waypoints.get(waypoints.size() - 1), set, biomeFilter, chunkX, chunkZ, random);
+                    tryPlace(level, waypoints.get(waypoints.size() - 1), set, biomeFilter, chunkX, chunkZ, random, placedPositions);
                 }
             }
             case BRANCH_POINT -> {
                 // one placement at the start of each branch; PathChunkFeature calls this method
                 // once per branch, so placing at waypoints[0] gives exactly one structure per branch
-                tryPlace(level, waypoints.get(0), set, biomeFilter, chunkX, chunkZ, random);
+                tryPlace(level, waypoints.get(0), set, biomeFilter, chunkX, chunkZ, random, placedPositions);
             }
-            case INTERVAL -> placeInterval(level, waypoints, set, biomeFilter, chunkX, chunkZ, random);
+            case INTERVAL -> placeInterval(level, waypoints, set, biomeFilter, chunkX, chunkZ, random, placedPositions);
         }
     }
 
-    private static void placeInterval(WorldGenLevel level, List<BlockPos> waypoints, StructureSet set, BiomeFilter biomeFilter, int chunkX, int chunkZ, RandomSource random) {
+    private static void placeInterval(WorldGenLevel level, List<BlockPos> waypoints, StructureSet set, BiomeFilter biomeFilter, int chunkX, int chunkZ, RandomSource random, Set<Long> placedPositions) {
         // Step distance from the first segment so spacing is measured in blocks, not waypoints
         int stepDist = waypoints.size() > 1
             ? (int) Math.round(Math.hypot(
@@ -63,18 +69,30 @@ public final class StructurePlacer {
         for(BlockPos waypoint : waypoints) {
             distanceSinceLast += stepDist;
             if(distanceSinceLast >= nextThreshold) {
-                tryPlace(level, waypoint, set, biomeFilter, chunkX, chunkZ, random);
+                tryPlace(level, waypoint, set, biomeFilter, chunkX, chunkZ, random, placedPositions);
                 distanceSinceLast = 0;
                 nextThreshold = nextSpacing(set, random);
             }
         }
     }
 
-    private static void tryPlace(WorldGenLevel level, BlockPos waypoint, StructureSet set, BiomeFilter biomeFilter, int chunkX, int chunkZ, RandomSource random) {
+    private static void tryPlace(WorldGenLevel level, BlockPos waypoint, StructureSet set, BiomeFilter biomeFilter, int chunkX, int chunkZ, RandomSource random, Set<Long> placedPositions) {
         StructureSet.StructureEntry entry = pickWeighted(set.structures(), random);
         Rotation rotation = parseRotation(entry.rotation(), random);
 
         if((waypoint.getX() >> 4) != chunkX || (waypoint.getZ() >> 4) != chunkZ) return;
+
+        // Reject early if another structure this chunk already claimed a nearby spot.
+        // Branches often share waypoints (branch roots are picked from the main path), so
+        // without this check two placements at the same (x,z) would stack: the first raises
+        // the MOTION_BLOCKING_NO_LEAVES heightmap and the second lands on top of it.
+        for(long encoded : placedPositions) {
+            int px = (int) (encoded >> 32);
+            int pz = (int) encoded;
+            int ddx = waypoint.getX() - px;
+            int ddz = waypoint.getZ() - pz;
+            if(ddx * ddx + ddz * ddz < MIN_STRUCTURE_SPACING_SQ) return;
+        }
 
         int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, waypoint.getX(), waypoint.getZ());
         if(!level.getFluidState(new BlockPos(waypoint.getX(), surfaceY - 1, waypoint.getZ())).isEmpty()) return;
@@ -94,6 +112,7 @@ public final class StructurePlacer {
         if(footprintOverWater(level, template, pos, entry.offset(), rotation)) return;
 
         placeEntry(level, template, pos, entry, rotation);
+        placedPositions.add(((long) waypoint.getX() << 32) | (waypoint.getZ() & 0xFFFFFFFFL));
     }
 
     private static boolean footprintOverWater(WorldGenLevel level, StructureTemplate template, BlockPos pos, Vec3i offset, Rotation rotation) {
