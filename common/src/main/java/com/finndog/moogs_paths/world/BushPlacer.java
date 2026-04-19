@@ -98,8 +98,10 @@ public final class BushPlacer {
                 int sy = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, px, pz);
                 if(sy <= level.getMinBuildHeight()) continue;
 
-                mpos.set(px, sy - 1, pz);
-                if(!level.getFluidState(mpos).isEmpty()) continue;
+                // Reject if any of the few blocks directly below the placement are water.
+                // The 1-block check alone misses water-settings paths that rasterised a solid
+                // layer on top of a water column - bushes would then sprout on the bridge.
+                if(isColumnOverWater(level, px, pz, sy, mpos)) continue;
 
                 int heightRange = maxHeight - minHeight;
                 int height = minHeight + (heightRange > 0 ? random.nextInt(heightRange + 1) : 0);
@@ -116,6 +118,14 @@ public final class BushPlacer {
                 }
             }
         }
+    }
+
+    private static boolean isColumnOverWater(WorldGenLevel level, int x, int z, int sy, BlockPos.MutableBlockPos mpos) {
+        for(int depth = 1; depth <= 3; depth++) {
+            mpos.set(x, sy - depth, z);
+            if(!level.getFluidState(mpos).isEmpty()) return true;
+        }
+        return false;
     }
 
     private static BlockState pick(List<BushDecoratorSet.WeightedBlock> entries, int total, RandomSource random) {

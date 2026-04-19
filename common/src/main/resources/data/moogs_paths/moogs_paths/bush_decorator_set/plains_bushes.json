@@ -3,11 +3,11 @@
     { "block": "minecraft:oak_leaves", "weight": 8 },
     { "block": "minecraft:flowering_azalea_leaves", "weight": 1 }
   ],
-  "density": 0.4,
+  "density": 0.15,
   "side": "both",
   "min_offset": 1,
   "max_offset": 4,
   "min_size": 1,
   "max_size": 2,
-  "min_spacing": 6
+  "min_spacing": 8
 }

@@ -31,14 +31,25 @@ public final class StructurePlacer {
     //////////////////////////////
 
     private static void placeSet(WorldGenLevel level, List<BlockPos> waypoints, StructureSet set, BiomeFilter biomeFilter, int chunkX, int chunkZ, RandomSource random) {
-        if(set.placement() == StructureSet.PlacementMode.ENDPOINT) {
-            tryPlace(level, waypoints.get(0), set, biomeFilter, chunkX, chunkZ, random);
-            if(waypoints.size() > 1) {
-                tryPlace(level, waypoints.get(waypoints.size() - 1), set, biomeFilter, chunkX, chunkZ, random);
-            }
-            return;
-        }
+        if(waypoints.isEmpty()) return;
 
+        switch(set.placement()) {
+            case ENDPOINT -> {
+                tryPlace(level, waypoints.get(0), set, biomeFilter, chunkX, chunkZ, random);
+                if(waypoints.size() > 1) {
+                    tryPlace(level, waypoints.get(waypoints.size() - 1), set, biomeFilter, chunkX, chunkZ, random);
+                }
+            }
+            case BRANCH_POINT -> {
+                // one placement at the start of each branch; PathChunkFeature calls this method
+                // once per branch, so placing at waypoints[0] gives exactly one structure per branch
+                tryPlace(level, waypoints.get(0), set, biomeFilter, chunkX, chunkZ, random);
+            }
+            case INTERVAL -> placeInterval(level, waypoints, set, biomeFilter, chunkX, chunkZ, random);
+        }
+    }
+
+    private static void placeInterval(WorldGenLevel level, List<BlockPos> waypoints, StructureSet set, BiomeFilter biomeFilter, int chunkX, int chunkZ, RandomSource random) {
         // Step distance from the first segment so spacing is measured in blocks, not waypoints
         int stepDist = waypoints.size() > 1
             ? (int) Math.round(Math.hypot(
@@ -74,8 +85,50 @@ public final class StructurePlacer {
 
         Optional<StructureTemplate> templateOpt = PathDataManager.getCachedTemplate(entry.nbt());
         if(templateOpt.isEmpty()) return;
+        StructureTemplate template = templateOpt.get();
 
-        placeEntry(level, templateOpt.get(), pos, entry, rotation);
+        // Reject if any part of the rotated footprint sits over water or over a shallow
+        // water-bridge (a path rasterised on top of a water column). Without this the
+        // centre-point check above lets structures land at the edge of lakes or on
+        // cobblestone bridges, and half the NBT then hangs out over the water.
+        if(footprintOverWater(level, template, pos, entry.offset(), rotation)) return;
+
+        placeEntry(level, template, pos, entry, rotation);
+    }
+
+    private static boolean footprintOverWater(WorldGenLevel level, StructureTemplate template, BlockPos pos, Vec3i offset, Rotation rotation) {
+        Vec3i rawSize = template.getSize();
+        boolean rotated90 = rotation == Rotation.CLOCKWISE_90 || rotation == Rotation.COUNTERCLOCKWISE_90;
+        int sizeX = rotated90 ? rawSize.getZ() : rawSize.getX();
+        int sizeZ = rotated90 ? rawSize.getX() : rawSize.getZ();
+        int minX = pos.getX() - sizeX / 2 + offset.getX();
+        int minZ = pos.getZ() - sizeZ / 2 + offset.getZ();
+
+        BlockPos.MutableBlockPos mpos = new BlockPos.MutableBlockPos();
+        // Stride of 2 is enough: water bodies are never 1 block wide, so a 2-block
+        // grid samples every distinct water pocket a 3+ wide structure could bridge.
+        int stride = 2;
+        for(int dx = 0; dx <= sizeX; dx += stride) {
+            for(int dz = 0; dz <= sizeZ; dz += stride) {
+                int x = minX + dx;
+                int z = minZ + dz;
+                if(isColumnOverWater(level, x, z, mpos)) return true;
+            }
+        }
+        return false;
+    }
+
+    // Detects both "actual water column" and "solid bridge with water right below it".
+    // Walks up to 3 blocks down from the surface top to catch water-settings paths
+    // that placed a thin solid layer over a water pocket.
+    private static boolean isColumnOverWater(WorldGenLevel level, int x, int z, BlockPos.MutableBlockPos mpos) {
+        int sy = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+        if(sy <= level.getMinBuildHeight()) return false;
+        for(int depth = 1; depth <= 3; depth++) {
+            mpos.set(x, sy - depth, z);
+            if(!level.getFluidState(mpos).isEmpty()) return true;
+        }
+        return false;
     }
 
     private static void placeEntry(WorldGenLevel level, StructureTemplate template, BlockPos pos, StructureSet.StructureEntry entry, Rotation rotation) {
