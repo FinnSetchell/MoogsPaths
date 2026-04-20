@@ -34,7 +34,6 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
     public static final long ORIGIN_Z_MULT = 132897987541L;
     public static final long ORIGIN_REGION_SIZE_MULT = 27182818284L;
     private static final int BIOME_FILTER_Y = 64;
-    private static final long BRANCH_SEED_MULT = 9999991L;
     private static final long RASTER_CHUNK_X_MULT = 1234567L;
     private static final long RASTER_CHUNK_Z_MULT = 9876543L;
     private static final long STRUCTURE_MIXER = 0x9E3779B97F4A7C15L;
@@ -58,10 +57,8 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
 
         RandomState randomState = level.getLevel().getChunkSource().randomState();
 
-        // Shared across every network/origin/branch in this chunk: prevents two structures
-        // from claiming almost-identical (x,z) spots. Branches frequently reuse main-path
-        // waypoints, and MOTION_BLOCKING_NO_LEAVES sees previously placed structures, so
-        // without dedup a second placement lands on top of the first.
+        // Shared across every network/origin in this chunk: prevents two structures from
+        // claiming almost-identical (x,z) spots when multiple networks overlap.
         Set<Long> placedStructurePositions = new HashSet<>();
 
         boolean placed = false;
@@ -87,9 +84,6 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                 RandomSource pickRandom = RandomSource.create(pathSeed);
                 PathNetworkType network = pickWeighted(networks, pickRandom);
 
-                // biome filter first with a nominal surface-level Y; avoids the expensive getBaseHeight call
-                // for origins that will be rejected anyway. 3D biome variation at the surface is negligible
-                // enough that using a fixed Y matches what the actual surface Y would yield.
                 Holder<Biome> originBiome = level.getBiome(new BlockPos(originBlockX, BIOME_FILTER_Y, originBlockZ));
                 if(originBiome.is(HAS_NO_PATHS)) continue;
                 if(!network.biomeFilter().test(originBiome)) continue;
@@ -104,43 +98,36 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                 }
                 PathType pathType = pathTypeOpt.get();
 
+                PathNetworkType finalNetwork = network;
                 PathDataManager.CachedPath cachedPath = PathDataManager.getOrComputeWaypoints(pathSeed, () -> {
                     RandomSource walkRandom = RandomSource.create(pathSeed ^ WALK_MIXER);
-                    return PathWalker.walkWithBranches(originPos, network, pathType, walkRandom,
-                        (x, z) -> generator.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, level, randomState));
+                    return PathFinder.findPath(originPos, pathType, walkRandom,
+                        (x, z) -> generator.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, level, randomState),
+                        (gx, gz) -> finalNetwork.biomeFilter().test(level.getBiome(new BlockPos(gx, BIOME_FILTER_Y, gz))));
                 });
 
-                // Early-out: the walked path's overall bbox is well-known by this point. If this
-                // chunk lies entirely outside the bbox (padded by path width), none of the per-branch
-                // segment/structure/feature loops can produce anything.
+                List<BlockPos> waypoints = cachedPath.waypoints();
+                if(waypoints.size() < 2) continue;
+
                 int bboxPad = pathType.width().max();
                 if(!intersectsWithPad(cachedPath, chunkX, chunkZ, bboxPad)) continue;
 
-                List<List<BlockPos>> allPaths = cachedPath.branches();
-                for(int branchIdx = 0; branchIdx < allPaths.size(); branchIdx++) {
-                    List<BlockPos> waypoints = allPaths.get(branchIdx);
-                    long branchSeed = pathSeed ^ ((long) branchIdx * BRANCH_SEED_MULT);
+                RandomSource rasterRandom = RandomSource.create(pathSeed ^ ((long) chunkX * RASTER_CHUNK_X_MULT) ^ ((long) chunkZ * RASTER_CHUNK_Z_MULT));
+                PathRasteriser.rasteriseInChunk(level, waypoints, pathType, chunkX, chunkZ, rasterRandom);
 
-                    // Rasteriser gets a per-chunk seed — cross-chunk consistency not needed here
-                    RandomSource rasterRandom = RandomSource.create(branchSeed ^ ((long) chunkX * RASTER_CHUNK_X_MULT) ^ ((long) chunkZ * RASTER_CHUNK_Z_MULT));
-                    PathRasteriser.rasteriseInChunk(level, waypoints, pathType, chunkX, chunkZ, rasterRandom);
+                if(!network.structureSets().isEmpty()) {
+                    RandomSource structureRandom = RandomSource.create(pathSeed ^ STRUCTURE_MIXER);
+                    StructurePlacer.placeInChunk(level, waypoints, network.structureSets(), network.biomeFilter(), chunkX, chunkZ, structureRandom, placedStructurePositions);
+                }
 
-                    // Structure placer needs the same random sequence in every chunk
-                    if(!network.structureSets().isEmpty()) {
-                        RandomSource structureRandom = RandomSource.create(branchSeed ^ STRUCTURE_MIXER);
-                        StructurePlacer.placeInChunk(level, waypoints, network.structureSets(), network.biomeFilter(), chunkX, chunkZ, structureRandom, placedStructurePositions);
-                    }
+                if(!network.featureDecoratorSets().isEmpty()) {
+                    RandomSource featureRandom = RandomSource.create(pathSeed ^ FEATURE_MIXER);
+                    FeatureScatterer.scatterInChunk(level, generator, waypoints, network.featureDecoratorSets(), network.biomeFilter(), chunkX, chunkZ, featureRandom);
+                }
 
-                    // Feature scatterer needs the same random sequence in every chunk
-                    if(!network.featureDecoratorSets().isEmpty()) {
-                        RandomSource featureRandom = RandomSource.create(branchSeed ^ FEATURE_MIXER);
-                        FeatureScatterer.scatterInChunk(level, generator, waypoints, network.featureDecoratorSets(), network.biomeFilter(), chunkX, chunkZ, featureRandom);
-                    }
-
-                    if(!network.bushDecoratorSets().isEmpty()) {
-                        RandomSource bushRandom = RandomSource.create(branchSeed ^ BUSH_MIXER);
-                        BushPlacer.placeInChunk(level, waypoints, network.bushDecoratorSets(), network.biomeFilter(), chunkX, chunkZ, bushRandom);
-                    }
+                if(!network.bushDecoratorSets().isEmpty()) {
+                    RandomSource bushRandom = RandomSource.create(pathSeed ^ BUSH_MIXER);
+                    BushPlacer.placeInChunk(level, waypoints, network.bushDecoratorSets(), network.biomeFilter(), chunkX, chunkZ, bushRandom);
                 }
 
                 placed = true;

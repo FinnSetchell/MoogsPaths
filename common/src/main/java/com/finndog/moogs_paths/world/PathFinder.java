@@ -7,6 +7,7 @@ import net.minecraft.util.RandomSource;
 
 import java.util.*;
 import java.util.function.BiFunction;
+import java.util.function.BiPredicate;
 
 public final class PathFinder {
     private PathFinder() {}
@@ -15,6 +16,7 @@ public final class PathFinder {
     private static final float SLOPE_COST_SCALE = 0.5f;
     private static final int MAX_NATURAL_STEP = 64;
     private static final int BASE_ITER_CAP = 200_000;
+    private static final int MAX_GOAL_REROLLS = 8;
     private static final float DIAG = 1.41421356f;
     private static final int[] DX = {1, 0, -1, 0, 1, -1, -1, 1};
     private static final int[] DZ = {0, 1, 0, -1, 1, 1, -1, -1};
@@ -22,13 +24,32 @@ public final class PathFinder {
 
     private record OpenNode(long key, double f) {}
 
-    public static List<BlockPos> findPath(BlockPos origin, PathType pathType, RandomSource random, BiFunction<Integer, Integer, Integer> rawHeightAt) {
+    public static List<BlockPos> findPath(BlockPos origin, PathType pathType, RandomSource random, BiFunction<Integer, Integer, Integer> rawHeightAt, BiPredicate<Integer, Integer> goalAccept) {
         BiFunction<Integer, Integer, Integer> heightAt = memoise(rawHeightAt);
 
         int length = pathType.length().sample(random);
-        double angle = random.nextDouble() * Math.PI * 2.0;
-        int goalBlockX = origin.getX() + (int) Math.round(Math.cos(angle) * length);
-        int goalBlockZ = origin.getZ() + (int) Math.round(Math.sin(angle) * length);
+
+        // Reroll the goal angle until it lands in a position the caller accepts (typically a
+        // biome-filter check), up to MAX_GOAL_REROLLS attempts. If every attempt fails, give up
+        // so the path isn't forced to terminate in a disallowed biome.
+        int goalBlockX = 0, goalBlockZ = 0;
+        boolean found = false;
+        for(int attempt = 0; attempt <= MAX_GOAL_REROLLS; attempt++) {
+            double angle = random.nextDouble() * Math.PI * 2.0;
+            int gx = origin.getX() + (int) Math.round(Math.cos(angle) * length);
+            int gz = origin.getZ() + (int) Math.round(Math.sin(angle) * length);
+            if(goalAccept == null || goalAccept.test(gx, gz)) {
+                goalBlockX = gx;
+                goalBlockZ = gz;
+                found = true;
+                break;
+            }
+        }
+        if(!found) {
+            Constants.LOG.info("[moogs_paths] no goal in allowed biome after {} tries origin=({},{}) - skipping path",
+                MAX_GOAL_REROLLS + 1, origin.getX(), origin.getZ());
+            return Collections.emptyList();
+        }
 
         int startCellX = Math.floorDiv(origin.getX(), CELL_SIZE);
         int startCellZ = Math.floorDiv(origin.getZ(), CELL_SIZE);
