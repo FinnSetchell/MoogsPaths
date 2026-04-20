@@ -9,8 +9,6 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.level.block.state.properties.BlockStateProperties;
-import net.minecraft.world.level.block.state.properties.SlabType;
 import net.minecraft.world.level.levelgen.Heightmap;
 
 import java.util.ArrayList;
@@ -21,16 +19,21 @@ import java.util.Set;
 public final class PathRasteriser {
     private PathRasteriser() {}
 
+    // Hard caps on how far path surface may cut into / fill over natural terrain. The pathfinder's
+    // rigidness/carver knobs are what shape the target Y; these constants are just safety valves
+    // so a fallback straight-line path can't carve an absurd trench.
+    private static final int MAX_CUT = 8;
+    private static final int MAX_FILL = 8;
+
     //////////////////////////////
 
     public static void rasteriseInChunk(WorldGenLevel level, List<BlockPos> waypoints, PathType pathType, int chunkX, int chunkZ, RandomSource random) {
         if(waypoints.size() < 2) return;
         int halfWidth = pathType.width().max() / 2;
-        int stepDist = PathWalker.stepDistance(pathType.width().max());
         int totalSegments = waypoints.size() - 1;
 
-        // Pre-scan water positions before any blocks are placed so later segments
-        // don't see planks placed by earlier segments and misdetect them as land.
+        // Pre-scan water positions before any blocks are placed so later segments don't see
+        // planks placed by earlier segments and misdetect them as land.
         Set<Long> waterPositions = pathType.waterSettings().isPresent()
             ? scanWaterPositions(level, chunkX, chunkZ)
             : null;
@@ -39,7 +42,7 @@ public final class PathRasteriser {
             BlockPos from = waypoints.get(i);
             BlockPos to = waypoints.get(i + 1);
             if(!mightIntersect(from, to, halfWidth, chunkX, chunkZ)) continue;
-            float fade = fadeFactor(pathType, i, totalSegments, stepDist);
+            float fade = fadeFactor(pathType, i, totalSegments);
             rasteriseSegmentInChunk(level, from, to, pathType, halfWidth, fade, chunkX, chunkZ, random, waterPositions);
         }
     }
@@ -71,7 +74,6 @@ public final class PathRasteriser {
         Block fillBlockResolved = BuiltInRegistries.BLOCK.getOptional(pathType.fillBlock()).orElse(Blocks.DIRT);
         BlockState fillState = fillBlockResolved.defaultBlockState();
         boolean skipFill = fillBlockResolved == Blocks.STRUCTURE_VOID;
-        int fillTolerance = pathType.slopeHandling().fillTolerance();
 
         Set<Long> centerPositions = new HashSet<>();
         List<Long> processPoints = new ArrayList<>();
@@ -84,16 +86,17 @@ public final class PathRasteriser {
                 processPoints.add(key);
         });
 
+        // Target Y comes from the pathfinder's smoothed waypoint Y, not live level height.
+        // The rasteriser drives the path surface to that Y and only the MAX_CUT/MAX_FILL
+        // safety net gates individual tiles.
+        int targetY = from.getY();
+        int centerEffectiveY = targetY - 1;
         BlockPos.MutableBlockPos mpos = new BlockPos.MutableBlockPos();
 
         for(long encoded : processPoints) {
             int cx = (int)(encoded >> 32);
             int cz = (int)(encoded & 0xFFFFFFFFL);
             if(random.nextFloat() >= fade) continue;
-
-            int centerY = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, cx, cz);
-            if(centerY <= level.getMinBuildHeight()) continue;
-            int centerEffectiveY = centerY - 1;
 
             for(int ox = -halfWidth; ox <= halfWidth; ox++) {
                 for(int oz = -halfWidth; oz <= halfWidth; oz++) {
@@ -104,26 +107,26 @@ public final class PathRasteriser {
                     int bz = cz + oz;
                     if((bx >> 4) != chunkX || (bz >> 4) != chunkZ) continue;
 
-                    int sy = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, bx, bz);
-                    if(sy <= level.getMinBuildHeight()) continue;
+                    int naturalSy = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, bx, bz);
+                    if(naturalSy <= level.getMinBuildHeight()) continue;
 
                     long posKey = (long) bx << 32 | (bz & 0xFFFFFFFFL);
                     boolean isWater = waterPositions != null && waterPositions.contains(posKey);
-                    if(!isWater && waterPositions != null) {
-                        // allowWater path but this tile is land — fall through to normal logic
-                    }
-                    else if(waterPositions == null) {
-                        // no water settings — check live for the skip-if-fluid guard
-                        mpos.set(bx, sy - 1, bz);
+                    if(!isWater && waterPositions == null) {
+                        // no water settings declared - still don't place over fluid
+                        mpos.set(bx, naturalSy - 1, bz);
                         if(!level.getFluidState(mpos).isEmpty()) continue;
                     }
 
-                    int diff = (sy - 1) - centerEffectiveY;
-                    if(diff > pathType.slopeHandling().cutTolerance()) continue;
-                    if(-diff > fillTolerance) continue;
+                    int diff = (naturalSy - 1) - centerEffectiveY;
+                    if(diff > MAX_CUT) continue;
+                    if(-diff > MAX_FILL) continue;
 
-                    mpos.set(bx, sy - 1, bz);
                     boolean isEdge = halfWidth > 0 && manhattan == halfWidth && !centerPositions.contains(posKey);
+
+                    int placeY = targetY - 1;
+                    int clearUpTo = Math.max(placeY + 6, naturalSy + 2);
+                    mpos.set(bx, placeY, bz);
 
                     if(isWater) {
                         PathType.WaterSettings ws = pathType.waterSettings().get();
@@ -131,31 +134,22 @@ public final class PathRasteriser {
                         BlockState picked = pick(waterBlocks, random);
                         if(!picked.isAir()) {
                             level.setBlock(mpos, picked, 3);
-                            clearAbove(level, mpos, bx, sy, bz);
+                            clearAbove(level, mpos, bx, placeY + 1, bz, clearUpTo);
                         }
                     }
                     else if(isEdge && !pathType.edgeBlocks().isEmpty()) {
                         BlockState edgeState = pick(pathType.edgeBlocks(), random);
                         if(!edgeState.isAir()) {
                             level.setBlock(mpos, edgeState, 3);
-                            clearAbove(level, mpos, bx, sy, bz);
+                            clearAbove(level, mpos, bx, placeY + 1, bz, clearUpTo);
                         }
                     }
                     else {
                         BlockState surfaceState = pick(pathType.surfaceBlocks(), random);
                         if(!surfaceState.isAir()) {
                             level.setBlock(mpos, surfaceState, 3);
-                            if(!skipFill) fillBelow(level, mpos, bx, sy - 2, bz, fillState, fillTolerance);
-                            if(diff == -1 && !pathType.slabBlocks().isEmpty()) {
-                                BlockState slabState = pick(pathType.slabBlocks(), random);
-                                if(slabState.hasProperty(BlockStateProperties.SLAB_TYPE))
-                                    slabState = slabState.setValue(BlockStateProperties.SLAB_TYPE, SlabType.BOTTOM);
-                                level.setBlock(mpos.set(bx, sy, bz), slabState, 3);
-                                clearAbove(level, mpos, bx, sy + 1, bz);
-                            }
-                            else {
-                                clearAbove(level, mpos, bx, sy, bz);
-                            }
+                            if(!skipFill) fillBelow(level, mpos, bx, placeY - 1, bz, fillState, MAX_FILL);
+                            clearAbove(level, mpos, bx, placeY + 1, bz, clearUpTo);
                         }
                     }
                 }
@@ -163,11 +157,11 @@ public final class PathRasteriser {
         }
     }
 
-    private static void clearAbove(WorldGenLevel level, BlockPos.MutableBlockPos mpos, int x, int startY, int z) {
-        for(int dy = 0; dy < 6; dy++) {
-            mpos.set(x, startY + dy, z);
+    private static void clearAbove(WorldGenLevel level, BlockPos.MutableBlockPos mpos, int x, int startY, int z, int endY) {
+        for(int y = startY; y <= endY; y++) {
+            mpos.set(x, y, z);
             BlockState s = level.getBlockState(mpos);
-            if(s.isAir()) return;
+            if(s.isAir()) continue;
             if(s.canBeReplaced() || s.is(BlockTags.LEAVES) || s.is(BlockTags.LOGS) || s.is(BlockTags.FLOWERS) || s.is(BlockTags.SAPLINGS)) {
                 level.setBlock(mpos, Blocks.AIR.defaultBlockState(), 3);
             }
@@ -185,13 +179,13 @@ public final class PathRasteriser {
         }
     }
 
-    private static float fadeFactor(PathType pathType, int segIdx, int totalSegments, int stepDist) {
-        float distFromStart = segIdx * (float) stepDist;
-        float distFromEnd = (totalSegments - segIdx) * (float) stepDist;
+    private static float fadeFactor(PathType pathType, int segIdx, int totalSegments) {
+        int distFromStart = segIdx;
+        int distFromEnd = totalSegments - segIdx;
         float startFade = pathType.fade().startBlocks() <= 0 ? 1.0f
-            : Math.min(1.0f, distFromStart / pathType.fade().startBlocks());
+            : Math.min(1.0f, (float) distFromStart / pathType.fade().startBlocks());
         float endFade = pathType.fade().endBlocks() <= 0 ? 1.0f
-            : Math.min(1.0f, distFromEnd / pathType.fade().endBlocks());
+            : Math.min(1.0f, (float) distFromEnd / pathType.fade().endBlocks());
         return Math.min(startFade, endFade);
     }
 

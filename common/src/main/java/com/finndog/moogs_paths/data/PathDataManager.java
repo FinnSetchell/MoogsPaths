@@ -14,9 +14,9 @@ public final class PathDataManager {
 
     private static final int WAYPOINT_CACHE_MAX_SIZE = 512;
 
-    // A walked path plus its overall axis-aligned bounding box, so per-chunk feature placement
+    // A pathfinder result plus its axis-aligned bounding box, so per-chunk feature placement
     // can cheaply early-out for chunks that lie entirely outside the path.
-    public record CachedPath(List<List<BlockPos>> branches, int minX, int maxX, int minZ, int maxZ) {
+    public record CachedPath(List<BlockPos> waypoints, int minX, int maxX, int minZ, int maxZ) {
         public boolean intersectsChunk(int chunkX, int chunkZ) {
             int chunkMinX = chunkX << 4;
             int chunkMaxX = chunkMinX + 15;
@@ -50,7 +50,7 @@ public final class PathDataManager {
         });
     }
 
-    public static CachedPath getOrComputeWaypoints(long pathSeed, Supplier<List<List<BlockPos>>> computer) {
+    public static CachedPath getOrComputeWaypoints(long pathSeed, Supplier<List<BlockPos>> computer) {
         CachedPath cached = WAYPOINT_CACHE.get(pathSeed);
         if(cached != null) return cached;
         CachedPath computed = WAYPOINT_CACHE.computeIfAbsent(pathSeed, k -> buildCachedPath(computer.get()));
@@ -58,23 +58,21 @@ public final class PathDataManager {
         return computed;
     }
 
-    private static CachedPath buildCachedPath(List<List<BlockPos>> branches) {
+    private static CachedPath buildCachedPath(List<BlockPos> waypoints) {
         int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
         int minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE;
-        for(List<BlockPos> branch : branches) {
-            for(BlockPos p : branch) {
-                int x = p.getX();
-                int z = p.getZ();
-                if(x < minX) minX = x;
-                if(x > maxX) maxX = x;
-                if(z < minZ) minZ = z;
-                if(z > maxZ) maxZ = z;
-            }
+        for(BlockPos p : waypoints) {
+            int x = p.getX();
+            int z = p.getZ();
+            if(x < minX) minX = x;
+            if(x > maxX) maxX = x;
+            if(z < minZ) minZ = z;
+            if(z > maxZ) maxZ = z;
         }
         if(minX == Integer.MAX_VALUE) {
             minX = maxX = minZ = maxZ = 0;
         }
-        return new CachedPath(branches, minX, maxX, minZ, maxZ);
+        return new CachedPath(waypoints, minX, maxX, minZ, maxZ);
     }
 
     private static void trimCache() {

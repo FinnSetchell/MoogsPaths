@@ -40,8 +40,7 @@ public record StructureSet(
 
     public enum PlacementMode implements StringRepresentable {
         ENDPOINT("endpoint"),
-        INTERVAL("interval"),
-        BRANCH_POINT("branch_point");
+        INTERVAL("interval");
 
         public static final Map<String, PlacementMode> BY_NAME = Arrays.stream(values())
                 .collect(Collectors.toMap(PlacementMode::getSerializedName, v -> v));

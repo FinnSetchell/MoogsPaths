@@ -23,8 +23,6 @@ public final class StructurePlacer {
     private StructurePlacer() {}
 
     // Min centre-to-centre distance between two placed structures. Squared for cheap compares.
-    // 5 blocks keeps 3x3 and 5x5 NBTs from overlapping each other; mostly here to stop stacks
-    // at branch junctions where multiple branches share a waypoint.
     private static final int MIN_STRUCTURE_SPACING_SQ = 5 * 5;
 
     public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<PathNetworkType.WeightedRef> structureSetRefs, BiomeFilter biomeFilter, int chunkX, int chunkZ, RandomSource random, Set<Long> placedPositions) {
@@ -46,28 +44,18 @@ public final class StructurePlacer {
                     tryPlace(level, waypoints.get(waypoints.size() - 1), set, biomeFilter, chunkX, chunkZ, random, placedPositions);
                 }
             }
-            case BRANCH_POINT -> {
-                // one placement at the start of each branch; PathChunkFeature calls this method
-                // once per branch, so placing at waypoints[0] gives exactly one structure per branch
-                tryPlace(level, waypoints.get(0), set, biomeFilter, chunkX, chunkZ, random, placedPositions);
-            }
             case INTERVAL -> placeInterval(level, waypoints, set, biomeFilter, chunkX, chunkZ, random, placedPositions);
         }
     }
 
     private static void placeInterval(WorldGenLevel level, List<BlockPos> waypoints, StructureSet set, BiomeFilter biomeFilter, int chunkX, int chunkZ, RandomSource random, Set<Long> placedPositions) {
-        // Step distance from the first segment so spacing is measured in blocks, not waypoints
-        int stepDist = waypoints.size() > 1
-            ? (int) Math.round(Math.hypot(
-                waypoints.get(1).getX() - waypoints.get(0).getX(),
-                waypoints.get(1).getZ() - waypoints.get(0).getZ()))
-            : 1;
-
+        // Waypoints are block-dense after the pathfinder + chaikin pass, so step distance is
+        // approximately 1 block. Measure spacing in blocks directly by counting waypoints.
         int distanceSinceLast = 0;
         int nextThreshold = nextSpacing(set, random);
 
         for(BlockPos waypoint : waypoints) {
-            distanceSinceLast += stepDist;
+            distanceSinceLast++;
             if(distanceSinceLast >= nextThreshold) {
                 tryPlace(level, waypoint, set, biomeFilter, chunkX, chunkZ, random, placedPositions);
                 distanceSinceLast = 0;
@@ -82,10 +70,6 @@ public final class StructurePlacer {
 
         if((waypoint.getX() >> 4) != chunkX || (waypoint.getZ() >> 4) != chunkZ) return;
 
-        // Reject early if another structure this chunk already claimed a nearby spot.
-        // Branches often share waypoints (branch roots are picked from the main path), so
-        // without this check two placements at the same (x,z) would stack: the first raises
-        // the MOTION_BLOCKING_NO_LEAVES heightmap and the second lands on top of it.
         for(long encoded : placedPositions) {
             int px = (int) (encoded >> 32);
             int pz = (int) encoded;
@@ -105,10 +89,6 @@ public final class StructurePlacer {
         if(templateOpt.isEmpty()) return;
         StructureTemplate template = templateOpt.get();
 
-        // Reject if any part of the rotated footprint sits over water or over a shallow
-        // water-bridge (a path rasterised on top of a water column). Without this the
-        // centre-point check above lets structures land at the edge of lakes or on
-        // cobblestone bridges, and half the NBT then hangs out over the water.
         if(footprintOverWater(level, template, pos, entry.offset(), rotation)) return;
 
         placeEntry(level, template, pos, entry, rotation);
@@ -124,8 +104,6 @@ public final class StructurePlacer {
         int minZ = pos.getZ() - sizeZ / 2 + offset.getZ();
 
         BlockPos.MutableBlockPos mpos = new BlockPos.MutableBlockPos();
-        // Stride of 2 is enough: water bodies are never 1 block wide, so a 2-block
-        // grid samples every distinct water pocket a 3+ wide structure could bridge.
         int stride = 2;
         for(int dx = 0; dx <= sizeX; dx += stride) {
             for(int dz = 0; dz <= sizeZ; dz += stride) {
@@ -137,9 +115,6 @@ public final class StructurePlacer {
         return false;
     }
 
-    // Detects both "actual water column" and "solid bridge with water right below it".
-    // Walks up to 3 blocks down from the surface top to catch water-settings paths
-    // that placed a thin solid layer over a water pocket.
     private static boolean isColumnOverWater(WorldGenLevel level, int x, int z, BlockPos.MutableBlockPos mpos) {
         int sy = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
         if(sy <= level.getMinBuildHeight()) return false;
