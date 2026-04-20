@@ -13,13 +13,11 @@
     "min": 3,
     "max": 4
   },
-  "curviness": 0.2,
-  "smoothing_iterations": 1,
-  "max_slope_per_step": 2,
-  "slope_cost_weight": 0.4,
-  "slope_handling": {
-    "cut_tolerance": 5,
-    "fill_tolerance": 5
+  "rigidness": 0.9,
+  "carver": 1.0,
+  "length": {
+    "type": "minecraft:uniform",
+    "value": { "min_inclusive": 800, "max_inclusive": 1800 }
   },
   "fade": {
     "start_blocks": 15,

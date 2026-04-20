@@ -3,8 +3,8 @@ package com.finndog.moogs_paths.commands;
 import com.finndog.moogs_paths.data.MoogsPathsDatapackRegistries;
 import com.finndog.moogs_paths.data.PathDataManager;
 import com.finndog.moogs_paths.data.PathNetworkType;
+import com.finndog.moogs_paths.data.PathType;
 import com.finndog.moogs_paths.world.PathChunkFeature;
-import com.finndog.moogs_paths.world.PathDirection;
 import com.finndog.moogs_paths.world.PathRegionSelector;
 import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.ChatFormatting;
@@ -130,15 +130,16 @@ public final class PathsDebugCommand {
         int dist = (int) Math.sqrt(nearest.distSq());
 
         // Offset the TP point past the start fade zone so path blocks are actually visible.
+        // Mirror PathFinder's random-consumption order (sample length, then draw goal angle)
+        // so the reported direction matches the real routed path.
         PathNetworkType nearestNetwork = nearest.network();
         RandomSource walkRandom = RandomSource.create(nearest.pathSeed() ^ PathChunkFeature.WALK_MIXER);
-        walkRandom.nextInt(Math.max(1, nearestNetwork.scale().lengthMax - nearestNetwork.scale().lengthMin + 1));
-        PathDirection initialDir = PathDirection.VALUES[walkRandom.nextInt(8)];
-        int fadeOffset = MoogsPathsDatapackRegistries.getPathType(src.registryAccess(), nearestNetwork.pathType())
-            .map(pt -> pt.fade().startBlocks() + 10)
-            .orElse(30);
-        int reportBx = nearest.bx() + initialDir.dx * fadeOffset;
-        int reportBz = nearest.bz() + initialDir.dz * fadeOffset;
+        Optional<PathType> pathTypeOpt = MoogsPathsDatapackRegistries.getPathType(src.registryAccess(), nearestNetwork.pathType());
+        pathTypeOpt.ifPresent(pt -> pt.length().sample(walkRandom));
+        double angle = walkRandom.nextDouble() * Math.PI * 2.0;
+        int fadeOffset = pathTypeOpt.map(pt -> pt.fade().startBlocks() + 10).orElse(30);
+        int reportBx = nearest.bx() + (int) Math.round(Math.cos(angle) * fadeOffset);
+        int reportBz = nearest.bz() + (int) Math.round(Math.sin(angle) * fadeOffset);
 
         MutableComponent coord = Component.literal("[" + reportBx + ", ~, " + reportBz + "]")
             .withStyle(style -> style
@@ -210,8 +211,11 @@ public final class PathsDebugCommand {
 
         src.sendSuccess(() -> Component.literal("[paths] Loaded networks (" + registry.size() + "):"), false);
         for(PathNetworkType n : registry) {
+            String lengthStr = MoogsPathsDatapackRegistries.getPathType(src.registryAccess(), n.pathType())
+                .map(pt -> pt.length().getMinValue() + "-" + pt.length().getMaxValue())
+                .orElse("?");
             String line = "  pathType=" + n.pathType()
-                + " scale=" + n.scale().lengthMin + "-" + n.scale().lengthMax
+                + " length=" + lengthStr
                 + " regionSize=" + n.regionSize()
                 + " weight=" + n.weight()
                 + " structureSets=" + n.structureSets().size()

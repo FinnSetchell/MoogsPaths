@@ -1,16 +1,10 @@
 {
   "path_type": "moogs_paths:dirt_trail",
-  "scale": "trail",
   "biome_filter": {
     "type": "any"
   },
   "weight": 1,
   "region_size": 48,
-  "branches": {
-    "min_branches": 0,
-    "max_branches": 1,
-    "length_fraction": 0.2
-  },
   "structure_sets": [
     { "id": "moogs_paths:simple_andesite_lamp", "weight": 1 }
   ],

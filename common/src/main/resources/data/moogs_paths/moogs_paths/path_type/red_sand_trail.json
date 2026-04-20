@@ -9,10 +9,11 @@
     "min": 2,
     "max": 2
   },
-  "curviness": 0.3,
-  "slope_handling": {
-    "cut_tolerance": 3,
-    "fill_tolerance": 3
+  "rigidness": 0.5,
+  "carver": 0.2,
+  "length": {
+    "type": "minecraft:uniform",
+    "value": { "min_inclusive": 400, "max_inclusive": 1000 }
   },
   "fade": {
     "start_blocks": 8,

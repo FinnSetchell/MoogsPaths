@@ -1,6 +1,5 @@
 {
   "path_type": "moogs_paths:mossy_jungle",
-  "scale": "local",
   "biome_filter": {
     "type": "and",
     "filters": [
@@ -10,11 +9,6 @@
   },
   "weight": 6,
   "region_size": 28,
-  "branches": {
-    "min_branches": 1,
-    "max_branches": 3,
-    "length_fraction": 0.35
-  },
   "structure_sets": [
     { "id": "moogs_paths:jungle_branch_shrines", "weight": 1 }
   ],

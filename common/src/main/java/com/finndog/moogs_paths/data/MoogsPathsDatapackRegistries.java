@@ -76,16 +76,22 @@ public final class MoogsPathsDatapackRegistries {
         cachedDerivedViews = null;
     }
 
+    // Search radius per region size is derived from the longest-reaching path type: length * 2
+    // gives a generous upper bound on how far a random-angle goal could land from the origin,
+    // ensuring chunks at the far edge of any path still see the origin in originsInRange.
     private static DerivedNetworkViews derivedViews(RegistryAccess access) {
         DerivedNetworkViews views = cachedDerivedViews;
         if(views == null) {
-            Registry<PathNetworkType> registry = access.registryOrThrow(PATH_NETWORK);
+            Registry<PathNetworkType> networks = access.registryOrThrow(PATH_NETWORK);
+            Registry<PathType> pathTypes = access.registryOrThrow(PATH_TYPE);
             Map<Integer, List<PathNetworkType>> byRegion = Collections.unmodifiableMap(
-                registry.stream().collect(Collectors.groupingBy(PathNetworkType::regionSize)));
+                networks.stream().collect(Collectors.groupingBy(PathNetworkType::regionSize)));
             Map<Integer, Integer> maxByRegion = byRegion.entrySet().stream()
                 .collect(Collectors.toUnmodifiableMap(
                     Map.Entry::getKey,
-                    e -> e.getValue().stream().mapToInt(n -> n.scale().lengthMax).max().orElse(1000)
+                    e -> e.getValue().stream()
+                        .mapToInt(n -> Optional.ofNullable(pathTypes.get(n.pathType())).map(pt -> pt.length().getMaxValue() * 2).orElse(1000))
+                        .max().orElse(1000)
                 ));
             views = new DerivedNetworkViews(byRegion, maxByRegion);
             cachedDerivedViews = views;

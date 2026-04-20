@@ -14,12 +14,11 @@
     "min": 2,
     "max": 3
   },
-  "curviness": 0.35,
-  "max_slope_per_step": 1,
-  "slope_cost_weight": 0.55,
-  "slope_handling": {
-    "cut_tolerance": 3,
-    "fill_tolerance": 4
+  "rigidness": 0.7,
+  "carver": 0.8,
+  "length": {
+    "type": "minecraft:uniform",
+    "value": { "min_inclusive": 150, "max_inclusive": 400 }
   },
   "fade": {
     "start_blocks": 10,
