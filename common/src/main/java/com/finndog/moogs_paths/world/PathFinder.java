@@ -25,7 +25,7 @@ public final class PathFinder {
     public static List<BlockPos> findPath(BlockPos origin, PathType pathType, RandomSource random, BiFunction<Integer, Integer, Integer> rawHeightAt) {
         BiFunction<Integer, Integer, Integer> heightAt = memoise(rawHeightAt);
 
-        int length = pathType.length();
+        int length = pathType.length().sample(random);
         double angle = random.nextDouble() * Math.PI * 2.0;
         int goalBlockX = origin.getX() + (int) Math.round(Math.cos(angle) * length);
         int goalBlockZ = origin.getZ() + (int) Math.round(Math.sin(angle) * length);

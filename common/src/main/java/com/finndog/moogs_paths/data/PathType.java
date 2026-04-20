@@ -3,6 +3,7 @@ package com.finndog.moogs_paths.data;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.valueproviders.IntProvider;
 
 import java.util.List;
 import java.util.Optional;
@@ -12,11 +13,9 @@ public record PathType(
     List<WeightedBlock> edgeBlocks,
     ResourceLocation fillBlock,
     WidthRange width,
-    float curviness,
-    int smoothingIterations,
-    int maxSlopePerStep,
-    float slopeCostWeight,
-    SlopeHandling slopeHandling,
+    float rigidness,
+    float carver,
+    IntProvider length,
     FadeSettings fade,
     Optional<WaterSettings> waterSettings,
     List<WeightedBlock> slabBlocks
@@ -33,13 +32,6 @@ public record PathType(
             Codec.INT.fieldOf("min").forGetter(WidthRange::min),
             Codec.INT.fieldOf("max").forGetter(WidthRange::max)
         ).apply(instance, WidthRange::new));
-    }
-
-    public record SlopeHandling(int cutTolerance, int fillTolerance) {
-        public static final Codec<SlopeHandling> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-            Codec.INT.fieldOf("cut_tolerance").forGetter(SlopeHandling::cutTolerance),
-            Codec.INT.fieldOf("fill_tolerance").forGetter(SlopeHandling::fillTolerance)
-        ).apply(instance, SlopeHandling::new));
     }
 
     public record FadeSettings(int startBlocks, int endBlocks) {
@@ -61,11 +53,9 @@ public record PathType(
         Codec.list(WeightedBlock.CODEC).optionalFieldOf("edge_blocks", List.of()).forGetter(PathType::edgeBlocks),
         ResourceLocation.CODEC.fieldOf("fill_block").forGetter(PathType::fillBlock),
         WidthRange.CODEC.fieldOf("width").forGetter(PathType::width),
-        Codec.FLOAT.fieldOf("curviness").forGetter(PathType::curviness),
-        Codec.INT.optionalFieldOf("smoothing_iterations", 2).forGetter(PathType::smoothingIterations),
-        Codec.INT.optionalFieldOf("max_slope_per_step", 0).forGetter(PathType::maxSlopePerStep),
-        Codec.FLOAT.optionalFieldOf("slope_cost_weight", 0.0f).forGetter(PathType::slopeCostWeight),
-        SlopeHandling.CODEC.fieldOf("slope_handling").forGetter(PathType::slopeHandling),
+        Codec.FLOAT.fieldOf("rigidness").forGetter(PathType::rigidness),
+        Codec.FLOAT.fieldOf("carver").forGetter(PathType::carver),
+        IntProvider.codec(1, 100_000).fieldOf("length").forGetter(PathType::length),
         FadeSettings.CODEC.fieldOf("fade").forGetter(PathType::fade),
         WaterSettings.CODEC.optionalFieldOf("water_settings").forGetter(PathType::waterSettings),
         Codec.list(WeightedBlock.CODEC).optionalFieldOf("slab_blocks", List.of()).forGetter(PathType::slabBlocks)
