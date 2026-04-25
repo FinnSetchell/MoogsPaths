@@ -76,9 +76,7 @@ public final class MoogsPathsDatapackRegistries {
         cachedDerivedViews = null;
     }
 
-    // Search radius per region size is derived from the longest-reaching path type: length * 2
-    // gives a generous upper bound on how far a random-angle goal could land from the origin,
-    // ensuring chunks at the far edge of any path still see the origin in originsInRange.
+    // search radius = max path length * 2 - generous upper bound for any random-angle goal
     private static DerivedNetworkViews derivedViews(RegistryAccess access) {
         DerivedNetworkViews views = cachedDerivedViews;
         if(views == null) {

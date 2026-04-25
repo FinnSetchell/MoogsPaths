@@ -1,12 +1,6 @@
 {
   "path_type": "moogs_paths:mossy_jungle",
-  "biome_filter": {
-    "type": "and",
-    "filters": [
-      { "type": "tag", "tag": "minecraft:is_jungle" },
-      { "type": "not_tag", "tag": "minecraft:is_nether" }
-    ]
-  },
+  "biomes": "#minecraft:is_jungle",
   "weight": 6,
   "region_size": 28,
   "structure_sets": [

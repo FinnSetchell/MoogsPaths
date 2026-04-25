@@ -25,4 +25,3 @@ rootProject.name = 'MoogsPaths'
 include("common")
 include("fabric")
 include("forge")
-include("debugmod")

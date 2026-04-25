@@ -1,14 +1,15 @@
 package com.finndog.moogs_paths.world;
 
-import com.finndog.moogs_paths.data.BiomeFilter;
 import com.finndog.moogs_paths.data.MoogsPathsDatapackRegistries;
 import com.finndog.moogs_paths.data.PathDataManager;
 import com.finndog.moogs_paths.data.PathNetworkType;
 import com.finndog.moogs_paths.data.StructureSet;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderSet;
 import net.minecraft.core.Vec3i;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -25,30 +26,30 @@ public final class StructurePlacer {
     // Min centre-to-centre distance between two placed structures. Squared for cheap compares.
     private static final int MIN_STRUCTURE_SPACING_SQ = 5 * 5;
 
-    public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<PathNetworkType.WeightedRef> structureSetRefs, BiomeFilter biomeFilter, int chunkX, int chunkZ, RandomSource random, Set<Long> placedPositions) {
+    public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<PathNetworkType.WeightedRef> structureSetRefs, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, Set<Long> placedPositions) {
         for(PathNetworkType.WeightedRef ref : structureSetRefs) {
             MoogsPathsDatapackRegistries.getStructureSet(level.registryAccess(), ref.id()).ifPresent(set ->
-                placeSet(level, waypoints, set, biomeFilter, chunkX, chunkZ, random, placedPositions));
+                placeSet(level, waypoints, set, biomes, chunkX, chunkZ, random, placedPositions));
         }
     }
 
     //////////////////////////////
 
-    private static void placeSet(WorldGenLevel level, List<BlockPos> waypoints, StructureSet set, BiomeFilter biomeFilter, int chunkX, int chunkZ, RandomSource random, Set<Long> placedPositions) {
+    private static void placeSet(WorldGenLevel level, List<BlockPos> waypoints, StructureSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, Set<Long> placedPositions) {
         if(waypoints.isEmpty()) return;
 
         switch(set.placement()) {
             case ENDPOINT -> {
-                tryPlace(level, waypoints.get(0), set, biomeFilter, chunkX, chunkZ, random, placedPositions);
+                tryPlace(level, waypoints.get(0), set, biomes, chunkX, chunkZ, random, placedPositions);
                 if(waypoints.size() > 1) {
-                    tryPlace(level, waypoints.get(waypoints.size() - 1), set, biomeFilter, chunkX, chunkZ, random, placedPositions);
+                    tryPlace(level, waypoints.get(waypoints.size() - 1), set, biomes, chunkX, chunkZ, random, placedPositions);
                 }
             }
-            case INTERVAL -> placeInterval(level, waypoints, set, biomeFilter, chunkX, chunkZ, random, placedPositions);
+            case INTERVAL -> placeInterval(level, waypoints, set, biomes, chunkX, chunkZ, random, placedPositions);
         }
     }
 
-    private static void placeInterval(WorldGenLevel level, List<BlockPos> waypoints, StructureSet set, BiomeFilter biomeFilter, int chunkX, int chunkZ, RandomSource random, Set<Long> placedPositions) {
+    private static void placeInterval(WorldGenLevel level, List<BlockPos> waypoints, StructureSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, Set<Long> placedPositions) {
         // Waypoints are block-dense after the pathfinder + chaikin pass, so step distance is
         // approximately 1 block. Measure spacing in blocks directly by counting waypoints.
         int distanceSinceLast = 0;
@@ -57,14 +58,14 @@ public final class StructurePlacer {
         for(BlockPos waypoint : waypoints) {
             distanceSinceLast++;
             if(distanceSinceLast >= nextThreshold) {
-                tryPlace(level, waypoint, set, biomeFilter, chunkX, chunkZ, random, placedPositions);
+                tryPlace(level, waypoint, set, biomes, chunkX, chunkZ, random, placedPositions);
                 distanceSinceLast = 0;
                 nextThreshold = nextSpacing(set, random);
             }
         }
     }
 
-    private static void tryPlace(WorldGenLevel level, BlockPos waypoint, StructureSet set, BiomeFilter biomeFilter, int chunkX, int chunkZ, RandomSource random, Set<Long> placedPositions) {
+    private static void tryPlace(WorldGenLevel level, BlockPos waypoint, StructureSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, Set<Long> placedPositions) {
         StructureSet.StructureEntry entry = pickWeighted(set.structures(), random);
         Rotation rotation = parseRotation(entry.rotation(), random);
 
@@ -82,7 +83,8 @@ public final class StructurePlacer {
         if(!level.getFluidState(new BlockPos(waypoint.getX(), surfaceY - 1, waypoint.getZ())).isEmpty()) return;
         BlockPos pos = new BlockPos(waypoint.getX(), surfaceY - 1, waypoint.getZ());
 
-        if(!biomeFilter.test(level.getBiome(pos))) return;
+        PathDataManager.recordBiomeCall(com.finndog.moogs_paths.data.BiomeCallSite.STRUCTURE_PLACE_CHECK);
+        if(!biomes.contains(level.getBiome(pos))) return;
         if(!isFlatEnough(level, pos, set.flatnessTolerance())) return;
 
         Optional<StructureTemplate> templateOpt = PathDataManager.getCachedTemplate(entry.nbt());

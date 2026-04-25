@@ -1,18 +1,15 @@
 {
   "path_type": "moogs_paths:cobblestone_road",
-  "biome_filter": {
-    "type": "whitelist",
-    "biomes": [
-      "minecraft:forest",
-      "minecraft:flower_forest",
-      "minecraft:birch_forest",
-      "minecraft:dark_forest",
-      "minecraft:savanna",
-      "minecraft:savanna_plateau",
-      "minecraft:taiga",
-      "minecraft:old_growth_pine_taiga"
-    ]
-  },
+  "biomes": [
+    "minecraft:forest",
+    "minecraft:flower_forest",
+    "minecraft:birch_forest",
+    "minecraft:dark_forest",
+    "minecraft:savanna",
+    "minecraft:savanna_plateau",
+    "minecraft:taiga",
+    "minecraft:old_growth_pine_taiga"
+  ],
   "weight": 3,
   "region_size": 48,
   "structure_sets": [

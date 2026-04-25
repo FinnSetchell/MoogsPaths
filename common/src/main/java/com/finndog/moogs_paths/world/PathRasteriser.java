@@ -19,9 +19,8 @@ import java.util.Set;
 public final class PathRasteriser {
     private PathRasteriser() {}
 
-    // Hard caps on how far path surface may cut into / fill over natural terrain. The pathfinder's
-    // rigidness/carver knobs are what shape the target Y; these constants are just safety valves
-    // so a fallback straight-line path can't carve an absurd trench.
+    // Safety caps so a fallback straight-line path can't carve an absurd trench. Path surface Y
+    // is shaped by the pathfinder's rigidness/carver knobs; these just gate individual tiles.
     private static final int MAX_CUT = 8;
     private static final int MAX_FILL = 8;
 
@@ -32,8 +31,8 @@ public final class PathRasteriser {
         int halfWidth = pathType.width().max() / 2;
         int totalSegments = waypoints.size() - 1;
 
-        // Pre-scan water positions before any blocks are placed so later segments don't see
-        // planks placed by earlier segments and misdetect them as land.
+        // Snapshot water columns before any segment runs - otherwise later segments see planks
+        // placed by earlier ones and misdetect them as land.
         Set<Long> waterPositions = pathType.waterSettings().isPresent()
             ? scanWaterPositions(level, chunkX, chunkZ)
             : null;
@@ -47,7 +46,6 @@ public final class PathRasteriser {
         }
     }
 
-    // Scans every surface position in the chunk and records which ones have fluid at sy-1.
     private static Set<Long> scanWaterPositions(WorldGenLevel level, int chunkX, int chunkZ) {
         Set<Long> result = new HashSet<>();
         int minX = chunkX * 16;
@@ -86,9 +84,8 @@ public final class PathRasteriser {
                 processPoints.add(key);
         });
 
-        // Target Y comes from the pathfinder's smoothed waypoint Y, not live level height.
-        // The rasteriser drives the path surface to that Y and only the MAX_CUT/MAX_FILL
-        // safety net gates individual tiles.
+        // Target Y is the pathfinder's smoothed waypoint Y, not live level height. MAX_CUT and
+        // MAX_FILL gate individual tiles when terrain has drifted too far from that target.
         int targetY = from.getY();
         int centerEffectiveY = targetY - 1;
         BlockPos.MutableBlockPos mpos = new BlockPos.MutableBlockPos();
@@ -113,7 +110,7 @@ public final class PathRasteriser {
                     long posKey = (long) bx << 32 | (bz & 0xFFFFFFFFL);
                     boolean isWater = waterPositions != null && waterPositions.contains(posKey);
                     if(!isWater && waterPositions == null) {
-                        // no water settings declared - still don't place over fluid
+                        // no water settings declared, but still skip fluid columns
                         mpos.set(bx, naturalSy - 1, bz);
                         if(!level.getFluidState(mpos).isEmpty()) continue;
                     }

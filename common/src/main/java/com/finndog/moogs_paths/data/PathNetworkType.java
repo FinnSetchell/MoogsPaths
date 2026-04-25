@@ -2,13 +2,17 @@ package com.finndog.moogs_paths.data;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
+import net.minecraft.core.HolderSet;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.core.RegistryCodecs;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.level.biome.Biome;
 
 import java.util.List;
 
 public record PathNetworkType(
     ResourceLocation pathType,
-    BiomeFilter biomeFilter,
+    HolderSet<Biome> biomes,
     int weight,
     int regionSize,
     List<WeightedRef> structureSets,
@@ -18,7 +22,7 @@ public record PathNetworkType(
 
     public static final Codec<PathNetworkType> CODEC = RecordCodecBuilder.create(instance -> instance.group(
         ResourceLocation.CODEC.fieldOf("path_type").forGetter(PathNetworkType::pathType),
-        BiomeFilter.DISPATCH_CODEC.fieldOf("biome_filter").forGetter(PathNetworkType::biomeFilter),
+        RegistryCodecs.homogeneousList(Registries.BIOME).fieldOf("biomes").forGetter(PathNetworkType::biomes),
         Codec.INT.fieldOf("weight").forGetter(PathNetworkType::weight),
         Codec.INT.fieldOf("region_size").forGetter(PathNetworkType::regionSize),
         WeightedRef.CODEC.listOf().optionalFieldOf("structure_sets", List.of()).forGetter(PathNetworkType::structureSets),

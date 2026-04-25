@@ -1,16 +1,18 @@
 package com.finndog.moogs_paths.world;
 
 import com.finndog.moogs_paths.Constants;
-import com.finndog.moogs_paths.data.BiomeFilter;
 import com.finndog.moogs_paths.data.FeatureDecoratorSet;
 import com.finndog.moogs_paths.data.MoogsPathsDatapackRegistries;
+import com.finndog.moogs_paths.data.PathDataManager;
 import com.finndog.moogs_paths.data.PathNetworkType;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.HolderSet;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
@@ -22,18 +24,18 @@ public final class FeatureScatterer {
 
     private static final Set<ResourceLocation> WARNED_MISSING = Collections.synchronizedSet(new HashSet<>());
 
-    public static void scatterInChunk(WorldGenLevel level, ChunkGenerator generator, List<BlockPos> waypoints, List<PathNetworkType.WeightedRef> decoratorSetRefs, BiomeFilter biomeFilter, int chunkX, int chunkZ, RandomSource random) {
+    public static void scatterInChunk(WorldGenLevel level, ChunkGenerator generator, List<BlockPos> waypoints, List<PathNetworkType.WeightedRef> decoratorSetRefs, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random) {
         Registry<ConfiguredFeature<?, ?>> featureRegistry = level.registryAccess().registryOrThrow(Registries.CONFIGURED_FEATURE);
 
         for(PathNetworkType.WeightedRef ref : decoratorSetRefs) {
             MoogsPathsDatapackRegistries.getFeatureDecoratorSet(level.registryAccess(), ref.id()).ifPresent(set ->
-                scatterSet(level, generator, featureRegistry, waypoints, set, biomeFilter, chunkX, chunkZ, random));
+                scatterSet(level, generator, featureRegistry, waypoints, set, biomes, chunkX, chunkZ, random));
         }
     }
 
     //////////////////////////////
 
-    private static void scatterSet(WorldGenLevel level, ChunkGenerator generator, Registry<ConfiguredFeature<?, ?>> featureRegistry, List<BlockPos> waypoints, FeatureDecoratorSet set, BiomeFilter biomeFilter, int chunkX, int chunkZ, RandomSource random) {
+    private static void scatterSet(WorldGenLevel level, ChunkGenerator generator, Registry<ConfiguredFeature<?, ?>> featureRegistry, List<BlockPos> waypoints, FeatureDecoratorSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random) {
         int reach = set.scatterWidth() + 1;
 
         WaypointScatterer.scatter(waypoints, set.density(), reach, chunkX, chunkZ, random,
@@ -48,16 +50,17 @@ public final class FeatureScatterer {
                 int bz = from.getZ() + Math.round(parZ * d + perpZ * offset * side);
 
                 if((bx >> 4) == chunkX && (bz >> 4) == chunkZ) {
-                    tryPlace(level, generator, feature, bx, bz, biomeFilter, segRandom);
+                    tryPlace(level, generator, feature, bx, bz, biomes, segRandom);
                 }
             });
     }
 
-    private static void tryPlace(WorldGenLevel level, ChunkGenerator generator, ConfiguredFeature<?, ?> feature, int bx, int bz, BiomeFilter biomeFilter, RandomSource random) {
+    private static void tryPlace(WorldGenLevel level, ChunkGenerator generator, ConfiguredFeature<?, ?> feature, int bx, int bz, HolderSet<Biome> biomes, RandomSource random) {
         int sy = level.getHeight(Heightmap.Types.WORLD_SURFACE, bx, bz);
         if(sy <= level.getMinBuildHeight()) return;
         BlockPos pos = new BlockPos(bx, sy, bz);
-        if(!biomeFilter.test(level.getBiome(pos))) return;
+        PathDataManager.recordBiomeCall(com.finndog.moogs_paths.data.BiomeCallSite.FEATURE_PLACE_CHECK);
+        if(!biomes.contains(level.getBiome(pos))) return;
         feature.place(level, generator, random, pos);
     }
 

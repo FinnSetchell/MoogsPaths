@@ -1,9 +1,6 @@
 {
   "path_type": "moogs_paths:sandstone_highway",
-  "biome_filter": {
-    "type": "tag",
-    "tag": "minecraft:is_hot_overworld"
-  },
+  "biomes": "minecraft:desert",
   "weight": 5,
   "region_size": 40,
   "structure_sets": [

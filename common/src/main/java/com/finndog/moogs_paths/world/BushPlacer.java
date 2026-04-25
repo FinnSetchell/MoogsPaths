@@ -1,14 +1,16 @@
 package com.finndog.moogs_paths.world;
 
-import com.finndog.moogs_paths.data.BiomeFilter;
 import com.finndog.moogs_paths.data.BushDecoratorSet;
 import com.finndog.moogs_paths.data.MoogsPathsDatapackRegistries;
+import com.finndog.moogs_paths.data.PathDataManager;
 import com.finndog.moogs_paths.data.PathNetworkType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.core.HolderSet;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
+import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.LeavesBlock;
@@ -23,14 +25,14 @@ public final class BushPlacer {
 
     //////////////////////////////
 
-    public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<PathNetworkType.WeightedRef> bushSetRefs, BiomeFilter biomeFilter, int chunkX, int chunkZ, RandomSource random) {
+    public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<PathNetworkType.WeightedRef> bushSetRefs, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random) {
         for(PathNetworkType.WeightedRef ref : bushSetRefs) {
             MoogsPathsDatapackRegistries.getBushDecoratorSet(level.registryAccess(), ref.id()).ifPresent(set ->
-                placeSet(level, waypoints, set, biomeFilter, chunkX, chunkZ, random));
+                placeSet(level, waypoints, set, biomes, chunkX, chunkZ, random));
         }
     }
 
-    private static void placeSet(WorldGenLevel level, List<BlockPos> waypoints, BushDecoratorSet set, BiomeFilter biomeFilter, int chunkX, int chunkZ, RandomSource random) {
+    private static void placeSet(WorldGenLevel level, List<BlockPos> waypoints, BushDecoratorSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random) {
         if(set.blocks().isEmpty()) return;
 
         int totalWeight = set.blocks().stream().mapToInt(BushDecoratorSet.WeightedBlock::weight).sum();
@@ -68,7 +70,8 @@ public final class BushPlacer {
 
                 if(cx + size >= chunkMinX && cx - size <= chunkMaxX && cz + size >= chunkMinZ && cz - size <= chunkMaxZ) {
                     int centerY = level.getHeight(Heightmap.Types.WORLD_SURFACE, cx, cz);
-                    if(!biomeFilter.test(level.getBiome(new BlockPos(cx, centerY, cz)))) return;
+                    PathDataManager.recordBiomeCall(com.finndog.moogs_paths.data.BiomeCallSite.BUSH_PLACE_CHECK);
+                    if(!biomes.contains(level.getBiome(new BlockPos(cx, centerY, cz)))) return;
                     BlockState block = pick(set.blocks(), totalWeight, segRandom);
                     placeBush(level, cx, cz, size, parX, parZ, block, chunkX, chunkZ, segRandom, set.minHeight(), set.maxHeight());
                 }
@@ -98,9 +101,7 @@ public final class BushPlacer {
                 int sy = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, px, pz);
                 if(sy <= level.getMinBuildHeight()) continue;
 
-                // Reject if any of the few blocks directly below the placement are water.
-                // The 1-block check alone misses water-settings paths that rasterised a solid
-                // layer on top of a water column - bushes would then sprout on the bridge.
+                // 3-deep, not 1: water-settings paths rasterise a solid layer on top of water columns
                 if(isColumnOverWater(level, px, pz, sy, mpos)) continue;
 
                 int heightRange = maxHeight - minHeight;

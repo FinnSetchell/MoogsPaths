@@ -92,6 +92,7 @@ public final class PathsDebugCommand {
 
         record Candidate(int bx, int bz, ResourceLocation id, long distSq, long pathSeed, PathNetworkType network) {}
         List<Candidate> candidates = new ArrayList<>();
+        Map<Long, Holder<Biome>> biomeCache = new HashMap<>();
 
         for(Map.Entry<Integer, List<Map.Entry<ResourceLocation, PathNetworkType>>> entry : byRegionSize.entrySet()) {
             int regionSize = entry.getKey();
@@ -112,8 +113,15 @@ public final class PathsDebugCommand {
                     int bx = origin[0] * 16 + 8;
                     int bz = origin[1] * 16 + 8;
 
-                    Holder<Biome> biome = player.serverLevel().getBiome(new BlockPos(bx, 64, bz));
-                    if(!picked.getValue().biomeFilter().test(biome)) return;
+                    int cellX = origin[0] >> PathChunkFeature.ORIGIN_BIOME_CELL_SHIFT;
+                    int cellZ = origin[1] >> PathChunkFeature.ORIGIN_BIOME_CELL_SHIFT;
+                    long cellKey = ((long) cellX << 32) | (cellZ & 0xFFFFFFFFL);
+                    Holder<Biome> biome = biomeCache.computeIfAbsent(cellKey, k -> {
+                        int sampleBx = ((cellX << PathChunkFeature.ORIGIN_BIOME_CELL_SHIFT) << 4) + 8;
+                        int sampleBz = ((cellZ << PathChunkFeature.ORIGIN_BIOME_CELL_SHIFT) << 4) + 8;
+                        return player.serverLevel().getBiome(new BlockPos(sampleBx, PathChunkFeature.BIOME_FILTER_Y, sampleBz));
+                    });
+                    if(biome.is(PathChunkFeature.HAS_NO_PATHS) || !picked.getValue().biomes().contains(biome)) return;
 
                     long dx = bx - playerBX;
                     long dz = bz - playerBZ;
@@ -129,9 +137,8 @@ public final class PathsDebugCommand {
         Candidate nearest = candidates.stream().min(Comparator.comparingLong(Candidate::distSq)).get();
         int dist = (int) Math.sqrt(nearest.distSq());
 
-        // Offset the TP point past the start fade zone so path blocks are actually visible.
-        // Mirror PathFinder's random-consumption order (sample length, then draw goal angle)
-        // so the reported direction matches the real routed path.
+        // Mirror PathFinder's random-consumption order (length, then angle) so the reported
+        // direction matches the real routed path. Offset past the start fade zone so blocks show.
         PathNetworkType nearestNetwork = nearest.network();
         RandomSource walkRandom = RandomSource.create(nearest.pathSeed() ^ PathChunkFeature.WALK_MIXER);
         Optional<PathType> pathTypeOpt = MoogsPathsDatapackRegistries.getPathType(src.registryAccess(), nearestNetwork.pathType());

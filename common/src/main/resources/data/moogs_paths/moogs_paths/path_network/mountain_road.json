@@ -1,9 +1,6 @@
 {
   "path_type": "moogs_paths:mountain_road",
-  "biome_filter": {
-    "type": "tag",
-    "tag": "minecraft:is_mountain"
-  },
+  "biomes": "#minecraft:is_mountain",
   "weight": 7,
   "region_size": 16,
   "structure_sets": [
