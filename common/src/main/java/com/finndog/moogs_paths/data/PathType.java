@@ -17,8 +17,7 @@ public record PathType(
     float carver,
     IntProvider length,
     FadeSettings fade,
-    Optional<WaterSettings> waterSettings,
-    List<WeightedBlock> slabBlocks
+    Optional<WaterSettings> waterSettings
 ) {
     public record WeightedBlock(ResourceLocation block, int weight) {
         public static final Codec<WeightedBlock> CODEC = RecordCodecBuilder.create(instance -> instance.group(
@@ -57,7 +56,6 @@ public record PathType(
         Codec.FLOAT.fieldOf("carver").forGetter(PathType::carver),
         IntProvider.codec(1, 100_000).fieldOf("length").forGetter(PathType::length),
         FadeSettings.CODEC.fieldOf("fade").forGetter(PathType::fade),
-        WaterSettings.CODEC.optionalFieldOf("water_settings").forGetter(PathType::waterSettings),
-        Codec.list(WeightedBlock.CODEC).optionalFieldOf("slab_blocks", List.of()).forGetter(PathType::slabBlocks)
+        WaterSettings.CODEC.optionalFieldOf("water_settings").forGetter(PathType::waterSettings)
     ).apply(instance, PathType::new));
 }

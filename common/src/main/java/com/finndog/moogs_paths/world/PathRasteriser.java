@@ -62,6 +62,8 @@ public final class PathRasteriser {
         return result;
     }
 
+    //////////////////////////////
+
     private static void rasteriseSegmentInChunk(WorldGenLevel level, BlockPos from, BlockPos to, PathType pathType, int halfWidth, float fade, int chunkX, int chunkZ, RandomSource random, Set<Long> waterPositions) {
         int chunkMinX = chunkX * 16;
         int chunkMaxX = chunkMinX + 15;
@@ -138,9 +140,9 @@ public final class PathRasteriser {
                         }
                     }
                     else {
-                        BlockState surfaceState = pick(pathType.surfaceBlocks(), random);
-                        if(!surfaceState.isAir()) {
-                            level.setBlock(mpos, surfaceState, 3);
+                        BlockState placement = pick(pathType.surfaceBlocks(), random);
+                        if(!placement.isAir()) {
+                            level.setBlock(mpos, placement, 3);
                             if(!skipFill) fillBelow(level, mpos, bx, placeY - 1, bz, fillState, MAX_FILL);
                         }
                     }

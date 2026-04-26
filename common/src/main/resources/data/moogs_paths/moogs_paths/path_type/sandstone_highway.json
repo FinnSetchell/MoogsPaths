@@ -27,9 +27,5 @@
     "surface_blocks": [
       { "block": "minecraft:smooth_sandstone", "weight": 1 }
     ]
-  },
-  "slab_blocks": [
-    { "block": "minecraft:smooth_sandstone_slab", "weight": 3 },
-    { "block": "minecraft:sandstone_slab", "weight": 1 }
-  ]
+  }
 }

@@ -23,9 +23,5 @@
   "fade": {
     "start_blocks": 10,
     "end_blocks": 10
-  },
-  "slab_blocks": [
-    { "block": "minecraft:cobblestone_slab", "weight": 3 },
-    { "block": "minecraft:mossy_cobblestone_slab", "weight": 1 }
-  ]
+  }
 }

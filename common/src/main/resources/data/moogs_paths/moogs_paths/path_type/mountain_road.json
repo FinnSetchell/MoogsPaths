@@ -20,9 +20,5 @@
   "fade": {
     "start_blocks": 12,
     "end_blocks": 12
-  },
-  "slab_blocks": [
-    { "block": "minecraft:stone_brick_slab", "weight": 2 },
-    { "block": "minecraft:polished_andesite_slab", "weight": 1 }
-  ]
+  }
 }
