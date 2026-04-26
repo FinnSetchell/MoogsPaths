@@ -3,7 +3,6 @@ package com.finndog.moogs_paths.world;
 import com.finndog.moogs_paths.data.PathType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
@@ -122,7 +121,6 @@ public final class PathRasteriser {
                     boolean isEdge = halfWidth > 0 && manhattan == halfWidth && !centerPositions.contains(posKey);
 
                     int placeY = targetY - 1;
-                    int clearUpTo = Math.max(placeY + 6, naturalSy + 2);
                     mpos.set(bx, placeY, bz);
 
                     if(isWater) {
@@ -131,14 +129,12 @@ public final class PathRasteriser {
                         BlockState picked = pick(waterBlocks, random);
                         if(!picked.isAir()) {
                             level.setBlock(mpos, picked, 3);
-                            clearAbove(level, mpos, bx, placeY + 1, bz, clearUpTo);
                         }
                     }
                     else if(isEdge && !pathType.edgeBlocks().isEmpty()) {
                         BlockState edgeState = pick(pathType.edgeBlocks(), random);
                         if(!edgeState.isAir()) {
                             level.setBlock(mpos, edgeState, 3);
-                            clearAbove(level, mpos, bx, placeY + 1, bz, clearUpTo);
                         }
                     }
                     else {
@@ -146,23 +142,10 @@ public final class PathRasteriser {
                         if(!surfaceState.isAir()) {
                             level.setBlock(mpos, surfaceState, 3);
                             if(!skipFill) fillBelow(level, mpos, bx, placeY - 1, bz, fillState, MAX_FILL);
-                            clearAbove(level, mpos, bx, placeY + 1, bz, clearUpTo);
                         }
                     }
                 }
             }
-        }
-    }
-
-    private static void clearAbove(WorldGenLevel level, BlockPos.MutableBlockPos mpos, int x, int startY, int z, int endY) {
-        for(int y = startY; y <= endY; y++) {
-            mpos.set(x, y, z);
-            BlockState s = level.getBlockState(mpos);
-            if(s.isAir()) continue;
-            if(s.canBeReplaced() || s.is(BlockTags.LEAVES) || s.is(BlockTags.LOGS) || s.is(BlockTags.FLOWERS) || s.is(BlockTags.SAPLINGS)) {
-                level.setBlock(mpos, Blocks.AIR.defaultBlockState(), 3);
-            }
-            else return;
         }
     }
 
