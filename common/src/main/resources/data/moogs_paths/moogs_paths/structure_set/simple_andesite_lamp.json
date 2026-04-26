@@ -5,5 +5,5 @@
   "placement": "interval",
   "spacing": 8,
   "spacing_variance": 6,
-  "flatness_tolerance": 5
+  "flatness_tolerance": 2
 }

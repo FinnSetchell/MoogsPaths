@@ -1,11 +1,11 @@
 {
   "structures": [
-    { "nbt": "moogs_paths:savana_post_1", "rotation": "clockwise_90", "weight": 2, "offset": [0, 0, 0] },
-    { "nbt": "moogs_paths:savana_post_2", "rotation": "counterclockwise_90", "weight": 2, "offset": [0, 0, 0] },
-    { "nbt": "moogs_paths:savana_post_3", "rotation": "none", "weight": 1, "offset": [1, 0, 0] }
+    { "nbt": "moogs_paths:savana_post_1", "rotation": "random", "weight": 2, "offset": [0, 0, 0] },
+    { "nbt": "moogs_paths:savana_post_2", "rotation": "random", "weight": 2, "offset": [0, 0, 0] },
+    { "nbt": "moogs_paths:savana_post_3", "rotation": "random", "weight": 1, "offset": [1, 0, 0] }
   ],
   "placement": "interval",
   "spacing": 14,
   "spacing_variance": 8,
-  "flatness_tolerance": 4
+  "flatness_tolerance": 2
 }
