@@ -103,7 +103,7 @@ The visual and structural definition of a path.
 | `surface_blocks` | weighted block list | The top layer of the path. One entry is rolled per tile. |
 | `edge_blocks` | weighted block list (optional, default `[]`) | Used for the outermost ring of tiles when defined. If empty, surface_blocks is used everywhere. |
 | `fill_block` | block id | Block placed beneath the surface to fill any gaps below the path tile (so paths sit cleanly on uneven terrain). |
-| `width` | `{ "min": int, "max": int }` | Total path width in blocks. The max is what actually drives generation; min is reserved for future use. |
+| `width` | `{ "min": int, "max": int }` | Total path width in blocks. `max` is what actually drives generation today. `min` is parsed but not yet used by the rasteriser. |
 | `rigidness` | float `0.0`–`1.0` | How strictly the path holds its target Y. Higher values make straighter, flatter paths that cut/fill terrain more aggressively. |
 | `carver` | float `0.0`–`1.0` | How willing the path is to dig through obstacles vs route around them. Higher values cut through hills; lower values snake around them. |
 | `length` | IntProvider | Total path length in blocks. Use vanilla IntProvider syntax (`uniform`, `constant`, etc). Bounded `[1, 100000]`. |
@@ -146,7 +146,7 @@ Binds a path_type to biomes and decorations. This is what the worldgen actually 
 | field | type | description |
 |---|---|---|
 | `path_type` | resource location | The path_type to use. |
-| `biomes` | biome holder set | A single biome id, a list of biome ids, or a `#tag:like_this`. Standard vanilla holderset syntax. |
+| `biomes` | biome holder set | A single biome id, a list of biome ids, or a `#tag:like_this`. Standard vanilla holderset syntax. Tags from any namespace work, including modded ones (`#c:is_overworld`, `#forge:is_overworld`, mod-specific biome tags), so networks can extend cleanly to modded biomes. |
 | `weight` | int | Relative weight when multiple networks compete for the same biome. Higher = more likely to win. |
 | `region_size` | int | Size of the worldgen region (in chunks) within which the network plans a path. Larger = longer, less frequent paths. Typical range 32–64. |
 | `structure_sets` | weighted ref list (optional) | Structure sets to pull from when decorating. One is picked per placement opportunity. |
@@ -170,6 +170,8 @@ A reusable list of NBT structures with placement rules.
 | `spacing` | int | For `interval` mode: average distance in blocks between placements. For `endpoint` mode: typically `1`. |
 | `spacing_variance` | int | Random jitter added to `spacing` so placements do not look mechanical. `0` for perfectly regular. |
 | `flatness_tolerance` | int | Maximum Y variance (in blocks) across the structure's footprint that the placement check will accept. Lower = stricter, fewer placements but flatter ground. |
+| `terrain_adjustment` | `"none"` or `"beard_thin"` (optional, default `none`) | If `beard_thin`, the placement carves a small pad under the structure so it sits flush on uneven ground. Use this for structures that need a level base. |
+| `side_offset` | int (optional, default `0`) | Perpendicular distance from the path centerline at which to place the structure. `0` is on the path, positive values push it to the side. |
 
 #### Structure entry shape
 
@@ -232,18 +234,34 @@ Generates blobs of leaf blocks along the path. Used for shrubs and bushes.
 
 `data/moogs_paths/tags/worldgen/biome/has_no_paths.json` is a hard exclusion list. Any biome listed (or a biome from a referenced tag) will never generate paths even if a network claims it.
 
+The mod ships a default `has_no_paths` that excludes oceans, rivers, the void, the deep dark and the lush / dripstone caves. Datapacks can extend it (with `"replace": false`) or replace it outright.
+
 ```json
 {
   "replace": false,
   "values": [
     "minecraft:the_void",
-    "#minecraft:is_ocean"
+    "#minecraft:is_ocean",
+    "#minecraft:is_river",
+    "minecraft:deep_dark",
+    "minecraft:lush_caves",
+    "minecraft:dripstone_caves"
   ]
 }
 ```
 
-## Debug commands
+## Commands
 
-`/moogs_paths debug` exposes runtime instrumentation: pathfinding timings, segment counters, and per-network statistics. Useful when tuning `rigidness` / `carver` or diagnosing why a path is not generating.
+Requires permission level 2 (op).
+
+`/paths locate [network]` — teleport-suggest the nearest path origin. With no argument, finds the nearest path of any network. With a network id, finds the nearest path that rolled that network. Click the chat coord to fill `/tp`.
+
+`/paths debug region` — show which path region your position falls inside, for each loaded `region_size`.
+
+`/paths debug networks` — list every loaded `path_network` with its `path_type`, length range, region size, weight, and decorator-set counts.
+
+`/paths debug structures` — list every cached structure NBT and whether it resolved (`ok`) or is missing.
+
+`/paths debug reload` — force a datapack reload and clear runtime caches. Note: `path_type`, `path_network`, `structure_set`, `feature_decorator_set` and `bush_decorator_set` are datapack registries, which on 1.20.1 require a world restart to fully refresh.
 
 ---
