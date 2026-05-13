@@ -32,13 +32,15 @@ public record StructureSet(
             ResourceLocation nbt,
             RotationSetting rotation,
             int weight,
-            Vec3i offset
+            Vec3i offset,
+            float placementChance
     ) {
         public static final Codec<StructureEntry> CODEC = RecordCodecBuilder.create(instance -> instance.group(
                 ResourceLocation.CODEC.fieldOf("nbt").forGetter(StructureEntry::nbt),
                 RotationSetting.CODEC.fieldOf("rotation").forGetter(StructureEntry::rotation),
                 Codec.INT.fieldOf("weight").forGetter(StructureEntry::weight),
-                Vec3i.CODEC.fieldOf("offset").forGetter(StructureEntry::offset)
+                Vec3i.CODEC.fieldOf("offset").forGetter(StructureEntry::offset),
+                Codec.floatRange(0.0f, 1.0f).optionalFieldOf("placement_chance", 1.0f).forGetter(StructureEntry::placementChance)
         ).apply(instance, StructureEntry::new));
     }
 

@@ -87,6 +87,13 @@ public final class StructurePlacer {
 
     private static void tryPlace(WorldGenLevel level, BlockPos waypoint, StructureSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, Set<Long> placedPositions) {
         StructureSet.StructureEntry entry = pickWeighted(set.structures(), random);
+
+        // placement_chance gates the slot rather than rerolling, so a rare entry winning
+        // the weight roll does NOT pass the slot on to the small entries. That keeps the
+        // overall placement count for a set roughly constant while making large or special
+        // structures appear only once or twice per path.
+        if(entry.placementChance() < 1.0f && random.nextFloat() >= entry.placementChance()) return;
+
         Rotation rotation = parseRotation(entry.rotation(), random);
 
         if((waypoint.getX() >> 4) != chunkX || (waypoint.getZ() >> 4) != chunkZ) return;

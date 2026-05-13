@@ -190,6 +190,7 @@ A reusable list of NBT structures with placement rules.
 | `rotation` | enum | `none`, `clockwise_90`, `clockwise_180`, `counterclockwise_90`, or `random`. |
 | `weight` | int | Relative weight when picking from this set. |
 | `offset` | `[x, y, z]` | Offset applied to the placement origin. Useful for nudging a structure off-center or sinking it into the ground. |
+| `placement_chance` | float `0.0`–`1.0` (optional, default `1.0`) | Probability of actually placing this entry when the weight roll picks it. If the roll fails, the placement slot is skipped entirely instead of falling back to another entry, which keeps a rare entry from being silently replaced by common ones. Use this to make large landmark structures show up only once or twice along a path. |
 
 ### feature_decorator_set
 
