@@ -5,5 +5,7 @@
   "placement": "interval",
   "spacing": 8,
   "spacing_variance": 6,
-  "flatness_tolerance": 2
+  "flatness_tolerance": 5,
+  "terrain_adjustment": "beard_thin",
+  "side_offset": 3
 }

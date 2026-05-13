@@ -1,10 +1,11 @@
 {
   "structures": [
-    { "nbt": "moogs_paths:desert_lamp", "rotation": "random", "weight": 1, "offset": [3, 0, 0] },
-    { "nbt": "moogs_paths:desert_lamp", "rotation": "random", "weight": 1, "offset": [0, 0, 3] }
+    { "nbt": "moogs_paths:desert_lamp", "rotation": "random", "weight": 1, "offset": [0, 0, 0] }
   ],
   "placement": "endpoint",
   "spacing": 1,
   "spacing_variance": 0,
-  "flatness_tolerance": 2
+  "flatness_tolerance": 5,
+  "terrain_adjustment": "beard_thin",
+  "side_offset": 3
 }

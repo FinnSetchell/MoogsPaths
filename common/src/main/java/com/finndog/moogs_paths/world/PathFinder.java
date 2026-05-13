@@ -21,13 +21,13 @@ public final class PathFinder {
     private static final float SLOPE_COST_SCALE = 0.5f; // multiplier on slopeDelta^2 added to step cost when rigidness < 1
     private static final int MAX_NATURAL_STEP = 64; // height delta above which a step is forbidden (cliffs, walls)
     private static final int BASE_ITER_CAP = 2_000; // minimum A* iteration budget regardless of path length
-    private static final double HEURISTIC_WEIGHT = 8.0; // weighted A* multiplier - >1 makes the search greedy toward the goal
+    private static final double HEURISTIC_WEIGHT = 3.0; // weighted A* multiplier - >1 makes the search greedy toward the goal
     private static final float DIAG = 1.41421356f; // sqrt(2) - cost of a diagonal step
     private static final int[] DX = {1, 0, -1, 0, 1, -1, -1, 1}; // x offsets for 8-way neighbour expansion (cardinals first, then diagonals)
     private static final int[] DZ = {0, 1, 0, -1, 1, 1, -1, -1}; // z offsets matching DX in the same neighbour order
     private static final float[] STEP_COST = {1f, 1f, 1f, 1f, DIAG, DIAG, DIAG, DIAG}; // base step cost per direction (cardinal=1, diagonal=sqrt(2))
     private static final int GOAL_REROLL_ATTEMPTS = 6; // tries to land the goal angle on a cell that passes the biome predicate
-    private static final double ELLIPSE_SLACK = 1.20; // start-goal ellipse inflation - 1.20 leaves ~20% room to detour around obstacles
+    private static final double ELLIPSE_SLACK = 1.35; // start-goal ellipse inflation - 1.35 leaves ~35% room to detour around obstacles
     private static final double PROXIMITY_FRACTION = 0.10; // bail when bestReachedH drops to this fraction of startToGoal (0.10 = 90% covered)
     private static final int STAGNATION_LIMIT = 200; // bail after this many real pops with no improvement to bestReachedH
     private static final int HEIGHT_UNSET = Integer.MIN_VALUE; // sentinel in the height memo cache meaning "not yet sampled"
@@ -97,7 +97,7 @@ public final class PathFinder {
         gScore.put(startKey, 0.0);
         open.push(startKey, HEURISTIC_WEIGHT * octile(startX, startZ, goalX, goalZ), startYRaw);
 
-        int iterCap = Math.max(BASE_ITER_CAP, length * 4);
+        int iterCap = Math.max(BASE_ITER_CAP, length * 8);
         int iters = 0;
 
         // Ellipse with foci at start and goal. A cell stays in-bounds while

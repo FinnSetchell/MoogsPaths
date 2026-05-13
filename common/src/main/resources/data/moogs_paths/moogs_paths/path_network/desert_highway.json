@@ -7,7 +7,7 @@
     { "id": "moogs_paths:desert_lamps", "weight": 1 }
   ],
   "feature_decorator_sets": [
-    { "id": "moogs_paths:desert_dead_bushes_right", "weight": 1 }
+    { "id": "moogs_paths:desert_dead_bushes", "weight": 1 }
   ],
   "bush_decorator_sets": []
 }

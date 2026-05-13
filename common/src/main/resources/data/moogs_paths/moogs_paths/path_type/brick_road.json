@@ -1,0 +1,27 @@
+{
+  "surface_blocks": [
+    { "block": "minecraft:bricks", "weight": 20 },
+    { "block": "minecraft:polished_granite", "weight": 12 },
+    { "block": "minecraft:granite", "weight": 4 },
+    { "block": "minecraft:rooted_dirt", "weight": 1 }
+  ],
+  "edge_blocks": [
+    { "block": "minecraft:rooted_dirt", "weight": 1 },
+    { "block": "minecraft:structure_void", "weight": 7 }
+  ],
+  "fill_block": "minecraft:cobblestone",
+  "width": {
+    "min": 2,
+    "max": 3
+  },
+  "rigidness": 0.20,
+  "carver": 0.60,
+  "length": {
+    "type": "minecraft:uniform",
+    "value": { "min_inclusive": 150, "max_inclusive": 400 }
+  },
+  "fade": {
+    "start_blocks": 5,
+    "end_blocks": 5
+  }
+}

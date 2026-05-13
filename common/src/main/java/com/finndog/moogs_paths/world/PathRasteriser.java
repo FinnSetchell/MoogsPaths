@@ -9,6 +9,7 @@ import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.material.PushReaction;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -124,6 +125,7 @@ public final class PathRasteriser {
 
                     int placeY = targetY - 1;
                     mpos.set(bx, placeY, bz);
+                    boolean didPlace = false;
 
                     if(isWater) {
                         PathType.WaterSettings ws = pathType.waterSettings().get();
@@ -131,12 +133,14 @@ public final class PathRasteriser {
                         BlockState picked = pick(waterBlocks, random);
                         if(!picked.isAir()) {
                             level.setBlock(mpos, picked, 3);
+                            didPlace = true;
                         }
                     }
                     else if(isEdge && !pathType.edgeBlocks().isEmpty()) {
                         BlockState edgeState = pick(pathType.edgeBlocks(), random);
                         if(!edgeState.isAir()) {
                             level.setBlock(mpos, edgeState, 3);
+                            didPlace = true;
                         }
                     }
                     else {
@@ -144,10 +148,22 @@ public final class PathRasteriser {
                         if(!placement.isAir()) {
                             level.setBlock(mpos, placement, 3);
                             if(!skipFill) fillBelow(level, mpos, bx, placeY - 1, bz, fillState, MAX_FILL);
+                            didPlace = true;
                         }
                     }
+
+                    if(didPlace) clearVegetationAbove(level, mpos, bx, placeY, bz);
                 }
             }
+        }
+    }
+
+    private static void clearVegetationAbove(WorldGenLevel level, BlockPos.MutableBlockPos mpos, int bx, int placeY, int bz) {
+        for(int dy = 1; dy <= 2; dy++) {
+            mpos.set(bx, placeY + dy, bz);
+            BlockState state = level.getBlockState(mpos);
+            if(state.isAir() || state.getPistonPushReaction() != PushReaction.DESTROY) break;
+            level.setBlock(mpos, Blocks.AIR.defaultBlockState(), 3);
         }
     }
 

@@ -1,0 +1,16 @@
+{
+  "path_type": "moogs_paths:dirt_road",
+  "biomes": [
+    "minecraft:taiga",
+    "minecraft:old_growth_pine_taiga",
+    "minecraft:old_growth_spruce_taiga",
+    "minecraft:dark_forest"
+  ],
+  "weight": 4,
+  "region_size": 40,
+  "structure_sets": [
+    { "id": "moogs_paths:overworld_cairns", "weight": 1 }
+  ],
+  "feature_decorator_sets": [],
+  "bush_decorator_sets": []
+}

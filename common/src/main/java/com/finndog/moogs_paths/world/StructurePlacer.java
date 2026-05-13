@@ -10,9 +10,12 @@ import net.minecraft.core.Vec3i;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
+import net.minecraft.world.level.levelgen.structure.templatesystem.BlockIgnoreProcessor;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 
@@ -40,9 +43,10 @@ public final class StructurePlacer {
 
         switch(set.placement()) {
             case ENDPOINT -> {
-                tryPlace(level, waypoints.get(0), set, biomes, chunkX, chunkZ, random, placedPositions);
+                tryPlace(level, sideOffsetWaypoint(waypoints, 0, set.sideOffset(), random), set, biomes, chunkX, chunkZ, random, placedPositions);
                 if(waypoints.size() > 1) {
-                    tryPlace(level, waypoints.get(waypoints.size() - 1), set, biomes, chunkX, chunkZ, random, placedPositions);
+                    int last = waypoints.size() - 1;
+                    tryPlace(level, sideOffsetWaypoint(waypoints, last, set.sideOffset(), random), set, biomes, chunkX, chunkZ, random, placedPositions);
                 }
             }
             case INTERVAL -> placeInterval(level, waypoints, set, biomes, chunkX, chunkZ, random, placedPositions);
@@ -55,14 +59,30 @@ public final class StructurePlacer {
         int distanceSinceLast = 0;
         int nextThreshold = nextSpacing(set, random);
 
-        for(BlockPos waypoint : waypoints) {
+        for(int i = 0; i < waypoints.size(); i++) {
             distanceSinceLast++;
             if(distanceSinceLast >= nextThreshold) {
-                tryPlace(level, waypoint, set, biomes, chunkX, chunkZ, random, placedPositions);
+                tryPlace(level, sideOffsetWaypoint(waypoints, i, set.sideOffset(), random), set, biomes, chunkX, chunkZ, random, placedPositions);
                 distanceSinceLast = 0;
                 nextThreshold = nextSpacing(set, random);
             }
         }
+    }
+
+    // Shifts a waypoint perpendicular to the local path direction by sideOffset blocks.
+    // Direction is estimated from adjacent waypoints; side (left/right) is chosen randomly.
+    private static BlockPos sideOffsetWaypoint(List<BlockPos> waypoints, int index, int sideOffset, RandomSource random) {
+        if(sideOffset == 0 || waypoints.size() < 2) return waypoints.get(index);
+        BlockPos a = waypoints.get(Math.max(0, index - 1));
+        BlockPos b = waypoints.get(Math.min(waypoints.size() - 1, index + 1));
+        int dx = b.getX() - a.getX();
+        int dz = b.getZ() - a.getZ();
+        if(dx == 0 && dz == 0) return waypoints.get(index);
+        double len = Math.sqrt((double)(dx * dx + dz * dz));
+        int perpX = (int) Math.round(-dz / len * sideOffset);
+        int perpZ = (int) Math.round(dx / len * sideOffset);
+        if(random.nextBoolean()) { perpX = -perpX; perpZ = -perpZ; }
+        return waypoints.get(index).offset(perpX, 0, perpZ);
     }
 
     private static void tryPlace(WorldGenLevel level, BlockPos waypoint, StructureSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, Set<Long> placedPositions) {
@@ -93,6 +113,10 @@ public final class StructurePlacer {
 
         if(footprintOverWater(level, template, pos, entry.offset(), rotation)) return;
 
+        if(set.terrainAdjustment() == StructureSet.TerrainAdjustmentSetting.BEARD_THIN) {
+            applyBeardThin(level, template, pos, entry.offset(), rotation, random);
+        }
+
         placeEntry(level, template, pos, entry, rotation);
         placedPositions.add(((long) waypoint.getX() << 32) | (waypoint.getZ() & 0xFFFFFFFFL));
     }
@@ -117,6 +141,52 @@ public final class StructurePlacer {
         return false;
     }
 
+    // Outer ring of the footprint is thinned probabilistically so the fill pad fades into
+    // surrounding terrain instead of leaving a hard square step.
+    private static void applyBeardThin(WorldGenLevel level, StructureTemplate template, BlockPos pos, Vec3i offset, Rotation rotation, RandomSource random) {
+        Vec3i rawSize = template.getSize();
+        boolean rotated90 = rotation == Rotation.CLOCKWISE_90 || rotation == Rotation.COUNTERCLOCKWISE_90;
+        int sizeX = rotated90 ? rawSize.getZ() : rawSize.getX();
+        int sizeY = rawSize.getY();
+        int sizeZ = rotated90 ? rawSize.getX() : rawSize.getZ();
+        int minX = pos.getX() - sizeX / 2 + offset.getX();
+        int minZ = pos.getZ() - sizeZ / 2 + offset.getZ();
+        int baseY = pos.getY() + offset.getY();
+        int topY = baseY + sizeY - 1;
+
+        BlockState topFill = Blocks.GRASS_BLOCK.defaultBlockState();
+        BlockState subFill = Blocks.DIRT.defaultBlockState();
+
+        BlockPos.MutableBlockPos mpos = new BlockPos.MutableBlockPos();
+
+        // Only fill upward to support the structure where terrain dips below its base.
+        // We deliberately do NOT carve terrain that sits at or above baseY: cells in the
+        // structure's footprint that have no block (or structure_void) in the NBT should
+        // leave existing terrain alone, the same way structure_void works in path tiles.
+        // Where the structure does have a block at that position, placeInWorld (flag 3)
+        // overwrites the terrain. Where it does not, the natural surface block remains
+        // visible instead of leaving an air pocket. The flatness_tolerance check upstream
+        // already keeps placements on near-flat ground, so bulges through the structure
+        // are rare.
+        for(int dx = 0; dx < sizeX; dx++) {
+            for(int dz = 0; dz < sizeZ; dz++) {
+                int wx = minX + dx;
+                int wz = minZ + dz;
+                int edgeDist = Math.min(Math.min(dx, sizeX - 1 - dx), Math.min(dz, sizeZ - 1 - dz));
+                int naturalY = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, wx, wz) - 1;
+
+                if(naturalY < baseY) {
+                    // Fill below: solid pad in the centre, thinned at the outermost ring.
+                    for(int y = naturalY + 1; y < baseY; y++) {
+                        if(edgeDist == 0 && random.nextFloat() > 0.5f) continue;
+                        mpos.set(wx, y, wz);
+                        level.setBlock(mpos, (y == baseY - 1) ? topFill : subFill, 3);
+                    }
+                }
+            }
+        }
+    }
+
     private static boolean isColumnOverWater(WorldGenLevel level, int x, int z, BlockPos.MutableBlockPos mpos) {
         int sy = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
         if(sy <= level.getMinBuildHeight()) return false;
@@ -131,7 +201,8 @@ public final class StructurePlacer {
         StructurePlaceSettings settings = new StructurePlaceSettings()
             .setRotation(rotation)
             .setMirror(Mirror.NONE)
-            .setIgnoreEntities(false);
+            .setIgnoreEntities(false)
+            .addProcessor(new BlockIgnoreProcessor(List.of(Blocks.STRUCTURE_VOID)));
 
         Vec3i rawSize = template.getSize();
         boolean rotated90 = rotation == Rotation.CLOCKWISE_90 || rotation == Rotation.COUNTERCLOCKWISE_90;

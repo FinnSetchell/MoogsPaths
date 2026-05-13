@@ -14,14 +14,18 @@ public record StructureSet(
         PlacementMode placement,
         int spacing,
         int spacingVariance,
-        int flatnessTolerance
+        int flatnessTolerance,
+        TerrainAdjustmentSetting terrainAdjustment,
+        int sideOffset
 ) {
     public static final Codec<StructureSet> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.list(StructureEntry.CODEC).fieldOf("structures").forGetter(StructureSet::structures),
             PlacementMode.CODEC.fieldOf("placement").forGetter(StructureSet::placement),
             Codec.INT.fieldOf("spacing").forGetter(StructureSet::spacing),
             Codec.INT.fieldOf("spacing_variance").forGetter(StructureSet::spacingVariance),
-            Codec.INT.fieldOf("flatness_tolerance").forGetter(StructureSet::flatnessTolerance)
+            Codec.INT.fieldOf("flatness_tolerance").forGetter(StructureSet::flatnessTolerance),
+            TerrainAdjustmentSetting.CODEC.optionalFieldOf("terrain_adjustment", TerrainAdjustmentSetting.NONE).forGetter(StructureSet::terrainAdjustment),
+            Codec.INT.optionalFieldOf("side_offset", 0).forGetter(StructureSet::sideOffset)
     ).apply(instance, StructureSet::new));
 
     public record StructureEntry(
@@ -50,6 +54,24 @@ public record StructureSet(
         final String name;
 
         PlacementMode(String name) {
+            this.name = name;
+        }
+
+        @Override
+        public String getSerializedName() {
+            return name;
+        }
+    }
+
+    public enum TerrainAdjustmentSetting implements StringRepresentable {
+        NONE("none"),
+        BEARD_THIN("beard_thin");
+
+        public static final Codec<TerrainAdjustmentSetting> CODEC = StringRepresentable.fromEnum(TerrainAdjustmentSetting::values);
+
+        final String name;
+
+        TerrainAdjustmentSetting(String name) {
             this.name = name;
         }
 

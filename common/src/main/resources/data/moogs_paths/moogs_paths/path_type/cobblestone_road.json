@@ -14,8 +14,8 @@
     "min": 2,
     "max": 3
   },
-  "rigidness": 0.7,
-  "carver": 0.8,
+  "rigidness": 0.15,
+  "carver": 0.55,
   "length": {
     "type": "minecraft:uniform",
     "value": { "min_inclusive": 150, "max_inclusive": 400 }

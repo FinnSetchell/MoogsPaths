@@ -20,7 +20,7 @@ public class MoogsPaths implements ModInitializer {
 
         BiomeModifications.addFeature(
             BiomeSelectors.foundInOverworld(),
-            GenerationStep.Decoration.VEGETAL_DECORATION,
+            GenerationStep.Decoration.TOP_LAYER_MODIFICATION,
             ResourceKey.create(Registries.PLACED_FEATURE, MoogsPathsRegistries.PATH_GEN_ID)
         );
 
