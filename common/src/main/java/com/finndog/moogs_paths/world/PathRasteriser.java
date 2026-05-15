@@ -152,7 +152,14 @@ public final class PathRasteriser {
                         }
                     }
 
-                    if(didPlace) clearVegetationAbove(level, mpos, bx, placeY, bz);
+                    if(didPlace) {
+                        clearVegetationAbove(level, mpos, bx, placeY, bz);
+                        mpos.set(bx, placeY - 1, bz);
+                        BlockState under = level.getBlockState(mpos);
+                        if(under.is(Blocks.GRASS_BLOCK) || under.is(Blocks.MYCELIUM)) {
+                            level.setBlock(mpos, Blocks.DIRT.defaultBlockState(), 3);
+                        }
+                    }
                 }
             }
         }
@@ -170,10 +177,15 @@ public final class PathRasteriser {
     private static void fillBelow(WorldGenLevel level, BlockPos.MutableBlockPos mpos, int x, int startY, int z, BlockState fillState, int maxFill) {
         for(int depth = 0; depth < maxFill; depth++) {
             mpos.set(x, startY - depth, z);
-            if(level.getBlockState(mpos).isAir()) {
+            BlockState existing = level.getBlockState(mpos);
+            if(existing.isAir()) {
                 level.setBlock(mpos, fillState, 3);
+            } else {
+                if(existing.is(Blocks.GRASS_BLOCK) || existing.is(Blocks.MYCELIUM)) {
+                    level.setBlock(mpos, Blocks.DIRT.defaultBlockState(), 3);
+                }
+                break;
             }
-            else break;
         }
     }
 
