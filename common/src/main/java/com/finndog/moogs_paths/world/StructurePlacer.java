@@ -142,6 +142,15 @@ public final class StructurePlacer {
         int minZ = pos.getZ() - sizeZ / 2 + offset.getZ();
 
         BlockPos.MutableBlockPos mpos = new BlockPos.MutableBlockPos();
+
+        // quick pre-check: centre + 4 corners to catch the common "edge of footprint over water"
+        // case without running the full strided pass
+        if(isColumnOverWater(level, minX + sizeX / 2, minZ + sizeZ / 2, mpos)) return true;
+        if(isColumnOverWater(level, minX, minZ, mpos)) return true;
+        if(isColumnOverWater(level, minX + sizeX, minZ, mpos)) return true;
+        if(isColumnOverWater(level, minX, minZ + sizeZ, mpos)) return true;
+        if(isColumnOverWater(level, minX + sizeX, minZ + sizeZ, mpos)) return true;
+
         int stride = 2;
         for(int dx = 0; dx <= sizeX; dx += stride) {
             for(int dz = 0; dz <= sizeZ; dz += stride) {
