@@ -84,7 +84,7 @@ public final class PathsDebugCommand {
         int playerBZ = (int) player.getZ();
         int chunkX = playerBX >> 4;
         int chunkZ = playerBZ >> 4;
-        int searchRadius = 10000;
+        int searchRadius = 100000;
 
         ChunkGenerator generator = serverLevel.getChunkSource().getGenerator();
         RandomState randomState = serverLevel.getChunkSource().randomState();
