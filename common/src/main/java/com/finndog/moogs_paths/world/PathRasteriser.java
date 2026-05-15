@@ -44,10 +44,14 @@ public final class PathRasteriser {
         int halfWidth = pathType.width().max() / 2;
         int totalSegments = waypoints.size() - 1;
 
+        // Snapshot terrain heights before any segment runs so later segments see the pre-mutation
+        // surface rather than blocks placed by earlier ones.
+        int[] chunkHeights = snapshotHeights(level, chunkX, chunkZ);
+
         // Snapshot water columns before any segment runs - otherwise later segments see planks
         // placed by earlier ones and misdetect them as land.
         LongOpenHashSet waterPositions = pathType.waterSettings().isPresent()
-            ? scanWaterPositions(level, chunkX, chunkZ)
+            ? scanWaterPositions(level, chunkX, chunkZ, chunkHeights)
             : null;
 
         for(int i = 0; i < totalSegments; i++) {
@@ -55,18 +59,32 @@ public final class PathRasteriser {
             BlockPos to = waypoints.get(i + 1);
             if(!mightIntersect(from, to, halfWidth, chunkX, chunkZ)) continue;
             float fade = fadeFactor(pathType, i, totalSegments);
-            rasteriseSegmentInChunk(level, from, to, pathType, halfWidth, fade, chunkX, chunkZ, random, waterPositions);
+            rasteriseSegmentInChunk(level, from, to, pathType, halfWidth, fade, chunkX, chunkZ, random, waterPositions, chunkHeights);
         }
     }
 
-    private static LongOpenHashSet scanWaterPositions(WorldGenLevel level, int chunkX, int chunkZ) {
+    private static int[] snapshotHeights(WorldGenLevel level, int chunkX, int chunkZ) {
+        int minX = chunkX * 16;
+        int minZ = chunkZ * 16;
+        int[] heights = new int[256];
+        for(int lx = 0; lx < 16; lx++) {
+            for(int lz = 0; lz < 16; lz++) {
+                heights[lx * 16 + lz] = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, minX + lx, minZ + lz);
+            }
+        }
+        return heights;
+    }
+
+    private static LongOpenHashSet scanWaterPositions(WorldGenLevel level, int chunkX, int chunkZ, int[] chunkHeights) {
         LongOpenHashSet result = new LongOpenHashSet();
         int minX = chunkX * 16;
         int minZ = chunkZ * 16;
         BlockPos.MutableBlockPos mpos = new BlockPos.MutableBlockPos();
-        for(int x = minX; x < minX + 16; x++) {
-            for(int z = minZ; z < minZ + 16; z++) {
-                int sy = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+        for(int lx = 0; lx < 16; lx++) {
+            for(int lz = 0; lz < 16; lz++) {
+                int x = minX + lx;
+                int z = minZ + lz;
+                int sy = chunkHeights[lx * 16 + lz];
                 mpos.set(x, sy - 1, z);
                 if(!level.getFluidState(mpos).isEmpty()) {
                     result.add((long) x << 32 | (z & 0xFFFFFFFFL));
@@ -78,7 +96,7 @@ public final class PathRasteriser {
 
     //////////////////////////////
 
-    private static void rasteriseSegmentInChunk(WorldGenLevel level, BlockPos from, BlockPos to, PathType pathType, int halfWidth, float fade, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet waterPositions) {
+    private static void rasteriseSegmentInChunk(WorldGenLevel level, BlockPos from, BlockPos to, PathType pathType, int halfWidth, float fade, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet waterPositions, int[] chunkHeights) {
         int chunkMinX = chunkX * 16;
         int chunkMaxX = chunkMinX + 15;
         int chunkMinZ = chunkZ * 16;
@@ -121,7 +139,7 @@ public final class PathRasteriser {
                     int bz = cz + oz;
                     if((bx >> 4) != chunkX || (bz >> 4) != chunkZ) continue;
 
-                    int naturalSy = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, bx, bz);
+                    int naturalSy = chunkHeights[(bx - chunkMinX) * 16 + (bz - chunkMinZ)];
                     if(naturalSy <= level.getMinBuildHeight()) continue;
 
                     long posKey = (long) bx << 32 | (bz & 0xFFFFFFFFL);

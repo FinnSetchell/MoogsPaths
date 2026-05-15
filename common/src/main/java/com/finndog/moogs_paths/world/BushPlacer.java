@@ -66,6 +66,9 @@ public final class BushPlacer {
         int[] lastX = {Integer.MIN_VALUE / 2};
         int[] lastZ = {Integer.MIN_VALUE / 2};
 
+        // snapshot before scatter so all height lookups in placeBush see pre-decoration terrain
+        int[] chunkHeights = snapshotHeights(level, chunkX, chunkZ);
+
         WaypointScatterer.scatter(waypoints, set.density(), maxReach, chunkX, chunkZ, random,
             (from, d, parX, parZ, perpX, perpZ, segRandom) -> {
                 int offsetRange = set.maxOffset() - set.minOffset();
@@ -92,12 +95,24 @@ public final class BushPlacer {
                     PathDataManager.recordBiomeCall(com.finndog.moogs_paths.data.BiomeCallSite.BUSH_PLACE_CHECK);
                     if(!biomes.contains(level.getBiome(new BlockPos(cx, centerY, cz)))) return;
                     BlockState block = pick(set.blocks(), totalWeight, segRandom);
-                    placeBush(level, cx, cz, size, parX, parZ, block, chunkX, chunkZ, segRandom, set.minHeight(), set.maxHeight());
+                    placeBush(level, cx, cz, size, parX, parZ, block, chunkX, chunkZ, segRandom, set.minHeight(), set.maxHeight(), chunkHeights);
                 }
             });
     }
 
-    private static void placeBush(WorldGenLevel level, int cx, int cz, int size, float parX, float parZ, BlockState block, int chunkX, int chunkZ, RandomSource random, int minHeight, int maxHeight) {
+    private static int[] snapshotHeights(WorldGenLevel level, int chunkX, int chunkZ) {
+        int minX = chunkX * 16;
+        int minZ = chunkZ * 16;
+        int[] heights = new int[256];
+        for(int lx = 0; lx < 16; lx++) {
+            for(int lz = 0; lz < 16; lz++) {
+                heights[lx * 16 + lz] = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, minX + lx, minZ + lz);
+            }
+        }
+        return heights;
+    }
+
+    private static void placeBush(WorldGenLevel level, int cx, int cz, int size, float parX, float parZ, BlockState block, int chunkX, int chunkZ, RandomSource random, int minHeight, int maxHeight, int[] chunkHeights) {
         float perpX = -parZ;
         float perpZ = parX;
         float longR = size;
@@ -117,7 +132,7 @@ public final class BushPlacer {
                 float ellipse = (along / longR) * (along / longR) + (across / shortR) * (across / shortR);
                 if(ellipse > 1.0f || (ellipse > 0.7f && random.nextFloat() < 0.35f)) continue;
 
-                int sy = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, px, pz);
+                int sy = chunkHeights[(px - chunkX * 16) * 16 + (pz - chunkZ * 16)];
                 if(sy <= level.getMinBuildHeight()) continue;
 
                 // 3-deep, not 1: water-settings paths rasterise a solid layer on top of water columns
