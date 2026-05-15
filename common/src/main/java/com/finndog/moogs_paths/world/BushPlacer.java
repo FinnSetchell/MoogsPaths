@@ -5,7 +5,6 @@ import com.finndog.moogs_paths.data.MoogsPathsDatapackRegistries;
 import com.finndog.moogs_paths.data.PathDataManager;
 import com.finndog.moogs_paths.data.PathNetworkType;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
@@ -144,11 +143,7 @@ public final class BushPlacer {
                 for(int dy = 0; dy < height; dy++) {
                     mpos.set(px, sy + dy, pz);
                     if(level.getBlockState(mpos).isAir()) {
-                        BlockState toPlace = block;
-                        for(Direction dir : Direction.Plane.HORIZONTAL) {
-                            toPlace = toPlace.updateShape(dir, level.getBlockState(mpos.relative(dir)), level, mpos, mpos.relative(dir));
-                        }
-                        level.setBlock(mpos, toPlace, Block.UPDATE_ALL);
+                        level.setBlock(mpos, block, Block.UPDATE_CLIENTS);
                     }
                 }
             }
