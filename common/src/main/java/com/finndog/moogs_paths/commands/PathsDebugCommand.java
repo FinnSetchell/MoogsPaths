@@ -11,20 +11,20 @@ import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.arguments.ResourceLocationArgument;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static net.minecraft.commands.Commands.argument;
 import static net.minecraft.commands.Commands.literal;
@@ -58,6 +58,8 @@ public final class PathsDebugCommand {
 
     //////////////////////////////
 
+    private static final int MAX_LOCATE_VERIFY = 32;
+
     private static int locatePath(CommandSourceStack src, ResourceLocation networkFilter) {
         ServerPlayer player = src.getPlayer();
         if(player == null) {
@@ -76,104 +78,87 @@ public final class PathsDebugCommand {
             return 0;
         }
 
-        long worldSeed = player.serverLevel().getSeed();
+        ServerLevel serverLevel = player.serverLevel();
+        long worldSeed = serverLevel.getSeed();
         int playerBX = (int) player.getX();
         int playerBZ = (int) player.getZ();
         int chunkX = playerBX >> 4;
         int chunkZ = playerBZ >> 4;
         int searchRadius = 10000;
 
-        List<Map.Entry<ResourceLocation, PathNetworkType>> allEntries = registry.entrySet().stream()
-            .<Map.Entry<ResourceLocation, PathNetworkType>>map(e -> Map.entry(e.getKey().location(), e.getValue()))
-            .collect(Collectors.toList());
+        ChunkGenerator generator = serverLevel.getChunkSource().getGenerator();
+        RandomState randomState = serverLevel.getChunkSource().randomState();
 
-        Map<Integer, List<Map.Entry<ResourceLocation, PathNetworkType>>> byRegionSize = allEntries.stream()
-            .collect(Collectors.groupingBy(e -> e.getValue().regionSize()));
+        Map<Integer, List<PathNetworkType>> byRegionSize = MoogsPathsDatapackRegistries.networksByRegionSize(src.registryAccess());
 
-        record Candidate(int bx, int bz, ResourceLocation id, long distSq, long pathSeed, PathNetworkType network) {}
-        List<Candidate> candidates = new ArrayList<>();
-        Map<Long, Holder<Biome>> biomeCache = new HashMap<>();
+        record OriginCandidate(int originChunkX, int originChunkZ, int regionSize, List<PathNetworkType> networks, long distSq) {}
+        List<OriginCandidate> candidates = new ArrayList<>();
 
-        for(Map.Entry<Integer, List<Map.Entry<ResourceLocation, PathNetworkType>>> entry : byRegionSize.entrySet()) {
+        for(Map.Entry<Integer, List<PathNetworkType>> entry : byRegionSize.entrySet()) {
             int regionSize = entry.getKey();
-            List<Map.Entry<ResourceLocation, PathNetworkType>> networksInGroup = entry.getValue();
-
+            List<PathNetworkType> networks = entry.getValue();
             PathRegionSelector.originsInRange(worldSeed, chunkX, chunkZ, searchRadius, regionSize)
                 .forEach(origin -> {
-                    long pathSeed = worldSeed
-                        ^ ((long) origin[0] * PathChunkFeature.ORIGIN_X_MULT)
-                        ^ ((long) origin[1] * PathChunkFeature.ORIGIN_Z_MULT)
-                        ^ ((long) regionSize * PathChunkFeature.ORIGIN_REGION_SIZE_MULT)
-                        ^ PathChunkFeature.PATH_SEED_MIXER;
-                    RandomSource pickRandom = RandomSource.create(pathSeed);
-                    Map.Entry<ResourceLocation, PathNetworkType> picked = pickWeightedEntry(networksInGroup, pickRandom);
-
-                    if(networkFilter != null && !picked.getKey().equals(networkFilter)) return;
-
-                    int bx = origin[0] * 16 + 8;
-                    int bz = origin[1] * 16 + 8;
-
-                    int cellX = origin[0] >> PathChunkFeature.ORIGIN_BIOME_CELL_SHIFT;
-                    int cellZ = origin[1] >> PathChunkFeature.ORIGIN_BIOME_CELL_SHIFT;
-                    long cellKey = ((long) cellX << 32) | (cellZ & 0xFFFFFFFFL);
-                    Holder<Biome> biome = biomeCache.computeIfAbsent(cellKey, k -> {
-                        int sampleBx = ((cellX << PathChunkFeature.ORIGIN_BIOME_CELL_SHIFT) << 4) + 8;
-                        int sampleBz = ((cellZ << PathChunkFeature.ORIGIN_BIOME_CELL_SHIFT) << 4) + 8;
-                        return player.serverLevel().getBiome(new BlockPos(sampleBx, PathChunkFeature.BIOME_FILTER_Y, sampleBz));
-                    });
-                    if(biome.is(PathChunkFeature.HAS_NO_PATHS) || !picked.getValue().biomes().contains(biome)) return;
-
+                    long bx = origin[0] * 16L + 8;
+                    long bz = origin[1] * 16L + 8;
                     long dx = bx - playerBX;
                     long dz = bz - playerBZ;
-                    candidates.add(new Candidate(bx, bz, picked.getKey(), dx * dx + dz * dz, pathSeed, picked.getValue()));
+                    candidates.add(new OriginCandidate(origin[0], origin[1], regionSize, networks, dx * dx + dz * dz));
                 });
         }
 
-        if(candidates.isEmpty()) {
-            src.sendFailure(Component.literal("[paths] No path found within " + searchRadius + " blocks"));
-            return 0;
+        candidates.sort(Comparator.comparingLong(OriginCandidate::distSq));
+
+        int verified = 0;
+        for(OriginCandidate candidate : candidates) {
+            if(verified >= MAX_LOCATE_VERIFY) break;
+            verified++;
+
+            Optional<PathChunkFeature.EvaluatedOrigin> result = PathChunkFeature.evaluateOrigin(
+                serverLevel, generator, randomState, worldSeed,
+                candidate.originChunkX(), candidate.originChunkZ(), candidate.regionSize(), candidate.networks());
+            if(result.isEmpty()) continue;
+
+            PathChunkFeature.EvaluatedOrigin ev = result.get();
+
+            if(networkFilter != null) {
+                ResourceLocation id = registry.getResourceKey(ev.network()).map(ResourceKey::location).orElse(null);
+                if(!networkFilter.equals(id)) continue;
+            }
+
+            List<BlockPos> waypoints = ev.cachedPath().waypoints();
+            BlockPos nearestWp = waypoints.stream()
+                .min(Comparator.comparingLong(wp -> {
+                    long dx = wp.getX() - playerBX;
+                    long dz = wp.getZ() - playerBZ;
+                    return dx * dx + dz * dz;
+                }))
+                .orElse(waypoints.get(0));
+
+            long wpDx = nearestWp.getX() - playerBX;
+            long wpDz = nearestWp.getZ() - playerBZ;
+            int dist = (int) Math.sqrt(wpDx * wpDx + wpDz * wpDz);
+
+            ResourceLocation networkId = registry.getResourceKey(ev.network())
+                .map(ResourceKey::location).orElse(new ResourceLocation("unknown", "unknown"));
+
+            MutableComponent coord = Component.literal("[" + nearestWp.getX() + ", ~, " + nearestWp.getZ() + "]")
+                .withStyle(style -> style
+                    .withColor(ChatFormatting.GREEN)
+                    .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/tp @s " + nearestWp.getX() + " ~ " + nearestWp.getZ()))
+                    .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal("Click to teleport")))
+                );
+
+            MutableComponent msg = Component.literal("[paths] Nearest " + networkId + " at ")
+                .append(coord)
+                .append(Component.literal(" (~" + dist + " blocks)"));
+
+            src.sendSuccess(() -> msg, false);
+            return 1;
         }
 
-        Candidate nearest = candidates.stream().min(Comparator.comparingLong(Candidate::distSq)).get();
-        int dist = (int) Math.sqrt(nearest.distSq());
-
-        // Mirror PathFinder's random-consumption order (length, then angle) so the reported
-        // direction matches the real routed path. Offset past the start fade zone so blocks show.
-        PathNetworkType nearestNetwork = nearest.network();
-        RandomSource walkRandom = RandomSource.create(nearest.pathSeed() ^ PathChunkFeature.WALK_MIXER);
-        Optional<PathType> pathTypeOpt = MoogsPathsDatapackRegistries.getPathType(src.registryAccess(), nearestNetwork.pathType());
-        pathTypeOpt.ifPresent(pt -> pt.length().sample(walkRandom));
-        double angle = walkRandom.nextDouble() * Math.PI * 2.0;
-        int fadeOffset = pathTypeOpt.map(pt -> pt.fade().startBlocks() + 10).orElse(30);
-        int reportBx = nearest.bx() + (int) Math.round(Math.cos(angle) * fadeOffset);
-        int reportBz = nearest.bz() + (int) Math.round(Math.sin(angle) * fadeOffset);
-
-        MutableComponent coord = Component.literal("[" + reportBx + ", ~, " + reportBz + "]")
-            .withStyle(style -> style
-                .withColor(ChatFormatting.GREEN)
-                .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/tp @s " + reportBx + " ~ " + reportBz))
-                .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal("Click to teleport")))
-            );
-
-        MutableComponent msg = Component.literal("[paths] Nearest " + nearest.id() + " at ")
-            .append(coord)
-            .append(Component.literal(" (~" + dist + " blocks)"));
-
-        src.sendSuccess(() -> msg, false);
-        return 1;
-    }
-
-    private static Map.Entry<ResourceLocation, PathNetworkType> pickWeightedEntry(
-        List<Map.Entry<ResourceLocation, PathNetworkType>> entries, RandomSource random
-    ) {
-        int total = entries.stream().mapToInt(e -> e.getValue().weight()).sum();
-        int roll = random.nextInt(Math.max(1, total));
-        int cumulative = 0;
-        for(Map.Entry<ResourceLocation, PathNetworkType> e : entries) {
-            cumulative += e.getValue().weight();
-            if(roll < cumulative) return e;
-        }
-        return entries.get(0);
+        src.sendFailure(Component.literal("[paths] No path found within " + searchRadius + " blocks"));
+        return 0;
     }
 
     //////////////////////////////

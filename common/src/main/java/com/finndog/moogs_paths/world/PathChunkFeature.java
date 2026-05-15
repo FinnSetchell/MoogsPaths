@@ -15,6 +15,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.util.RandomSource;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
@@ -68,7 +69,8 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
         Map<Integer, List<PathNetworkType>> byRegionSize = MoogsPathsDatapackRegistries.networksByRegionSize(level.registryAccess());
         if(byRegionSize.isEmpty()) return false;
 
-        RandomState randomState = level.getLevel().getChunkSource().randomState();
+        ServerLevel serverLevel = level.getLevel();
+        RandomState randomState = serverLevel.getChunkSource().randomState();
 
         // Shared across every network/origin in this chunk so overlapping networks can't both
         // place a structure on near-identical (x,z) spots.
@@ -86,105 +88,40 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
             for(int[] origin : origins) {
                 int originChunkX = origin[0];
                 int originChunkZ = origin[1];
-                int originBlockX = originChunkX * 16 + 8;
-                int originBlockZ = originChunkZ * 16 + 8;
 
-                long pathSeed = worldSeed
-                    ^ ((long) originChunkX * ORIGIN_X_MULT)
-                    ^ ((long) originChunkZ * ORIGIN_Z_MULT)
-                    ^ ((long) regionSize * ORIGIN_REGION_SIZE_MULT)
-                    ^ PATH_SEED_MIXER;
+                Optional<EvaluatedOrigin> evaluated = evaluateOrigin(
+                    serverLevel, generator, randomState, worldSeed, originChunkX, originChunkZ, regionSize, networks);
+                if(evaluated.isEmpty()) continue;
 
-                // negative-result fast-path: a prior chunk already failed this origin's biome filter
-                if(PathDataManager.isRejected(pathSeed)) {
-                    PathDataManager.addPathCounter(PathCounter.ORIGIN_REJECTED_BY_CACHE, 1);
-                    continue;
-                }
-
-                RandomSource pickRandom = RandomSource.create(pathSeed);
-                PathNetworkType network = pickWeighted(networks, pickRandom);
-
-                // positive-result fast-path: cached path implies the biome filter already passed
-                PathDataManager.CachedPath fastCached = PathDataManager.peekCachedPath(pathSeed);
-
-                if(fastCached == null) {
-                    PathDebugTimer.stamp(PathDebugTimer.Stage.ORIGIN_BIOME);
-                    Holder<Biome> originBiome = getOriginBiome(level, originChunkX, originChunkZ);
-                    if(originBiome.is(HAS_NO_PATHS) || !network.biomes().contains(originBiome)) {
-                        PathDataManager.markRejected(pathSeed);
-                        PathDataManager.addPathCounter(PathCounter.ORIGIN_REJECTED_BY_BIOME, 1);
-                        Holder<Biome> exactBiome = level.getBiome(new BlockPos(originBlockX, BIOME_FILTER_Y, originBlockZ));
-                        if(!exactBiome.is(HAS_NO_PATHS) && network.biomes().contains(exactBiome)) {
-                            PathDataManager.addPathCounter(PathCounter.ORIGIN_COARSE_FALSE_NEG, 1);
-                        }
-                        continue;
-                    }
-                    PathDataManager.addPathCounter(PathCounter.ORIGIN_ACCEPTED, 1);
-                    Holder<Biome> exactBiome = level.getBiome(new BlockPos(originBlockX, BIOME_FILTER_Y, originBlockZ));
-                    if(exactBiome.is(HAS_NO_PATHS) || !network.biomes().contains(exactBiome)) {
-                        PathDataManager.addPathCounter(PathCounter.ORIGIN_COARSE_FALSE_POS, 1);
-                    }
-                }
-
-                Optional<PathType> pathTypeOpt = MoogsPathsDatapackRegistries.getPathType(level.registryAccess(), network.pathType());
-                if(pathTypeOpt.isEmpty()) {
-                    Constants.LOG.error("Missing path type: {}", network.pathType());
-                    continue;
-                }
-                PathDebugTimer.stamp(PathDebugTimer.Stage.PATHFIND);
-                PathType pathType = pathTypeOpt.get();
-
-                PathDataManager.CachedPath cachedPath;
-                if(fastCached != null) {
-                    cachedPath = fastCached;
-                } else {
-                    int originSurfaceY = generator.getBaseHeight(originBlockX, originBlockZ, Heightmap.Types.WORLD_SURFACE_WG, level, randomState);
-                    BlockPos originPos = new BlockPos(originBlockX, originSurfaceY, originBlockZ);
-                    PathNetworkType finalNetwork = network;
-                    cachedPath = PathDataManager.getOrComputeWaypoints(pathSeed, () -> {
-                        PathDataManager.addPathCounter(PathCounter.PATH_ACTUALLY_COMPUTED, 1);
-                        RandomSource walkRandom = RandomSource.create(pathSeed ^ WALK_MIXER);
-                        return PathFinder.findPath(originPos, pathType, walkRandom,
-                            (x, z) -> generator.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, level, randomState),
-                            (gx, gz) -> {
-                                PathDataManager.recordBiomeCall(com.finndog.moogs_paths.data.BiomeCallSite.PATHFINDER_GOAL_CHECK);
-                                return finalNetwork.biomes().contains(level.getBiome(new BlockPos(gx, BIOME_FILTER_Y, gz)));
-                            });
-                    });
-                }
-
-                List<BlockPos> waypoints = cachedPath.waypoints();
-                if(waypoints.size() < 2) {
-                    if(fastCached == null) {
-                        PathDataManager.markRejected(pathSeed);
-                        PathDataManager.addPathCounter(PathCounter.PATH_DROPPED_TOO_SHORT, 1);
-                    }
-                    continue;
-                }
+                EvaluatedOrigin ev = evaluated.get();
+                long pathSeed = ev.pathSeed();
+                PathNetworkType network = ev.network();
+                PathType pathType = ev.pathType();
+                PathDataManager.CachedPath cachedPath = ev.cachedPath();
 
                 int bboxPad = pathType.width().max();
                 if(!intersectsWithPad(cachedPath, chunkX, chunkZ, bboxPad)) continue;
 
                 RandomSource rasterRandom = RandomSource.create(pathSeed ^ ((long) chunkX * RASTER_CHUNK_X_MULT) ^ ((long) chunkZ * RASTER_CHUNK_Z_MULT));
                 PathDebugTimer.stamp(PathDebugTimer.Stage.RASTER);
-                PathRasteriser.rasteriseInChunk(level, waypoints, pathType, chunkX, chunkZ, rasterRandom);
+                PathRasteriser.rasteriseInChunk(level, cachedPath.waypoints(), pathType, chunkX, chunkZ, rasterRandom);
 
                 if(!network.structureSets().isEmpty()) {
                     RandomSource structureRandom = RandomSource.create(pathSeed ^ STRUCTURE_MIXER);
                     PathDebugTimer.stamp(PathDebugTimer.Stage.STRUCTURES);
-                    StructurePlacer.placeInChunk(level, waypoints, network.structureSets(), network.biomes(), chunkX, chunkZ, structureRandom, placedStructurePositions);
+                    StructurePlacer.placeInChunk(level, cachedPath.waypoints(), network.structureSets(), network.biomes(), chunkX, chunkZ, structureRandom, placedStructurePositions);
                 }
 
                 if(!network.featureDecoratorSets().isEmpty()) {
                     RandomSource featureRandom = RandomSource.create(pathSeed ^ FEATURE_MIXER);
                     PathDebugTimer.stamp(PathDebugTimer.Stage.FEATURES);
-                    FeatureScatterer.scatterInChunk(level, generator, waypoints, network.featureDecoratorSets(), network.biomes(), chunkX, chunkZ, featureRandom);
+                    FeatureScatterer.scatterInChunk(level, generator, cachedPath.waypoints(), network.featureDecoratorSets(), network.biomes(), chunkX, chunkZ, featureRandom);
                 }
 
                 if(!network.bushDecoratorSets().isEmpty()) {
                     RandomSource bushRandom = RandomSource.create(pathSeed ^ BUSH_MIXER);
                     PathDebugTimer.stamp(PathDebugTimer.Stage.BUSHES);
-                    BushPlacer.placeInChunk(level, waypoints, network.bushDecoratorSets(), network.biomes(), chunkX, chunkZ, bushRandom);
+                    BushPlacer.placeInChunk(level, cachedPath.waypoints(), network.bushDecoratorSets(), network.biomes(), chunkX, chunkZ, bushRandom);
                 }
 
                 placed = true;
@@ -197,8 +134,92 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
         }
     }
 
-    private static Holder<Biome> getOriginBiome(WorldGenLevel level, int originChunkX, int originChunkZ) {
-        ResourceKey<Level> dimKey = level.getLevel().dimension();
+    public record EvaluatedOrigin(PathNetworkType network, PathType pathType, long pathSeed, PathDataManager.CachedPath cachedPath) {}
+
+    public static Optional<EvaluatedOrigin> evaluateOrigin(
+        ServerLevel serverLevel, ChunkGenerator generator, RandomState randomState,
+        long worldSeed, int originChunkX, int originChunkZ, int regionSize,
+        List<PathNetworkType> networksInGroup
+    ) {
+        int originBlockX = originChunkX * 16 + 8;
+        int originBlockZ = originChunkZ * 16 + 8;
+
+        long pathSeed = worldSeed
+            ^ ((long) originChunkX * ORIGIN_X_MULT)
+            ^ ((long) originChunkZ * ORIGIN_Z_MULT)
+            ^ ((long) regionSize * ORIGIN_REGION_SIZE_MULT)
+            ^ PATH_SEED_MIXER;
+
+        if(PathDataManager.isRejected(pathSeed)) {
+            PathDataManager.addPathCounter(PathCounter.ORIGIN_REJECTED_BY_CACHE, 1);
+            return Optional.empty();
+        }
+
+        RandomSource pickRandom = RandomSource.create(pathSeed);
+        PathNetworkType network = pickWeighted(networksInGroup, pickRandom);
+
+        PathDataManager.CachedPath fastCached = PathDataManager.peekCachedPath(pathSeed);
+
+        if(fastCached == null) {
+            PathDebugTimer.stamp(PathDebugTimer.Stage.ORIGIN_BIOME);
+            Holder<Biome> originBiome = getOriginBiome(serverLevel, originChunkX, originChunkZ);
+            if(originBiome.is(HAS_NO_PATHS) || !network.biomes().contains(originBiome)) {
+                PathDataManager.markRejected(pathSeed);
+                PathDataManager.addPathCounter(PathCounter.ORIGIN_REJECTED_BY_BIOME, 1);
+                Holder<Biome> exactBiome = serverLevel.getBiome(new BlockPos(originBlockX, BIOME_FILTER_Y, originBlockZ));
+                if(!exactBiome.is(HAS_NO_PATHS) && network.biomes().contains(exactBiome)) {
+                    PathDataManager.addPathCounter(PathCounter.ORIGIN_COARSE_FALSE_NEG, 1);
+                }
+                return Optional.empty();
+            }
+            PathDataManager.addPathCounter(PathCounter.ORIGIN_ACCEPTED, 1);
+            Holder<Biome> exactBiome = serverLevel.getBiome(new BlockPos(originBlockX, BIOME_FILTER_Y, originBlockZ));
+            if(exactBiome.is(HAS_NO_PATHS) || !network.biomes().contains(exactBiome)) {
+                PathDataManager.addPathCounter(PathCounter.ORIGIN_COARSE_FALSE_POS, 1);
+            }
+        }
+
+        Optional<PathType> pathTypeOpt = MoogsPathsDatapackRegistries.getPathType(serverLevel.registryAccess(), network.pathType());
+        if(pathTypeOpt.isEmpty()) {
+            Constants.LOG.error("Missing path type: {}", network.pathType());
+            return Optional.empty();
+        }
+        PathDebugTimer.stamp(PathDebugTimer.Stage.PATHFIND);
+        PathType pathType = pathTypeOpt.get();
+
+        PathDataManager.CachedPath cachedPath;
+        if(fastCached != null) {
+            cachedPath = fastCached;
+        } else {
+            int originSurfaceY = generator.getBaseHeight(originBlockX, originBlockZ, Heightmap.Types.WORLD_SURFACE_WG, serverLevel, randomState);
+            BlockPos originPos = new BlockPos(originBlockX, originSurfaceY, originBlockZ);
+            PathNetworkType finalNetwork = network;
+            cachedPath = PathDataManager.getOrComputeWaypoints(pathSeed, () -> {
+                PathDataManager.addPathCounter(PathCounter.PATH_ACTUALLY_COMPUTED, 1);
+                RandomSource walkRandom = RandomSource.create(pathSeed ^ WALK_MIXER);
+                return PathFinder.findPath(originPos, pathType, walkRandom,
+                    (x, z) -> generator.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, serverLevel, randomState),
+                    (gx, gz) -> {
+                        PathDataManager.recordBiomeCall(com.finndog.moogs_paths.data.BiomeCallSite.PATHFINDER_GOAL_CHECK);
+                        return finalNetwork.biomes().contains(serverLevel.getBiome(new BlockPos(gx, BIOME_FILTER_Y, gz)));
+                    });
+            });
+        }
+
+        List<BlockPos> waypoints = cachedPath.waypoints();
+        if(waypoints.size() < 2) {
+            if(fastCached == null) {
+                PathDataManager.markRejected(pathSeed);
+                PathDataManager.addPathCounter(PathCounter.PATH_DROPPED_TOO_SHORT, 1);
+            }
+            return Optional.empty();
+        }
+
+        return Optional.of(new EvaluatedOrigin(network, pathType, pathSeed, cachedPath));
+    }
+
+    private static Holder<Biome> getOriginBiome(ServerLevel serverLevel, int originChunkX, int originChunkZ) {
+        ResourceKey<Level> dimKey = serverLevel.dimension();
         ConcurrentHashMap<Long, Holder<Biome>> cache = ORIGIN_BIOME_CACHE.computeIfAbsent(dimKey, k -> new ConcurrentHashMap<>());
         int cellX = originChunkX >> ORIGIN_BIOME_CELL_SHIFT;
         int cellZ = originChunkZ >> ORIGIN_BIOME_CELL_SHIFT;
@@ -211,7 +232,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
         int sampleBlockX = (sampleChunkX << 4) + 8;
         int sampleBlockZ = (sampleChunkZ << 4) + 8;
         PathDataManager.recordBiomeCall(com.finndog.moogs_paths.data.BiomeCallSite.ORIGIN_FILTER_MISS);
-        Holder<Biome> fresh = level.getBiome(new BlockPos(sampleBlockX, BIOME_FILTER_Y, sampleBlockZ));
+        Holder<Biome> fresh = serverLevel.getBiome(new BlockPos(sampleBlockX, BIOME_FILTER_Y, sampleBlockZ));
         cache.put(key, fresh);
         if(cache.size() > ORIGIN_BIOME_CACHE_SOFT_CAP) trimOriginBiomeCache(cache);
         return fresh;
