@@ -57,6 +57,7 @@ public final class PathDebugTimer {
         return s;
     });
 
+    // one volatile read + return when disabled; JIT branch-predicts this away on steady-state
     public static void stamp(Stage next) {
         if(!running) return;
         long now = System.nanoTime();
