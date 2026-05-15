@@ -110,6 +110,11 @@ public final class StructurePlacer {
             if(ddx * ddx + ddz * ddz < MIN_STRUCTURE_SPACING_SQ) return;
         }
 
+        // template fetch is cheap (map lookup) - do it before the 25-sample flatness check
+        Optional<StructureTemplate> templateOpt = PathDataManager.getCachedTemplate(entry.nbt());
+        if(templateOpt.isEmpty()) return;
+        StructureTemplate template = templateOpt.get();
+
         int surfaceY = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, waypoint.getX(), waypoint.getZ());
         if(!level.getFluidState(new BlockPos(waypoint.getX(), surfaceY - 1, waypoint.getZ())).isEmpty()) return;
         BlockPos pos = new BlockPos(waypoint.getX(), surfaceY - 1, waypoint.getZ());
@@ -117,10 +122,6 @@ public final class StructurePlacer {
         PathDataManager.recordBiomeCall(com.finndog.moogs_paths.data.BiomeCallSite.STRUCTURE_PLACE_CHECK);
         if(!biomes.contains(level.getBiome(pos))) return;
         if(!isFlatEnough(level, pos, set.flatnessTolerance())) return;
-
-        Optional<StructureTemplate> templateOpt = PathDataManager.getCachedTemplate(entry.nbt());
-        if(templateOpt.isEmpty()) return;
-        StructureTemplate template = templateOpt.get();
 
         if(footprintOverWater(level, template, pos, entry.offset(), rotation)) return;
 
