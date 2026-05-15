@@ -288,7 +288,7 @@ public final class PathFinder {
     // Expands cell waypoints to block-dense ones. Drops consecutive duplicate (x,z).
     private static List<BlockPos> interpolateToBlocks(List<int[]> cells, HeightSampler heightAt, int originY) {
         List<BlockPos> result = new ArrayList<>();
-        long lastKey = Long.MIN_VALUE;
+        long[] lastKey = {Long.MIN_VALUE};
         for(int i = 0; i < cells.size() - 1; i++) {
             int[] a = cells.get(i);
             int[] b = cells.get(i + 1);
@@ -296,16 +296,13 @@ public final class PathFinder {
             int az = a[1] * CELL_SIZE;
             int bx = b[0] * CELL_SIZE;
             int bz = b[1] * CELL_SIZE;
-            List<int[]> line = bresenhamXZ(ax, az, bx, bz);
-            for(int j = 0; j < line.size(); j++) {
-                int[] p = line.get(j);
-                long pk = ((long) p[0] << 32) | (p[1] & 0xFFFFFFFFL);
-                if(pk == lastKey) continue;
-                int y = heightAt.sampleAt(p[0], p[1]);
-                if(y < 0) y = originY;
-                result.add(new BlockPos(p[0], y, p[1]));
-                lastKey = pk;
-            }
+            PathGeometryUtils.bresenham(ax, az, bx, bz, (px, pz) -> {
+                long pk = ((long) px << 32) | (pz & 0xFFFFFFFFL);
+                if(pk == lastKey[0]) return;
+                lastKey[0] = pk;
+                int y = heightAt.sampleAt(px, pz);
+                result.add(new BlockPos(px, y < 0 ? originY : y, pz));
+            });
         }
         if(result.isEmpty() && !cells.isEmpty()) {
             int[] a = cells.get(0);
@@ -314,24 +311,6 @@ public final class PathFinder {
             result.add(new BlockPos(a[0] * CELL_SIZE, y, a[1] * CELL_SIZE));
         }
         return result;
-    }
-
-    private static List<int[]> bresenhamXZ(int x0, int z0, int x1, int z1) {
-        List<int[]> out = new ArrayList<>();
-        int dx = Math.abs(x1 - x0);
-        int dz = Math.abs(z1 - z0);
-        int sx = x0 < x1 ? 1 : -1;
-        int sz = z0 < z1 ? 1 : -1;
-        int err = dx - dz;
-        int x = x0, z = z0;
-        while(true) {
-            out.add(new int[]{x, z});
-            if(x == x1 && z == z1) break;
-            int e2 = err * 2;
-            if(e2 > -dz) { err -= dz; x += sx; }
-            if(e2 < dx)  { err += dx; z += sz; }
-        }
-        return out;
     }
 
     //////////////////////////////
