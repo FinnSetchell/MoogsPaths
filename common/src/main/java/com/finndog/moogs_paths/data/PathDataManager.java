@@ -43,8 +43,11 @@ public final class PathDataManager {
     private static final Map<ResourceLocation, Optional<StructureTemplate>> CACHED_TEMPLATES = new ConcurrentHashMap<>();
 
     private static volatile StructureTemplateManager templateManager;
+    private static volatile int cacheVersion = 0;
 
     private PathDataManager() {}
+
+    public static int getCacheVersion() { return cacheVersion; }
 
     //////////////////////////////
     private static final AtomicLong[] BIOME_CALL_COUNTS = new AtomicLong[BiomeCallSite.values().length];
@@ -152,6 +155,7 @@ public final class PathDataManager {
     }
 
     public static void clearCaches() {
+        cacheVersion++;
         WAYPOINT_CACHE.clear();
         synchronized(REJECTED_CACHE) { REJECTED_CACHE.clear(); }
         CACHED_TEMPLATES.clear();

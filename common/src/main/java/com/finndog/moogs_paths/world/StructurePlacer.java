@@ -110,8 +110,8 @@ public final class StructurePlacer {
             if(ddx * ddx + ddz * ddz < MIN_STRUCTURE_SPACING_SQ) return;
         }
 
-        // template fetch is cheap (map lookup) - do it before the 25-sample flatness check
-        Optional<StructureTemplate> templateOpt = PathDataManager.getCachedTemplate(entry.nbt());
+        // template fetch is a field read after first lookup - do it before the 25-sample flatness check
+        Optional<StructureTemplate> templateOpt = entry.getTemplate();
         if(templateOpt.isEmpty()) return;
         StructureTemplate template = templateOpt.get();
 

@@ -5,6 +5,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.Vec3i;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.StringRepresentable;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -28,13 +29,7 @@ public record StructureSet(
             Codec.INT.optionalFieldOf("side_offset", 0).forGetter(StructureSet::sideOffset)
     ).apply(instance, StructureSet::new));
 
-    public record StructureEntry(
-            ResourceLocation nbt,
-            RotationSetting rotation,
-            int weight,
-            Vec3i offset,
-            float placementChance
-    ) {
+    public static final class StructureEntry {
         public static final Codec<StructureEntry> CODEC = RecordCodecBuilder.create(instance -> instance.group(
                 ResourceLocation.CODEC.fieldOf("nbt").forGetter(StructureEntry::nbt),
                 RotationSetting.CODEC.fieldOf("rotation").forGetter(StructureEntry::rotation),
@@ -42,6 +37,39 @@ public record StructureSet(
                 Vec3i.CODEC.fieldOf("offset").forGetter(StructureEntry::offset),
                 Codec.floatRange(0.0f, 1.0f).optionalFieldOf("placement_chance", 1.0f).forGetter(StructureEntry::placementChance)
         ).apply(instance, StructureEntry::new));
+
+        private final ResourceLocation nbt;
+        private final RotationSetting rotation;
+        private final int weight;
+        private final Vec3i offset;
+        private final float placementChance;
+
+        // volatile pair: version guards the template so we don't serve a stale optional
+        private volatile Optional<StructureTemplate> cachedTemplate;
+        private volatile int cachedVersion = -1;
+
+        public StructureEntry(ResourceLocation nbt, RotationSetting rotation, int weight, Vec3i offset, float placementChance) {
+            this.nbt = nbt;
+            this.rotation = rotation;
+            this.weight = weight;
+            this.offset = offset;
+            this.placementChance = placementChance;
+        }
+
+        public ResourceLocation nbt() { return nbt; }
+        public RotationSetting rotation() { return rotation; }
+        public int weight() { return weight; }
+        public Vec3i offset() { return offset; }
+        public float placementChance() { return placementChance; }
+
+        public Optional<StructureTemplate> getTemplate() {
+            int cv = PathDataManager.getCacheVersion();
+            if(cachedVersion != cv) {
+                cachedTemplate = PathDataManager.getCachedTemplate(nbt);
+                cachedVersion = cv;
+            }
+            return cachedTemplate;
+        }
     }
 
     public enum PlacementMode implements StringRepresentable {
