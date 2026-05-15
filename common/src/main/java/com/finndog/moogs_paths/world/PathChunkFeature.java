@@ -83,7 +83,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
             List<PathNetworkType> networks = entry.getValue();
             int maxRadius = MoogsPathsDatapackRegistries.networksMaxRadiusForRegionSize(level.registryAccess(), regionSize);
             PathDebugTimer.stamp(PathDebugTimer.Stage.ORIGIN_ENUM);
-            List<int[]> origins = PathRegionSelector.originsInRange(worldSeed, chunkX, chunkZ, maxRadius, regionSize).toList();
+            List<int[]> origins = PathRegionSelector.originsInRange(worldSeed, chunkX, chunkZ, maxRadius, regionSize);
 
             for(int[] origin : origins) {
                 int originChunkX = origin[0];

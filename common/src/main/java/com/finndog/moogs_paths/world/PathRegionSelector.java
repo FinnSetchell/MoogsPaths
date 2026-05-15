@@ -2,26 +2,17 @@ package com.finndog.moogs_paths.world;
 
 import net.minecraft.util.RandomSource;
 
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.stream.IntStream;
-import java.util.stream.Stream;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class PathRegionSelector {
     private PathRegionSelector() {}
 
     private record OriginKey(long worldSeed, int regionX, int regionZ, int regionSize) {}
 
+    private static final ConcurrentHashMap<OriginKey, int[]> ORIGIN_CACHE = new ConcurrentHashMap<>();
     private static final int ORIGIN_CACHE_CAP = 1024;
-    private static final Map<OriginKey, int[]> ORIGIN_CACHE = Collections.synchronizedMap(
-        new LinkedHashMap<>(ORIGIN_CACHE_CAP, 0.75f, true) {
-            @Override
-            protected boolean removeEldestEntry(Map.Entry<OriginKey, int[]> eldest) {
-                return size() > ORIGIN_CACHE_CAP;
-            }
-        }
-    );
 
     public static int regionX(int chunkX, int regionSize) {
         return Math.floorDiv(chunkX, regionSize);
@@ -32,16 +23,21 @@ public final class PathRegionSelector {
     }
 
     public static int[] originChunk(long worldSeed, int regionX, int regionZ, int regionSize) {
-        return ORIGIN_CACHE.computeIfAbsent(new OriginKey(worldSeed, regionX, regionZ, regionSize), k -> {
-            long hash = worldSeed ^ ((long) regionX * 341873128712L) ^ ((long) regionZ * 132897987541L);
-            RandomSource r = RandomSource.create(hash);
-            int offsetX = r.nextInt(regionSize);
-            int offsetZ = r.nextInt(regionSize);
-            return new int[]{ regionX * regionSize + offsetX, regionZ * regionSize + offsetZ };
-        });
+        OriginKey key = new OriginKey(worldSeed, regionX, regionZ, regionSize);
+        int[] cached = ORIGIN_CACHE.get(key);
+        if (cached != null) return cached;
+        long hash = worldSeed ^ ((long) regionX * 341873128712L) ^ ((long) regionZ * 132897987541L);
+        RandomSource r = RandomSource.create(hash);
+        int offsetX = r.nextInt(regionSize);
+        int offsetZ = r.nextInt(regionSize);
+        int[] result = new int[]{ regionX * regionSize + offsetX, regionZ * regionSize + offsetZ };
+        int[] existing = ORIGIN_CACHE.putIfAbsent(key, result);
+        if (existing != null) return existing;
+        if (ORIGIN_CACHE.size() > ORIGIN_CACHE_CAP) ORIGIN_CACHE.clear();
+        return result;
     }
 
-    public static Stream<int[]> originsInRange(long worldSeed, int chunkX, int chunkZ, int maxBlockRadius, int regionSize) {
+    public static List<int[]> originsInRange(long worldSeed, int chunkX, int chunkZ, int maxBlockRadius, int regionSize) {
         int regionRadius = (int) Math.ceil((double) maxBlockRadius / (regionSize * 16.0));
         int myRegionX = regionX(chunkX, regionSize);
         int myRegionZ = regionZ(chunkZ, regionSize);
@@ -50,15 +46,18 @@ public final class PathRegionSelector {
         int centerBlockZ = chunkZ * 16 + 8;
         long radiusSq = (long) maxBlockRadius * maxBlockRadius;
 
-        return IntStream.rangeClosed(myRegionX - regionRadius, myRegionX + regionRadius)
-            .boxed()
-            .flatMap(rx -> IntStream.rangeClosed(myRegionZ - regionRadius, myRegionZ + regionRadius)
-                .mapToObj(rz -> originChunk(worldSeed, rx, rz, regionSize)))
-            .filter(origin -> {
+        List<int[]> result = new ArrayList<>();
+        for (int rx = myRegionX - regionRadius; rx <= myRegionX + regionRadius; rx++) {
+            for (int rz = myRegionZ - regionRadius; rz <= myRegionZ + regionRadius; rz++) {
+                int[] origin = originChunk(worldSeed, rx, rz, regionSize);
                 long dx = (long) (origin[0] * 16 + 8) - centerBlockX;
                 long dz = (long) (origin[1] * 16 + 8) - centerBlockZ;
-                return dx * dx + dz * dz <= radiusSq;
-            });
+                if (dx * dx + dz * dz <= radiusSq) {
+                    result.add(origin);
+                }
+            }
+        }
+        return result;
     }
 
     public static String describe(long worldSeed, int blockX, int blockZ, int regionSize) {
