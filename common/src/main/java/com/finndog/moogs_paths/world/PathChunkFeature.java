@@ -26,6 +26,8 @@ import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
 
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -74,7 +76,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
 
         // Shared across every network/origin in this chunk so overlapping networks can't both
         // place a structure on near-identical (x,z) spots.
-        Set<Long> placedStructurePositions = new HashSet<>();
+        LongOpenHashSet placedStructurePositions = new LongOpenHashSet();
 
         boolean placed = false;
 

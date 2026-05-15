@@ -8,6 +8,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
@@ -18,10 +19,28 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 
 import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class BushPlacer {
 
     private BushPlacer() {}
+
+    private static final ConcurrentHashMap<ResourceLocation, BlockState> RESOLVED_STATES = new ConcurrentHashMap<>();
+
+    private static BlockState resolveState(ResourceLocation id) {
+        return RESOLVED_STATES.computeIfAbsent(id, key -> {
+            BlockState state = BuiltInRegistries.BLOCK.getOptional(key)
+                .orElse(Blocks.OAK_LEAVES).defaultBlockState();
+            if(state.hasProperty(LeavesBlock.PERSISTENT)) {
+                state = state.setValue(LeavesBlock.PERSISTENT, true);
+            }
+            return state;
+        });
+    }
+
+    public static void clearBlockCache() {
+        RESOLVED_STATES.clear();
+    }
 
     //////////////////////////////
 
@@ -135,12 +154,7 @@ public final class BushPlacer {
         for(BushDecoratorSet.WeightedBlock entry : entries) {
             sum += entry.weight();
             if(roll < sum) {
-                BlockState state = BuiltInRegistries.BLOCK.getOptional(entry.block())
-                    .orElse(Blocks.OAK_LEAVES).defaultBlockState();
-                if(state.hasProperty(LeavesBlock.PERSISTENT)) {
-                    state = state.setValue(LeavesBlock.PERSISTENT, true);
-                }
-                return state;
+                return resolveState(entry.block());
             }
         }
         return Blocks.OAK_LEAVES.defaultBlockState().setValue(LeavesBlock.PERSISTENT, true);

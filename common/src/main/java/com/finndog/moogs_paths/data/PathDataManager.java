@@ -1,7 +1,11 @@
 package com.finndog.moogs_paths.data;
 
 import com.finndog.moogs_paths.Constants;
+import com.finndog.moogs_paths.world.BushPlacer;
 import com.finndog.moogs_paths.world.PathChunkFeature;
+import com.finndog.moogs_paths.world.PathRasteriser;
+import it.unimi.dsi.fastutil.longs.LongIterator;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
@@ -15,7 +19,7 @@ import java.util.function.Supplier;
 public final class PathDataManager {
 
     private static final int WAYPOINT_CACHE_MAX_SIZE = 512;
-    // Sized for long sessions without trim-thrashing. ~2M entries at ~56 bytes = ~112MB worst case.
+    // Sized for long sessions without trim-thrashing. ~2M entries at ~8 bytes = ~16MB worst case.
     private static final int REJECTED_CACHE_MAX_SIZE = 2_097_152;
 
     // bbox lets per-chunk feature placement early-out cheaply for chunks outside the path
@@ -34,7 +38,7 @@ public final class PathDataManager {
 
     // Negative cache for pathSeeds whose origin failed the biome filter. Separate from
     // WAYPOINT_CACHE so a flood of rejects can't evict real computed paths.
-    private static final Set<Long> REJECTED_CACHE = ConcurrentHashMap.newKeySet();
+    private static final LongOpenHashSet REJECTED_CACHE = new LongOpenHashSet();
 
     private static final Map<ResourceLocation, Optional<StructureTemplate>> CACHED_TEMPLATES = new ConcurrentHashMap<>();
 
@@ -96,12 +100,14 @@ public final class PathDataManager {
     }
 
     public static boolean isRejected(long pathSeed) {
-        return REJECTED_CACHE.contains(pathSeed);
+        synchronized(REJECTED_CACHE) { return REJECTED_CACHE.contains(pathSeed); }
     }
 
     public static void markRejected(long pathSeed) {
-        REJECTED_CACHE.add(pathSeed);
-        if(REJECTED_CACHE.size() > REJECTED_CACHE_MAX_SIZE) trimRejectedCache();
+        synchronized(REJECTED_CACHE) {
+            REJECTED_CACHE.add(pathSeed);
+            if(REJECTED_CACHE.size() > REJECTED_CACHE_MAX_SIZE) trimRejectedCache();
+        }
     }
 
     private static CachedPath buildCachedPath(List<BlockPos> waypoints) {
@@ -132,10 +138,11 @@ public final class PathDataManager {
     }
 
     private static void trimRejectedCache() {
+        // must be called with REJECTED_CACHE lock held
         int target = REJECTED_CACHE_MAX_SIZE / 2;
-        Iterator<Long> it = REJECTED_CACHE.iterator();
+        LongIterator it = REJECTED_CACHE.iterator();
         while(it.hasNext() && REJECTED_CACHE.size() > target) {
-            it.next();
+            it.nextLong();
             it.remove();
         }
     }
@@ -146,8 +153,10 @@ public final class PathDataManager {
 
     public static void clearCaches() {
         WAYPOINT_CACHE.clear();
-        REJECTED_CACHE.clear();
+        synchronized(REJECTED_CACHE) { REJECTED_CACHE.clear(); }
         CACHED_TEMPLATES.clear();
+        PathRasteriser.clearBlockCache();
+        BushPlacer.clearBlockCache();
         PathChunkFeature.clearOriginBiomeCache();
     }
 

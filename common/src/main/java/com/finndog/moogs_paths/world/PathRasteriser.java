@@ -1,8 +1,12 @@
 package com.finndog.moogs_paths.world;
 
 import com.finndog.moogs_paths.data.PathType;
+import it.unimi.dsi.fastutil.longs.LongArrayList;
+import it.unimi.dsi.fastutil.longs.LongIterator;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
@@ -11,10 +15,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.material.PushReaction;
 
-import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public final class PathRasteriser {
     private PathRasteriser() {}
@@ -23,6 +25,17 @@ public final class PathRasteriser {
     // is shaped by the pathfinder's rigidness/carver knobs; these just gate individual tiles.
     private static final int MAX_CUT = 8;
     private static final int MAX_FILL = 8;
+
+    private static final ConcurrentHashMap<ResourceLocation, Block> RESOLVED_BLOCKS = new ConcurrentHashMap<>();
+
+    static Block resolveBlock(ResourceLocation id) {
+        return RESOLVED_BLOCKS.computeIfAbsent(id, key ->
+            BuiltInRegistries.BLOCK.getOptional(key).orElse(Blocks.DIRT));
+    }
+
+    public static void clearBlockCache() {
+        RESOLVED_BLOCKS.clear();
+    }
 
     //////////////////////////////
 
@@ -33,7 +46,7 @@ public final class PathRasteriser {
 
         // Snapshot water columns before any segment runs - otherwise later segments see planks
         // placed by earlier ones and misdetect them as land.
-        Set<Long> waterPositions = pathType.waterSettings().isPresent()
+        LongOpenHashSet waterPositions = pathType.waterSettings().isPresent()
             ? scanWaterPositions(level, chunkX, chunkZ)
             : null;
 
@@ -46,8 +59,8 @@ public final class PathRasteriser {
         }
     }
 
-    private static Set<Long> scanWaterPositions(WorldGenLevel level, int chunkX, int chunkZ) {
-        Set<Long> result = new HashSet<>();
+    private static LongOpenHashSet scanWaterPositions(WorldGenLevel level, int chunkX, int chunkZ) {
+        LongOpenHashSet result = new LongOpenHashSet();
         int minX = chunkX * 16;
         int minZ = chunkZ * 16;
         BlockPos.MutableBlockPos mpos = new BlockPos.MutableBlockPos();
@@ -65,18 +78,18 @@ public final class PathRasteriser {
 
     //////////////////////////////
 
-    private static void rasteriseSegmentInChunk(WorldGenLevel level, BlockPos from, BlockPos to, PathType pathType, int halfWidth, float fade, int chunkX, int chunkZ, RandomSource random, Set<Long> waterPositions) {
+    private static void rasteriseSegmentInChunk(WorldGenLevel level, BlockPos from, BlockPos to, PathType pathType, int halfWidth, float fade, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet waterPositions) {
         int chunkMinX = chunkX * 16;
         int chunkMaxX = chunkMinX + 15;
         int chunkMinZ = chunkZ * 16;
         int chunkMaxZ = chunkMinZ + 15;
 
-        Block fillBlockResolved = BuiltInRegistries.BLOCK.getOptional(pathType.fillBlock()).orElse(Blocks.DIRT);
+        Block fillBlockResolved = resolveBlock(pathType.fillBlock());
         BlockState fillState = fillBlockResolved.defaultBlockState();
         boolean skipFill = fillBlockResolved == Blocks.STRUCTURE_VOID;
 
-        Set<Long> centerPositions = new HashSet<>();
-        List<Long> processPoints = new ArrayList<>();
+        LongOpenHashSet centerPositions = new LongOpenHashSet();
+        LongArrayList processPoints = new LongArrayList();
         PathGeometryUtils.bresenham(from.getX(), from.getZ(), to.getX(), to.getZ(), (cx, cz) -> {
             long key = (long) cx << 32 | (cz & 0xFFFFFFFFL);
             if(cx >= chunkMinX && cx <= chunkMaxX && cz >= chunkMinZ && cz <= chunkMaxZ)
@@ -92,7 +105,9 @@ public final class PathRasteriser {
         int centerEffectiveY = targetY - 1;
         BlockPos.MutableBlockPos mpos = new BlockPos.MutableBlockPos();
 
-        for(long encoded : processPoints) {
+        LongIterator pit = processPoints.iterator();
+        while(pit.hasNext()) {
+            long encoded = pit.nextLong();
             int cx = (int)(encoded >> 32);
             int cz = (int)(encoded & 0xFFFFFFFFL);
             if(random.nextFloat() >= fade) continue;
@@ -208,12 +223,12 @@ public final class PathRasteriser {
         for(PathType.WeightedBlock e : entries) {
             cumulative += e.weight();
             if(roll < cumulative) {
-                Block block = BuiltInRegistries.BLOCK.getOptional(e.block()).orElse(Blocks.DIRT);
+                Block block = resolveBlock(e.block());
                 if(block == Blocks.STRUCTURE_VOID) return Blocks.AIR.defaultBlockState();
                 return block.defaultBlockState();
             }
         }
-        Block fallback = BuiltInRegistries.BLOCK.getOptional(entries.get(0).block()).orElse(Blocks.DIRT);
+        Block fallback = resolveBlock(entries.get(0).block());
         if(fallback == Blocks.STRUCTURE_VOID) return Blocks.AIR.defaultBlockState();
         return fallback.defaultBlockState();
     }

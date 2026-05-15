@@ -19,9 +19,11 @@ import net.minecraft.world.level.levelgen.structure.templatesystem.BlockIgnorePr
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 
+import it.unimi.dsi.fastutil.longs.LongIterator;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 public final class StructurePlacer {
     private StructurePlacer() {}
@@ -29,7 +31,7 @@ public final class StructurePlacer {
     // Min centre-to-centre distance between two placed structures. Squared for cheap compares.
     private static final int MIN_STRUCTURE_SPACING_SQ = 5 * 5;
 
-    public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<PathNetworkType.WeightedRef> structureSetRefs, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, Set<Long> placedPositions) {
+    public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<PathNetworkType.WeightedRef> structureSetRefs, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet placedPositions) {
         for(PathNetworkType.WeightedRef ref : structureSetRefs) {
             MoogsPathsDatapackRegistries.getStructureSet(level.registryAccess(), ref.id()).ifPresent(set ->
                 placeSet(level, waypoints, set, biomes, chunkX, chunkZ, random, placedPositions));
@@ -38,7 +40,7 @@ public final class StructurePlacer {
 
     //////////////////////////////
 
-    private static void placeSet(WorldGenLevel level, List<BlockPos> waypoints, StructureSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, Set<Long> placedPositions) {
+    private static void placeSet(WorldGenLevel level, List<BlockPos> waypoints, StructureSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet placedPositions) {
         if(waypoints.isEmpty()) return;
 
         switch(set.placement()) {
@@ -53,7 +55,7 @@ public final class StructurePlacer {
         }
     }
 
-    private static void placeInterval(WorldGenLevel level, List<BlockPos> waypoints, StructureSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, Set<Long> placedPositions) {
+    private static void placeInterval(WorldGenLevel level, List<BlockPos> waypoints, StructureSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet placedPositions) {
         // Waypoints are block-dense after the pathfinder + chaikin pass, so step distance is
         // approximately 1 block. Measure spacing in blocks directly by counting waypoints.
         int distanceSinceLast = 0;
@@ -85,7 +87,7 @@ public final class StructurePlacer {
         return waypoints.get(index).offset(perpX, 0, perpZ);
     }
 
-    private static void tryPlace(WorldGenLevel level, BlockPos waypoint, StructureSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, Set<Long> placedPositions) {
+    private static void tryPlace(WorldGenLevel level, BlockPos waypoint, StructureSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet placedPositions) {
         StructureSet.StructureEntry entry = pickWeighted(set.structures(), random);
 
         // placement_chance gates the slot rather than rerolling, so a rare entry winning
@@ -98,7 +100,9 @@ public final class StructurePlacer {
 
         if((waypoint.getX() >> 4) != chunkX || (waypoint.getZ() >> 4) != chunkZ) return;
 
-        for(long encoded : placedPositions) {
+        LongIterator pit = placedPositions.iterator();
+        while(pit.hasNext()) {
+            long encoded = pit.nextLong();
             int px = (int) (encoded >> 32);
             int pz = (int) encoded;
             int ddx = waypoint.getX() - px;
