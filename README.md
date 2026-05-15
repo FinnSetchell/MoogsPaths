@@ -1,268 +1,89 @@
-# Moog's Paths
+![header](https://pub-24a4e0e7ea8544a5b6f73c3a23512589.r2.dev/images/d5e8c0f59add420ea9e76f95544c256a.png)
 
-A data-driven path network generator for Minecraft. Paths are defined entirely in datapack JSON, so creating new ones (or replacing the built-in set) does not require any Java code.
+[![Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/D1D8LKA5N)
 
-This README documents how to configure paths. For project setup and the underlying MultiLoader template, see the bottom of this file.
-
-## Concepts
-
-A generated path is built from several layered configs. Understanding which file does what makes the rest of this guide easier.
-
-- **path_type** describes the *appearance and shape* of a single path: which blocks it is built from, how wide it is, how tightly it follows terrain, how long it can be.
-- **path_network** picks a `path_type` and binds it to a list of biomes. It also chooses which decorations (structures, features, bushes) get attached. Networks are what actually generate in the world.
-- **structure_set** is a reusable bundle of NBT structures (lamps, signposts, cairns, shrines) that a network can place along its paths.
-- **feature_decorator_set** is a reusable bundle of vanilla configured features (flowers, dead bushes) scattered alongside paths.
-- **bush_decorator_set** is a reusable bundle of leaf-blob bushes scattered alongside paths.
-
-A network references the path_type and the decorator sets by id, so the same path_type can be reused across multiple networks, and the same structure_set can be shared between networks.
-
-The `moogs_paths:has_no_paths` biome tag is a hard blocklist. Any biome in this tag never generates paths, regardless of network bindings.
-
-## Tutorial: adding a new path
-
-This walks through adding a new "stone trail" path that generates in plains biomes with cobblestone signposts on the side.
+[![Discord](https://img.shields.io/discord/869218732650688543?color=1A6E8A&label=DISCORD&style=for-the-badge)](https://discord.com/invite/S5nffJbuvA)
 
-All files live under `data/<your_namespace>/moogs_paths/`. For this tutorial assume the namespace is `mypack`.
-
-### 1. Define the path_type
-
-`data/mypack/moogs_paths/path_type/stone_trail.json`
-
-```json
-{
-  "surface_blocks": [
-    { "block": "minecraft:cobblestone", "weight": 4 },
-    { "block": "minecraft:mossy_cobblestone", "weight": 1 }
-  ],
-  "edge_blocks": [
-    { "block": "minecraft:gravel", "weight": 1 }
-  ],
-  "fill_block": "minecraft:dirt",
-  "width": { "min": 2, "max": 3 },
-  "rigidness": 0.6,
-  "carver": 0.7,
-  "length": {
-    "type": "minecraft:uniform",
-    "value": { "min_inclusive": 200, "max_inclusive": 500 }
-  },
-  "fade": { "start_blocks": 8, "end_blocks": 8 }
-}
-```
-
-This produces a 2-3 wide cobblestone path with gravel along the edges and a dirt foundation underneath.
-
-### 2. (Optional) Define a structure_set
-
-`data/mypack/moogs_paths/structure_set/stone_signposts.json`
-
-```json
-{
-  "structures": [
-    { "nbt": "mypack:stone_signpost", "rotation": "random", "weight": 1, "offset": [0, 0, 0] }
-  ],
-  "placement": "interval",
-  "spacing": 20,
-  "spacing_variance": 6,
-  "flatness_tolerance": 3
-}
-```
+[![My projects](https://img.shields.io/badge/CurseForge-projects-1A6E8A?style=for-the-badge&logo=curseforge)](https://www.curseforge.com/members/finndog_123/projects)
 
-You will also need to put `stone_signpost.nbt` at `data/mypack/structures/stone_signpost.nbt`.
-
-### 3. Define the path_network
-
-`data/mypack/moogs_paths/path_network/plains_stone_trail.json`
-
-```json
-{
-  "path_type": "mypack:stone_trail",
-  "biomes": [
-    "minecraft:plains",
-    "minecraft:sunflower_plains"
-  ],
-  "weight": 3,
-  "region_size": 48,
-  "structure_sets": [
-    { "id": "mypack:stone_signposts", "weight": 1 }
-  ],
-  "feature_decorator_sets": [],
-  "bush_decorator_sets": []
-}
-```
-
-That is it. Load the datapack and paths will start generating in plains in any newly generated chunks.
-
-## Field reference
-
-### path_type
-
-The visual and structural definition of a path.
-
-| field | type | description |
-|---|---|---|
-| `surface_blocks` | weighted block list | The top layer of the path. One entry is rolled per tile. |
-| `edge_blocks` | weighted block list (optional, default `[]`) | Used for the outermost ring of tiles when defined. If empty, surface_blocks is used everywhere. |
-| `fill_block` | block id | Block placed beneath the surface to fill any gaps below the path tile (so paths sit cleanly on uneven terrain). |
-| `width` | `{ "min": int, "max": int }` | Total path width in blocks. `max` is what actually drives generation today. `min` is parsed but not yet used by the rasteriser. |
-| `rigidness` | float `0.0`–`1.0` | How strictly the path holds its target Y. Higher values make straighter, flatter paths that cut/fill terrain more aggressively. |
-| `carver` | float `0.0`–`1.0` | How willing the path is to dig through obstacles vs route around them. Higher values cut through hills; lower values snake around them. |
-| `length` | IntProvider | Total path length in blocks. Use vanilla IntProvider syntax (`uniform`, `constant`, etc). Bounded `[1, 100000]`. |
-| `fade` | `{ "start_blocks": int, "end_blocks": int }` | Number of blocks at the start/end of the path where placement probability ramps from 0 to full. `0` disables fade on that end. |
-| `water_settings` | object (optional) | If present, paths will bridge water instead of skipping it. See below. |
-
-#### `surface_blocks` / `edge_blocks` entry shape
-
-```json
-{ "block": "minecraft:cobblestone", "weight": 4 }
-```
-
-`minecraft:structure_void` is special: it rolls as "place nothing here", which produces gaps in the path. Mixing structure_void into a surface_blocks list is how the built-in dirt trail produces patchy worn-in paths.
-
-#### `water_settings` shape
-
-```json
-"water_settings": {
-  "surface_blocks": [
-    { "block": "minecraft:oak_planks", "weight": 1 }
-  ],
-  "edge_blocks": [
-    { "block": "minecraft:oak_log", "weight": 1 }
-  ]
-}
-```
-
-Identical schema to the top-level surface/edge blocks but only used over water tiles. `edge_blocks` here is optional too.
-
-#### Practical tuning notes
-
-- `rigidness` and `carver` interact. A high-rigidness, low-carver path will look unnatural in mountainous terrain because it wants to be flat but refuses to dig. A balanced setting is `0.6 / 0.7`.
-- For dense paved roads, set `width.max` to 3 or 4. For thin trails, 1 or 2.
-- `fade` of `8` on each end blends the path edges into the terrain so they do not visually start/stop in midair.
-
-### path_network
-
-Binds a path_type to biomes and decorations. This is what the worldgen actually iterates.
-
-| field | type | description |
-|---|---|---|
-| `path_type` | resource location | The path_type to use. |
-| `biomes` | biome holder set | A single biome id, a list of biome ids, or a `#tag:like_this`. Standard vanilla holderset syntax. Tags from any namespace work, including modded ones (`#c:is_overworld`, `#forge:is_overworld`, mod-specific biome tags), so networks can extend cleanly to modded biomes. |
-| `weight` | int | Relative weight when multiple networks compete for the same biome. Higher = more likely to win. |
-| `region_size` | int | Size of the worldgen region (in chunks) within which the network plans a path. Larger = longer, less frequent paths. Typical range 32–64. |
-| `structure_sets` | weighted ref list (optional) | Structure sets to pull from when decorating. One is picked per placement opportunity. |
-| `feature_decorator_sets` | weighted ref list (optional) | Feature decorator sets used for scattered features. |
-| `bush_decorator_sets` | weighted ref list (optional) | Bush decorator sets used for leaf blobs along the path. |
-
-A weighted ref looks like:
-
-```json
-{ "id": "mypack:stone_signposts", "weight": 1 }
-```
-
-### structure_set
-
-A reusable list of NBT structures with placement rules.
-
-| field | type | description |
-|---|---|---|
-| `structures` | list of structure entries | The actual structures and their per-entry settings. |
-| `placement` | `"endpoint"` or `"interval"` | `endpoint` places one structure at each end of the path. `interval` spreads structures along the entire path at regular distances. |
-| `spacing` | int | For `interval` mode: average distance in blocks between placements. For `endpoint` mode: typically `1`. |
-| `spacing_variance` | int | Random jitter added to `spacing` so placements do not look mechanical. `0` for perfectly regular. |
-| `flatness_tolerance` | int | Maximum Y variance (in blocks) across the structure's footprint that the placement check will accept. Lower = stricter, fewer placements but flatter ground. |
-| `terrain_adjustment` | `"none"` or `"beard_thin"` (optional, default `none`) | If `beard_thin`, the placement carves a small pad under the structure so it sits flush on uneven ground. Use this for structures that need a level base. |
-| `side_offset` | int (optional, default `0`) | Perpendicular distance from the path centerline at which to place the structure. `0` is on the path, positive values push it to the side. |
-
-#### Structure entry shape
-
-```json
-{
-  "nbt": "mypack:my_structure",
-  "rotation": "random",
-  "weight": 2,
-  "offset": [0, 0, 0]
-}
-```
-
-| field | type | description |
-|---|---|---|
-| `nbt` | resource location | NBT structure id, resolved as `data/<namespace>/structures/<path>.nbt`. |
-| `rotation` | enum | `none`, `clockwise_90`, `clockwise_180`, `counterclockwise_90`, or `random`. |
-| `weight` | int | Relative weight when picking from this set. |
-| `offset` | `[x, y, z]` | Offset applied to the placement origin. Useful for nudging a structure off-center or sinking it into the ground. |
-| `placement_chance` | float `0.0`–`1.0` (optional, default `1.0`) | Probability of actually placing this entry when the weight roll picks it. If the roll fails, the placement slot is skipped entirely instead of falling back to another entry, which keeps a rare entry from being silently replaced by common ones. Use this to make large landmark structures show up only once or twice along a path. |
-
-### feature_decorator_set
-
-A bundle of vanilla configured features scattered along the path. Used for things like flowers, ferns, or dead bushes.
-
-| field | type | description |
-|---|---|---|
-| `features` | list of feature entries | The features to roll between. |
-| `density` | float | Per-tile probability of placing a feature. Typical range `0.02`–`0.10`. |
-| `side` | enum | `left`, `right`, `both`, or `center` relative to the path direction. |
-| `scatter_width` | int | How far perpendicular to the path (in blocks) features can scatter. |
-
-#### Feature entry shape
-
-```json
-{ "feature": "minecraft:forest_flowers", "weight": 3 }
-```
-
-`feature` is a configured feature id, not a placed feature.
-
-### bush_decorator_set
-
-Generates blobs of leaf blocks along the path. Used for shrubs and bushes.
-
-| field | type | description |
-|---|---|---|
-| `blocks` | weighted block list | Blocks that make up the bush. Typically leaf blocks. |
-| `density` | float | Per-tile probability of starting a bush. Typical range `0.05`–`0.20`. |
-| `side` | enum | `left`, `right`, `both`, or `center`. |
-| `min_offset` / `max_offset` | int | Perpendicular distance range from the path edge. |
-| `min_size` / `max_size` | int | Size of the bush blob in blocks. |
-| `min_spacing` | int (optional, default `0`) | Minimum spacing between consecutive bushes along the path. |
-| `min_height` / `max_height` | int (optional, default `1` / `2`) | Vertical extent of the bush. |
-
-#### Block entry shape
-
-```json
-{ "block": "minecraft:oak_leaves", "weight": 8 }
-```
-
-### has_no_paths biome tag
-
-`data/moogs_paths/tags/worldgen/biome/has_no_paths.json` is a hard exclusion list. Any biome listed (or a biome from a referenced tag) will never generate paths even if a network claims it.
-
-The mod ships a default `has_no_paths` that excludes oceans, rivers, the void, the deep dark and the lush / dripstone caves. Datapacks can extend it (with `"replace": false`) or replace it outright.
-
-```json
-{
-  "replace": false,
-  "values": [
-    "minecraft:the_void",
-    "#minecraft:is_ocean",
-    "#minecraft:is_river",
-    "minecraft:deep_dark",
-    "minecraft:lush_caves",
-    "minecraft:dripstone_caves"
-  ]
-}
-```
-
-## Commands
-
-Requires permission level 2 (op).
-
-`/paths locate [network]` — teleport-suggest the nearest path origin. With no argument, finds the nearest path of any network. With a network id, finds the nearest path that rolled that network. Click the chat coord to fill `/tp`.
-
-`/paths debug region` — show which path region your position falls inside, for each loaded `region_size`.
-
-`/paths debug networks` — list every loaded `path_network` with its `path_type`, length range, region size, weight, and decorator-set counts.
-
-`/paths debug structures` — list every cached structure NBT and whether it resolved (`ok`) or is missing.
-
-`/paths debug reload` — force a datapack reload and clear runtime caches. Note: `path_type`, `path_network`, `structure_set`, `feature_decorator_set` and `bush_decorator_set` are datapack registries, which on 1.20.1 require a world restart to fully refresh.
+[![My projects](https://img.shields.io/badge/Modrinth-projects-1A6E8A?style=for-the-badge&logo=modrinth)](https://modrinth.com/user/FinnSetchell)
+
+A data-driven path and trail network for Minecraft worldgen. Biome-specific surfaces, scattered landmarks, and roadside decorations bring the overworld to life. Fully configurable through datapacks.
+
+This mod works on Fabric and Forge for Minecraft 1.20.1.
+
+![overview](https://pub-24a4e0e7ea8544a5b6f73c3a23512589.r2.dev/images/46b98148bc4b4e24b53d6b0d780a7c4a.png)
+
+Moog's Paths generates a network of paths, trails and roads across the overworld. Each biome gets its own style of path built from blocks that belong there, lined with decorations that fit the landscape. Paths carve through hills, follow terrain, bridge over water, and fade naturally into the ground at their endpoints.
+
+Everything is defined in JSON. No new items, no crafting recipes. The mod ships a full set of built-in paths, but every path type, network, structure, and decorator can be overridden or extended through datapacks without writing a single line of code.
+
+![paths](https://pub-24a4e0e7ea8544a5b6f73c3a23512589.r2.dev/images/a3ebaaa8a9f74f1684efcfc8a8b118d4.png)
+
+**14 path networks** across every major overworld biome:
+
+*   **Plains Trail** - dirt path with grass, wildflowers and oak bushes alongside
+*   **Dirt Road** - wide coarse dirt road through taiga and dark forest, lined with ferns and spruce bushes
+*   **Cobblestone Road** - mossy cobblestone through forests and savannas with flower borders and signposts
+*   **Brick Road** - polished granite and brick across the general overworld with roadside wildflowers
+*   **Mountain Road** - narrow stone and andesite switchbacks through peaks and slopes
+*   **Sandstone Highway** - wide, long cut sandstone road across deserts with lamps at each end
+*   **Jungle Path** - mossy stone bricks winding under the canopy with shrines and leaf overgrowth
+*   **Badlands Canyon Trail** - red sand and terracotta through mesas with weathered markers
+*   **Snowy Trail** - packed snow and ice with gravel underfoot, cairns and spruce bushes along the route
+*   **Swamp Boardwalk** - dark oak and spruce planks over mud and water with wooden posts
+*   **Cherry Grove Path** - polished diorite and quartz lined with cherry planks, flowers and leaf litter
+*   **Mushroom Trail** - mycelium and podzol through mushroom fields with mushroom scatter
+*   **Windswept Trail** - rugged gravel and cobblestone across exposed windswept terrain
+*   **Wildlands Trail** - a rare fallback dirt trail that can appear in any overworld biome
+
+Each path is decorated with a combination of:
+
+*   **15 NBT structures** - cairns, lamps, signposts, shrines, benches, and markers
+*   **Scattered features** - flowers, ferns, dead bushes, mushrooms, tall grass
+*   **Bush clusters** - spruce, oak, cherry, jungle and azalea leaf blobs alongside the path
+
+![features](https://pub-24a4e0e7ea8544a5b6f73c3a23512589.r2.dev/images/9c90489705864e9b8b5ed564dc536d7d.png)
+
+*   **Biome-aware generation** - paths pick surfaces and decorations that match their biome
+*   **Terrain-following pathfinder** - A* pathfinding on a 4x4 block grid with slope awareness, cliff rejection and configurable rigidness
+*   **Smooth curves** - Chaikin corner-cutting and carver smoothing produce natural-looking paths
+*   **Fade in / fade out** - paths blend into the terrain at their start and end
+*   **Water bridging** - paths can use alternate blocks over water (boardwalk planks, etc.)
+*   **NBT structure placement** - place structures at endpoints or at intervals along the path, with flatness checks and terrain adjustment
+*   **Fully data-driven** - every path type, network, structure set and decorator set is a JSON file that datapacks can override or extend
+
+![datapacks](https://pub-24a4e0e7ea8544a5b6f73c3a23512589.r2.dev/images/833ffe14834e4daea69c0fea20ce1f91.png)
+
+Moog's Paths is built around five custom datapack registries:
+
+*   **path_type** - the visual appearance and shape of a path (blocks, width, curvature, length)
+*   **path_network** - binds a path_type to biomes and attaches decorators
+*   **structure_set** - reusable bundles of NBT structures placed along paths
+*   **feature_decorator_set** - vanilla configured features scattered alongside paths
+*   **bush_decorator_set** - leaf-blob bushes generated beside paths
+
+Add your own paths by dropping JSON files into `data/<namespace>/moogs_paths/`. Override built-in paths by using the `moogs_paths` namespace. Block biomes from generating paths with the `moogs_paths:has_no_paths` biome tag.
+
+Full datapack documentation: [DATAPACK_GUIDE.md](DATAPACK_GUIDE.md)
+
+![modpacks](https://pub-24a4e0e7ea8544a5b6f73c3a23512589.r2.dev/images/e811525bcdb6423f8886ae3f43456c88.png)
+
+Feel free to include this mod in modpacks. No special permission needed.
+
+![support](https://pub-24a4e0e7ea8544a5b6f73c3a23512589.r2.dev/images/53b2ec08d1ad4aafba148a28571cd3e7.png)
+
+The best way to get a reply is to join the Discord server.
+
+*   [Discord](https://discord.gg/S5nffJbuvA)
+*   [GitHub / Issue Tracker](https://github.com/FinnSetchell/MoogsPaths)
+*   [Ko-fi](https://ko-fi.com/finndog)
 
 ---
+
+**CREDITS**
+
+*   FinnDog - author
+*   Phantax - author
+
+![BH promo banner](https://pub-24a4e0e7ea8544a5b6f73c3a23512589.r2.dev/images/0b15a121fb4947bcad4f6fc542f3b9bf.png)
