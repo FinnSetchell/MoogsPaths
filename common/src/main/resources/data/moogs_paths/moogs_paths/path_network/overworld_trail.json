@@ -1,19 +1,10 @@
 {
   "path_type": "moogs_paths:cobblestone_road",
-  "biomes": [
-    "minecraft:forest",
-    "minecraft:flower_forest",
-    "minecraft:birch_forest",
-    "minecraft:dark_forest",
-    "minecraft:savanna",
-    "minecraft:savanna_plateau",
-    "minecraft:taiga",
-    "minecraft:old_growth_pine_taiga"
-  ],
+  "biomes": "#minecraft:is_overworld",
   "weight": 3,
   "region_size": 48,
   "structure_sets": [
-    { "id": "moogs_paths:savanna_posts", "weight": 1 }
+    { "id": "moogs_paths:oak_posts", "weight": 1 }
   ],
   "feature_decorator_sets": [
     { "id": "moogs_paths:forest_flowers_left", "weight": 1 }
