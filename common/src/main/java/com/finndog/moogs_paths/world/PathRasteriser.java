@@ -15,7 +15,9 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.material.PushReaction;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class PathRasteriser {
@@ -54,12 +56,14 @@ public final class PathRasteriser {
             ? scanWaterPositions(level, chunkX, chunkZ, chunkHeights)
             : null;
 
+        Set<Block> pathBlocks = buildPathBlockSet(pathType);
+
         for(int i = 0; i < totalSegments; i++) {
             BlockPos from = waypoints.get(i);
             BlockPos to = waypoints.get(i + 1);
             if(!mightIntersect(from, to, halfWidth, chunkX, chunkZ)) continue;
             float fade = fadeFactor(pathType, i, totalSegments);
-            rasteriseSegmentInChunk(level, from, to, pathType, halfWidth, fade, chunkX, chunkZ, random, waterPositions, chunkHeights);
+            rasteriseSegmentInChunk(level, from, to, pathType, halfWidth, fade, chunkX, chunkZ, random, waterPositions, chunkHeights, pathBlocks);
         }
     }
 
@@ -96,7 +100,7 @@ public final class PathRasteriser {
 
     //////////////////////////////
 
-    private static void rasteriseSegmentInChunk(WorldGenLevel level, BlockPos from, BlockPos to, PathType pathType, int halfWidth, float fade, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet waterPositions, int[] chunkHeights) {
+    private static void rasteriseSegmentInChunk(WorldGenLevel level, BlockPos from, BlockPos to, PathType pathType, int halfWidth, float fade, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet waterPositions, int[] chunkHeights, Set<Block> pathBlocks) {
         int chunkMinX = chunkX * 16;
         int chunkMaxX = chunkMinX + 15;
         int chunkMinZ = chunkZ * 16;
@@ -173,6 +177,7 @@ public final class PathRasteriser {
                         BlockState edgeState = pick(pathType.edgeBlocks(), random);
                         if(!edgeState.isAir()) {
                             level.setBlock(mpos, edgeState, 3);
+                            if(!skipFill) fillBelow(level, mpos, bx, placeY - 1, bz, fillState, MAX_FILL, pathBlocks);
                             didPlace = true;
                         }
                     }
@@ -180,7 +185,7 @@ public final class PathRasteriser {
                         BlockState placement = pick(pathType.surfaceBlocks(), random);
                         if(!placement.isAir()) {
                             level.setBlock(mpos, placement, 3);
-                            if(!skipFill) fillBelow(level, mpos, bx, placeY - 1, bz, fillState, MAX_FILL);
+                            if(!skipFill) fillBelow(level, mpos, bx, placeY - 1, bz, fillState, MAX_FILL, pathBlocks);
                             didPlace = true;
                         }
                     }
@@ -207,11 +212,11 @@ public final class PathRasteriser {
         }
     }
 
-    private static void fillBelow(WorldGenLevel level, BlockPos.MutableBlockPos mpos, int x, int startY, int z, BlockState fillState, int maxFill) {
+    private static void fillBelow(WorldGenLevel level, BlockPos.MutableBlockPos mpos, int x, int startY, int z, BlockState fillState, int maxFill, Set<Block> pathBlocks) {
         for(int depth = 0; depth < maxFill; depth++) {
             mpos.set(x, startY - depth, z);
             BlockState existing = level.getBlockState(mpos);
-            if(existing.isAir()) {
+            if(existing.isAir() || pathBlocks.contains(existing.getBlock())) {
                 level.setBlock(mpos, fillState, 3);
             } else {
                 if(existing.is(Blocks.GRASS_BLOCK) || existing.is(Blocks.MYCELIUM)) {
@@ -220,6 +225,21 @@ public final class PathRasteriser {
                 break;
             }
         }
+    }
+
+    private static Set<Block> buildPathBlockSet(PathType pathType) {
+        Set<Block> set = new HashSet<>();
+        for(PathType.WeightedBlock e : pathType.surfaceBlocks()) {
+            BuiltInRegistries.BLOCK.getOptional(e.block())
+                .filter(b -> b != Blocks.STRUCTURE_VOID)
+                .ifPresent(set::add);
+        }
+        for(PathType.WeightedBlock e : pathType.edgeBlocks()) {
+            BuiltInRegistries.BLOCK.getOptional(e.block())
+                .filter(b -> b != Blocks.STRUCTURE_VOID)
+                .ifPresent(set::add);
+        }
+        return set;
     }
 
     private static float fadeFactor(PathType pathType, int segIdx, int totalSegments) {
