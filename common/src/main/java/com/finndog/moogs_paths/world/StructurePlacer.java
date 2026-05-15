@@ -239,13 +239,15 @@ public final class StructurePlacer {
         template.placeInWorld(level, placementPos, placementPos, settings, level.getRandom(), 3);
     }
 
+    // 9-sample cross instead of 5x5 grid: catches slopes in all 4 cardinal directions
     private static boolean isFlatEnough(WorldGenLevel level, BlockPos center, int tolerance) {
-        int centerY = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, center.getX(), center.getZ());
-        for(int ox = -2; ox <= 2; ox++) {
-            for(int oz = -2; oz <= 2; oz++) {
-                int y = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, center.getX() + ox, center.getZ() + oz);
-                if(Math.abs(y - centerY) > tolerance) return false;
-            }
+        int cx = center.getX(), cz = center.getZ();
+        int centerY = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, cx, cz);
+        for(int r = 1; r <= 2; r++) {
+            if(Math.abs(level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, cx + r, cz) - centerY) > tolerance) return false;
+            if(Math.abs(level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, cx - r, cz) - centerY) > tolerance) return false;
+            if(Math.abs(level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, cx, cz + r) - centerY) > tolerance) return false;
+            if(Math.abs(level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, cx, cz - r) - centerY) > tolerance) return false;
         }
         return true;
     }
