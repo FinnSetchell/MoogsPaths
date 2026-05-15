@@ -22,14 +22,26 @@ public final class PathDataManager {
     // Sized for long sessions without trim-thrashing. ~2M entries at ~8 bytes = ~16MB worst case.
     private static final int REJECTED_CACHE_MAX_SIZE = 2_097_152;
 
-    // bbox lets per-chunk feature placement early-out cheaply for chunks outside the path
-    public record CachedPath(List<BlockPos> waypoints, int minX, int maxX, int minZ, int maxZ) {
+    // bbox lets per-chunk feature placement early-out cheaply for chunks outside the path.
+    // waypoints stored as parallel long[]+int[] primitives to reduce per-entry object overhead;
+    // materialized to List<BlockPos> on demand via waypoints().
+    public record CachedPath(long[] xzPacked, int[] ys, int minX, int maxX, int minZ, int maxZ) {
         public boolean intersectsChunk(int chunkX, int chunkZ) {
             int chunkMinX = chunkX << 4;
             int chunkMaxX = chunkMinX + 15;
             int chunkMinZ = chunkZ << 4;
             int chunkMaxZ = chunkMinZ + 15;
             return maxX >= chunkMinX && minX <= chunkMaxX && maxZ >= chunkMinZ && minZ <= chunkMaxZ;
+        }
+
+        public int waypointCount() { return xzPacked.length; }
+
+        public List<BlockPos> waypoints() {
+            List<BlockPos> result = new ArrayList<>(xzPacked.length);
+            for(int i = 0; i < xzPacked.length; i++) {
+                result.add(new BlockPos((int)(xzPacked[i] >> 32), ys[i], (int)(xzPacked[i])));
+            }
+            return result;
         }
     }
 
@@ -114,20 +126,23 @@ public final class PathDataManager {
     }
 
     private static CachedPath buildCachedPath(List<BlockPos> waypoints) {
+        int n = waypoints.size();
+        long[] xzPacked = new long[n];
+        int[] ys = new int[n];
         int minX = Integer.MAX_VALUE, maxX = Integer.MIN_VALUE;
         int minZ = Integer.MAX_VALUE, maxZ = Integer.MIN_VALUE;
-        for(BlockPos p : waypoints) {
-            int x = p.getX();
-            int z = p.getZ();
+        for(int i = 0; i < n; i++) {
+            BlockPos p = waypoints.get(i);
+            int x = p.getX(), z = p.getZ();
+            xzPacked[i] = ((long) x << 32) | (z & 0xFFFFFFFFL);
+            ys[i] = p.getY();
             if(x < minX) minX = x;
             if(x > maxX) maxX = x;
             if(z < minZ) minZ = z;
             if(z > maxZ) maxZ = z;
         }
-        if(minX == Integer.MAX_VALUE) {
-            minX = maxX = minZ = maxZ = 0;
-        }
-        return new CachedPath(waypoints, minX, maxX, minZ, maxZ);
+        if(n == 0) { minX = maxX = minZ = maxZ = 0; }
+        return new CachedPath(xzPacked, ys, minX, maxX, minZ, maxZ);
     }
 
     private static void trimCache() {

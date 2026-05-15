@@ -52,7 +52,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
     // chunk that visits it. Without this the same origin gets re-sampled maxRadius-many times.
     private static final ConcurrentHashMap<ResourceKey<Level>, ConcurrentHashMap<Long, Holder<Biome>>> ORIGIN_BIOME_CACHE = new ConcurrentHashMap<>();
     private static final int ORIGIN_BIOME_CACHE_SOFT_CAP = 131072;
-    public static final int ORIGIN_BIOME_CELL_SHIFT = 0;
+    public static final int ORIGIN_BIOME_CELL_SHIFT = 1;
 
     public PathChunkFeature(Codec<NoneFeatureConfiguration> codec) {
         super(codec);
@@ -208,8 +208,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
             });
         }
 
-        List<BlockPos> waypoints = cachedPath.waypoints();
-        if(waypoints.size() < 2) {
+        if(cachedPath.waypointCount() < 2) {
             if(fastCached == null) {
                 PathDataManager.markRejected(pathSeed);
                 PathDataManager.addPathCounter(PathCounter.PATH_DROPPED_TOO_SHORT, 1);
