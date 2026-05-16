@@ -1,0 +1,11 @@
+{
+  "structures": [
+    { "nbt": "moogs_paths:snowy_cairn", "rotation": "random", "weight": 3, "offset": [0, 0, 0] }
+  ],
+  "placement": "interval",
+  "spacing": 20,
+  "spacing_variance": 12,
+  "flatness_tolerance": 5,
+  "terrain_adjustment": "beard_thin",
+  "side_offset": 2
+}

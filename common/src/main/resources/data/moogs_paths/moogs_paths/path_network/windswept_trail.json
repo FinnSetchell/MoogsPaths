@@ -1,0 +1,16 @@
+{
+  "path_type": "moogs_paths:windswept_trail",
+  "biomes": [
+    "minecraft:windswept_hills",
+    "minecraft:windswept_gravelly_hills",
+    "minecraft:windswept_forest",
+    "minecraft:windswept_savanna"
+  ],
+  "weight": 4,
+  "region_size": 40,
+  "structure_sets": [
+    { "id": "moogs_paths:simple_andesite_lamp", "weight": 1 }
+  ],
+  "feature_decorator_sets": [],
+  "bush_decorator_sets": []
+}

@@ -1,0 +1,14 @@
+{
+  "path_type": "moogs_paths:cherry_path",
+  "biomes": ["minecraft:cherry_grove"],
+  "weight": 8,
+  "region_size": 28,
+  "structure_sets": [
+    { "id": "moogs_paths:cherry_benches", "weight": 1 }
+  ],
+  "feature_decorator_sets": [
+  ],
+  "bush_decorator_sets": [
+    { "id": "moogs_paths:cherry_leaf_litter", "weight": 1 }
+  ]
+}

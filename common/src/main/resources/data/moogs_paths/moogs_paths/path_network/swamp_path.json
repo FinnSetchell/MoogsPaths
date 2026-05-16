@@ -1,0 +1,16 @@
+{
+  "path_type": "moogs_paths:swamp_boardwalk",
+  "biomes": [
+    "minecraft:swamp",
+    "minecraft:mangrove_swamp"
+  ],
+  "weight": 5,
+  "region_size": 32,
+  "structure_sets": [
+    { "id": "moogs_paths:swamp_posts", "weight": 1 }
+  ],
+  "feature_decorator_sets": [
+    { "id": "moogs_paths:swamp_grass", "weight": 1 }
+  ],
+  "bush_decorator_sets": []
+}
