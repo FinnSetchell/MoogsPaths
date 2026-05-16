@@ -24,8 +24,8 @@ public record PathNetworkType(
     public static final Codec<PathNetworkType> CODEC = RecordCodecBuilder.create(instance -> instance.group(
         ResourceLocation.CODEC.fieldOf("path_type").forGetter(PathNetworkType::pathType),
         RegistryCodecs.homogeneousList(Registries.BIOME).fieldOf("biomes").forGetter(PathNetworkType::biomes),
-        Codec.INT.fieldOf("weight").forGetter(PathNetworkType::weight),
-        Codec.INT.fieldOf("region_size").forGetter(PathNetworkType::regionSize),
+        Codec.intRange(1, Integer.MAX_VALUE).fieldOf("weight").forGetter(PathNetworkType::weight),
+        Codec.intRange(1, Integer.MAX_VALUE).fieldOf("region_size").forGetter(PathNetworkType::regionSize),
         ResourceLocation.CODEC.listOf().optionalFieldOf("structure_sets", List.of()).forGetter(PathNetworkType::structureSets),
         ResourceLocation.CODEC.listOf().optionalFieldOf("feature_decorator_sets", List.of()).forGetter(PathNetworkType::featureDecoratorSets),
         ResourceLocation.CODEC.listOf().optionalFieldOf("bush_decorator_sets", List.of()).forGetter(PathNetworkType::bushDecoratorSets)

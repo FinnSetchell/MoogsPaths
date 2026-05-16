@@ -21,9 +21,9 @@ public record StructureSet(
     public static final Codec<StructureSet> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.list(StructureEntry.CODEC).fieldOf("structures").forGetter(StructureSet::structures),
             PlacementMode.CODEC.fieldOf("placement").forGetter(StructureSet::placement),
-            Codec.INT.fieldOf("spacing").forGetter(StructureSet::spacing),
-            Codec.INT.fieldOf("spacing_variance").forGetter(StructureSet::spacingVariance),
-            Codec.INT.fieldOf("flatness_tolerance").forGetter(StructureSet::flatnessTolerance),
+            Codec.intRange(1, Integer.MAX_VALUE).fieldOf("spacing").forGetter(StructureSet::spacing),
+            Codec.intRange(0, Integer.MAX_VALUE).fieldOf("spacing_variance").forGetter(StructureSet::spacingVariance),
+            Codec.intRange(0,255).fieldOf("flatness_tolerance").forGetter(StructureSet::flatnessTolerance),
             TerrainAdjustmentSetting.CODEC.optionalFieldOf("terrain_adjustment", TerrainAdjustmentSetting.NONE).forGetter(StructureSet::terrainAdjustment),
             Codec.INT.optionalFieldOf("side_offset", 0).forGetter(StructureSet::sideOffset)
     ).apply(instance, StructureSet::new));
@@ -32,7 +32,7 @@ public record StructureSet(
         public static final Codec<StructureEntry> CODEC = RecordCodecBuilder.create(instance -> instance.group(
                 ResourceLocation.CODEC.fieldOf("nbt").forGetter(StructureEntry::nbt),
                 RotationSetting.CODEC.fieldOf("rotation").forGetter(StructureEntry::rotation),
-                Codec.INT.fieldOf("weight").forGetter(StructureEntry::weight),
+                Codec.intRange(1, Integer.MAX_VALUE).fieldOf("weight").forGetter(StructureEntry::weight),
                 Vec3i.CODEC.fieldOf("offset").forGetter(StructureEntry::offset),
                 Codec.floatRange(0.0f, 1.0f).optionalFieldOf("placement_chance", 1.0f).forGetter(StructureEntry::placementChance)
         ).apply(instance, StructureEntry::new));

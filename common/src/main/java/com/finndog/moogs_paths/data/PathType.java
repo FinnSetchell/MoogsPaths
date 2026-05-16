@@ -1,6 +1,7 @@
 package com.finndog.moogs_paths.data;
 
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.valueproviders.IntProvider;
@@ -22,21 +23,27 @@ public record PathType(
     public record WeightedBlock(ResourceLocation block, int weight) {
         public static final Codec<WeightedBlock> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             ResourceLocation.CODEC.fieldOf("block").forGetter(WeightedBlock::block),
-            Codec.INT.fieldOf("weight").forGetter(WeightedBlock::weight)
+            Codec.intRange(1, Integer.MAX_VALUE).fieldOf("weight").forGetter(WeightedBlock::weight)
         ).apply(instance, WeightedBlock::new));
     }
 
     public record WidthRange(int min, int max) {
-        public static final Codec<WidthRange> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-            Codec.INT.fieldOf("min").forGetter(WidthRange::min),
-            Codec.INT.fieldOf("max").forGetter(WidthRange::max)
+        private static final Codec<WidthRange> BASE = RecordCodecBuilder.create(instance -> instance.group(
+            Codec.intRange(0, 32).fieldOf("min").forGetter(WidthRange::min),
+            Codec.intRange(0, 32).fieldOf("max").forGetter(WidthRange::max)
         ).apply(instance, WidthRange::new));
+
+        public static final Codec<WidthRange> CODEC = BASE.flatXmap(
+            wr -> wr.min > wr.max
+                ? DataResult.error(() -> "width.min (" + wr.min + ") must be <= width.max (" + wr.max + ")")
+                : DataResult.success(wr),
+            DataResult::success);
     }
 
     public record FadeSettings(int startBlocks, int endBlocks) {
         public static final Codec<FadeSettings> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-            Codec.INT.fieldOf("start_blocks").forGetter(FadeSettings::startBlocks),
-            Codec.INT.fieldOf("end_blocks").forGetter(FadeSettings::endBlocks)
+            Codec.intRange(0, Integer.MAX_VALUE).fieldOf("start_blocks").forGetter(FadeSettings::startBlocks),
+            Codec.intRange(0, Integer.MAX_VALUE).fieldOf("end_blocks").forGetter(FadeSettings::endBlocks)
         ).apply(instance, FadeSettings::new));
     }
 
@@ -52,8 +59,8 @@ public record PathType(
         Codec.list(WeightedBlock.CODEC).optionalFieldOf("edge_blocks", List.of()).forGetter(PathType::edgeBlocks),
         ResourceLocation.CODEC.fieldOf("fill_block").forGetter(PathType::fillBlock),
         WidthRange.CODEC.fieldOf("width").forGetter(PathType::width),
-        Codec.FLOAT.fieldOf("rigidness").forGetter(PathType::rigidness),
-        Codec.FLOAT.fieldOf("carver").forGetter(PathType::carver),
+        Codec.floatRange(0.0f, 1.0f).fieldOf("rigidness").forGetter(PathType::rigidness),
+        Codec.floatRange(0.0f, 1.0f).fieldOf("carver").forGetter(PathType::carver),
         IntProvider.codec(1, 100_000).fieldOf("length").forGetter(PathType::length),
         FadeSettings.CODEC.fieldOf("fade").forGetter(PathType::fade),
         WaterSettings.CODEC.optionalFieldOf("water_settings").forGetter(PathType::waterSettings)

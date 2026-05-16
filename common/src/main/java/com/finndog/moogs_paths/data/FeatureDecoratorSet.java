@@ -15,9 +15,9 @@ public record FeatureDecoratorSet(
 ) {
     public static final Codec<FeatureDecoratorSet> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             Codec.list(FeatureEntry.CODEC).fieldOf("features").forGetter(FeatureDecoratorSet::features),
-            Codec.FLOAT.fieldOf("density").forGetter(FeatureDecoratorSet::density),
+            Codec.floatRange(0.0f, 1.0f).fieldOf("density").forGetter(FeatureDecoratorSet::density),
             Side.CODEC.fieldOf("side").forGetter(FeatureDecoratorSet::side),
-            Codec.INT.fieldOf("scatter_width").forGetter(FeatureDecoratorSet::scatterWidth)
+            Codec.intRange(0, Integer.MAX_VALUE).fieldOf("scatter_width").forGetter(FeatureDecoratorSet::scatterWidth)
     ).apply(instance, FeatureDecoratorSet::new));
 
     public record FeatureEntry(
@@ -26,7 +26,7 @@ public record FeatureDecoratorSet(
     ) {
         public static final Codec<FeatureEntry> CODEC = RecordCodecBuilder.create(instance -> instance.group(
                 ResourceLocation.CODEC.fieldOf("feature").forGetter(FeatureEntry::feature),
-                Codec.INT.fieldOf("weight").forGetter(FeatureEntry::weight)
+                Codec.intRange(1, Integer.MAX_VALUE).fieldOf("weight").forGetter(FeatureEntry::weight)
         ).apply(instance, FeatureEntry::new));
     }
 
