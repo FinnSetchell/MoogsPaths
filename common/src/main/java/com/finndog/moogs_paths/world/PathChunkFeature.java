@@ -10,15 +10,16 @@ import com.finndog.moogs_paths.debug.PathDebugTimer;
 import com.mojang.serialization.Codec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
+import net.minecraft.core.QuartPos;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.TagKey;
 import net.minecraft.util.RandomSource;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.Level;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.biome.BiomeSource;
+import net.minecraft.world.level.biome.Climate;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.RandomState;
@@ -48,9 +49,9 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
     private static final long FEATURE_MIXER = 0x6C62272E07BB0142L;
     private static final long BUSH_MIXER = 0x3BFDA1C6E09D2578L;
 
-    // Per-dimension cache so each origin's biome is sampled once instead of by every neighbouring
+    // Per-BiomeSource cache so each origin's biome is sampled once instead of by every neighbouring
     // chunk that visits it. Without this the same origin gets re-sampled maxRadius-many times.
-    private static final ConcurrentHashMap<ResourceKey<Level>, ConcurrentHashMap<Long, Holder<Biome>>> ORIGIN_BIOME_CACHE = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<BiomeSource, ConcurrentHashMap<Long, Holder<Biome>>> ORIGIN_BIOME_CACHE = new ConcurrentHashMap<>();
     private static final int ORIGIN_BIOME_CACHE_SOFT_CAP = 131072;
     public static final int ORIGIN_BIOME_CELL_SHIFT = 1;
 
@@ -162,23 +163,23 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
 
         PathDataManager.CachedPath fastCached = PathDataManager.peekCachedPath(pathSeed);
 
+        // BiomeSource.getNoiseBiome is pure noise. serverLevel.getBiome on a remote
+        // origin block forces ServerChunkCache to load that chunk's biome stage, which
+        // schedules onto the worldgen pool and parks the calling thread on a future the
+        // pool itself needs to fulfil - immediate starvation when many remote origins
+        // get enumerated after a teleport.
+        BiomeSource biomeSource = generator.getBiomeSource();
+        Climate.Sampler sampler = randomState.sampler();
+
         if(fastCached == null) {
             PathDebugTimer.stamp(PathDebugTimer.Stage.ORIGIN_BIOME);
-            Holder<Biome> originBiome = getOriginBiome(serverLevel, originChunkX, originChunkZ);
+            Holder<Biome> originBiome = getOriginBiome(biomeSource, sampler, originChunkX, originChunkZ);
             if(originBiome.is(HAS_NO_PATHS) || !network.biomes().contains(originBiome)) {
                 PathDataManager.markRejected(pathSeed);
                 PathDataManager.addPathCounter(PathCounter.ORIGIN_REJECTED_BY_BIOME, 1);
-                Holder<Biome> exactBiome = serverLevel.getBiome(new BlockPos(originBlockX, BIOME_FILTER_Y, originBlockZ));
-                if(!exactBiome.is(HAS_NO_PATHS) && network.biomes().contains(exactBiome)) {
-                    PathDataManager.addPathCounter(PathCounter.ORIGIN_COARSE_FALSE_NEG, 1);
-                }
                 return Optional.empty();
             }
             PathDataManager.addPathCounter(PathCounter.ORIGIN_ACCEPTED, 1);
-            Holder<Biome> exactBiome = serverLevel.getBiome(new BlockPos(originBlockX, BIOME_FILTER_Y, originBlockZ));
-            if(exactBiome.is(HAS_NO_PATHS) || !network.biomes().contains(exactBiome)) {
-                PathDataManager.addPathCounter(PathCounter.ORIGIN_COARSE_FALSE_POS, 1);
-            }
         }
 
         Optional<PathType> pathTypeOpt = MoogsPathsDatapackRegistries.getPathType(serverLevel.registryAccess(), network.pathType());
@@ -196,6 +197,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
             int originSurfaceY = generator.getBaseHeight(originBlockX, originBlockZ, Heightmap.Types.WORLD_SURFACE_WG, serverLevel, randomState);
             BlockPos originPos = new BlockPos(originBlockX, originSurfaceY, originBlockZ);
             PathNetworkType finalNetwork = network;
+            int biomeQuartY = QuartPos.fromBlock(BIOME_FILTER_Y);
             cachedPath = PathDataManager.getOrComputeWaypoints(pathSeed, () -> {
                 PathDataManager.addPathCounter(PathCounter.PATH_ACTUALLY_COMPUTED, 1);
                 RandomSource walkRandom = RandomSource.create(pathSeed ^ WALK_MIXER);
@@ -203,7 +205,8 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                     (x, z) -> generator.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, serverLevel, randomState),
                     (gx, gz) -> {
                         PathDataManager.recordBiomeCall(com.finndog.moogs_paths.data.BiomeCallSite.PATHFINDER_GOAL_CHECK);
-                        return finalNetwork.biomes().contains(serverLevel.getBiome(new BlockPos(gx, BIOME_FILTER_Y, gz)));
+                        return finalNetwork.biomes().contains(biomeSource.getNoiseBiome(
+                            QuartPos.fromBlock(gx), biomeQuartY, QuartPos.fromBlock(gz), sampler));
                     });
             });
         }
@@ -219,9 +222,8 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
         return Optional.of(new EvaluatedOrigin(network, pathType, pathSeed, cachedPath));
     }
 
-    private static Holder<Biome> getOriginBiome(ServerLevel serverLevel, int originChunkX, int originChunkZ) {
-        ResourceKey<Level> dimKey = serverLevel.dimension();
-        ConcurrentHashMap<Long, Holder<Biome>> cache = ORIGIN_BIOME_CACHE.computeIfAbsent(dimKey, k -> new ConcurrentHashMap<>());
+    private static Holder<Biome> getOriginBiome(BiomeSource biomeSource, Climate.Sampler sampler, int originChunkX, int originChunkZ) {
+        ConcurrentHashMap<Long, Holder<Biome>> cache = ORIGIN_BIOME_CACHE.computeIfAbsent(biomeSource, k -> new ConcurrentHashMap<>());
         int cellX = originChunkX >> ORIGIN_BIOME_CELL_SHIFT;
         int cellZ = originChunkZ >> ORIGIN_BIOME_CELL_SHIFT;
         long key = ((long) cellX << 32) | (cellZ & 0xFFFFFFFFL);
@@ -233,7 +235,11 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
         int sampleBlockX = (sampleChunkX << 4) + 8;
         int sampleBlockZ = (sampleChunkZ << 4) + 8;
         PathDataManager.recordBiomeCall(com.finndog.moogs_paths.data.BiomeCallSite.ORIGIN_FILTER_MISS);
-        Holder<Biome> fresh = serverLevel.getBiome(new BlockPos(sampleBlockX, BIOME_FILTER_Y, sampleBlockZ));
+        Holder<Biome> fresh = biomeSource.getNoiseBiome(
+            QuartPos.fromBlock(sampleBlockX),
+            QuartPos.fromBlock(BIOME_FILTER_Y),
+            QuartPos.fromBlock(sampleBlockZ),
+            sampler);
         cache.put(key, fresh);
         if(cache.size() > ORIGIN_BIOME_CACHE_SOFT_CAP) trimOriginBiomeCache(cache);
         return fresh;
