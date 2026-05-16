@@ -6,7 +6,7 @@
     "minecraft:wooded_badlands"
   ],
   "weight": 4,
-  "region_size": 24,
+  "region_size": 16,
   "structure_sets": [
     "moogs_paths:badlands_markers"
   ],

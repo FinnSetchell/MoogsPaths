@@ -2,7 +2,7 @@
   "path_type": "moogs_paths:mushroom_trail",
   "biomes": ["minecraft:mushroom_fields"],
   "weight": 6,
-  "region_size": 24,
+  "region_size": 16,
   "structure_sets": [
     "moogs_paths:mushroom_shrines"
   ],

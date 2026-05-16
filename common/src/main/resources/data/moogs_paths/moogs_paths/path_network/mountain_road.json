@@ -2,7 +2,7 @@
   "path_type": "moogs_paths:mountain_road",
   "biomes": "#minecraft:is_mountain",
   "weight": 7,
-  "region_size": 16,
+  "region_size": 12,
   "structure_sets": [
     "moogs_paths:simple_andesite_lamp"
   ],

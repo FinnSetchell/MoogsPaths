@@ -49,7 +49,8 @@ public final class PathRasteriser {
 
     public static void rasteriseInChunk(WorldGenLevel level, List<BlockPos> waypoints, PathType pathType, int chunkX, int chunkZ, RandomSource random) {
         if(waypoints.size() < 2) return;
-        int halfWidth = pathType.width().max() / 2;
+        int halfWidthMin = pathType.width().min() / 2;
+        int halfWidthMax = pathType.width().max() / 2;
         int totalSegments = waypoints.size() - 1;
 
         // Snapshot terrain heights before any segment runs so later segments see the pre-mutation
@@ -67,9 +68,14 @@ public final class PathRasteriser {
         for(int i = 0; i < totalSegments; i++) {
             BlockPos from = waypoints.get(i);
             BlockPos to = waypoints.get(i + 1);
-            if(!mightIntersect(from, to, halfWidth, chunkX, chunkZ)) continue;
+            // bbox uses the worst-case width so a segment that tapers wider partway across the
+            // chunk boundary still gets considered
+            if(!mightIntersect(from, to, halfWidthMax, chunkX, chunkZ)) continue;
             float fade = fadeFactor(pathType, i, totalSegments);
-            rasteriseSegmentInChunk(level, from, to, pathType, halfWidth, fade, chunkX, chunkZ, random, waterPositions, chunkHeights, pathBlocks);
+            // taper the width with fade so the path narrows to width.min near endpoints; sits
+            // alongside the existing density taper that drops blocks probabilistically
+            int segHalfWidth = halfWidthMin + Math.round((halfWidthMax - halfWidthMin) * fade);
+            rasteriseSegmentInChunk(level, from, to, pathType, segHalfWidth, fade, chunkX, chunkZ, random, waterPositions, chunkHeights, pathBlocks);
         }
     }
 

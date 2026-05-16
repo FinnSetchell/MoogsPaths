@@ -2,7 +2,7 @@
   "path_type": "moogs_paths:mossy_jungle",
   "biomes": "#minecraft:is_jungle",
   "weight": 6,
-  "region_size": 28,
+  "region_size": 20,
   "structure_sets": [
     "moogs_paths:jungle_branch_shrines"
   ],

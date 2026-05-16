@@ -28,7 +28,9 @@ import java.util.Optional;
 public final class StructurePlacer {
     private StructurePlacer() {}
 
-    // Min centre-to-centre distance between two placed structures. Squared for cheap compares.
+    // Cross-set minimum distance between any two placed structures in a chunk. Distinct from
+    // StructureSet.spacing which is the interval inside a single INTERVAL-mode set; this stops
+    // overlapping path networks from doubling up on the same waypoint.
     private static final int MIN_STRUCTURE_SPACING_SQ = 5 * 5;
 
     public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<ResourceLocation> structureSetIds, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet placedPositions) {
