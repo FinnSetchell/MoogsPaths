@@ -7,20 +7,17 @@
     { "block": "minecraft:structure_void", "weight": 2 }
   ],
   "edge_blocks": [
-    { "block": "minecraft:coarse_dirt", "weight": 1 },
-    { "block": "minecraft:packed_mud", "weight": 1 },
-    { "block": "minecraft:structure_void", "weight": 7 }
   ],
   "fill_block": "minecraft:sandstone",
   "width": {
     "min": 3,
     "max": 4
   },
-  "rigidness": 0.3,
+  "rigidness": 0.2,
   "carver": 0.7,
   "length": {
     "type": "minecraft:uniform",
-    "value": { "min_inclusive": 800, "max_inclusive": 1800 }
+    "value": { "min_inclusive": 600, "max_inclusive": 1000 }
   },
   "fade": {
     "start_blocks": 15,
