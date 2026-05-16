@@ -1,5 +1,5 @@
 {
-  "path_type": "moogs_paths:sandstone_highway",
+  "path_type": "moogs_paths:desert_highway",
   "biomes": "minecraft:desert",
   "weight": 5,
   "region_size": 28,

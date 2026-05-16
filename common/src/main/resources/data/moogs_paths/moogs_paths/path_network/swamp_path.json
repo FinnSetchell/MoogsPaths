@@ -1,5 +1,5 @@
 {
-  "path_type": "moogs_paths:swamp_boardwalk",
+  "path_type": "moogs_paths:swamp_path",
   "biomes": [
     "minecraft:swamp",
     "minecraft:mangrove_swamp"
