@@ -216,8 +216,8 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                     (x, z) -> generator.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, serverLevel, randomState),
                     (gx, gz) -> {
                         PathDataManager.recordBiomeCall(com.finndog.moogs_paths.data.BiomeCallSite.PATHFINDER_GOAL_CHECK);
-                        return network.biomes().contains(biomeSource.getNoiseBiome(
-                            QuartPos.fromBlock(gx), biomeQuartY, QuartPos.fromBlock(gz), sampler));
+                        Holder<Biome> b = biomeSource.getNoiseBiome(QuartPos.fromBlock(gx), biomeQuartY, QuartPos.fromBlock(gz), sampler);
+                        return network.biomes().contains(b) && !b.is(HAS_NO_PATHS);
                     });
             });
         }

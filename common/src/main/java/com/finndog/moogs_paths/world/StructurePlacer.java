@@ -126,7 +126,8 @@ public final class StructurePlacer {
         BlockPos pos = new BlockPos(waypoint.getX(), surfaceY - 1, waypoint.getZ());
 
         PathDataManager.recordBiomeCall(com.finndog.moogs_paths.data.BiomeCallSite.STRUCTURE_PLACE_CHECK);
-        if(!biomes.contains(level.getBiome(pos))) return;
+        var biome = level.getBiome(pos);
+        if(!biomes.contains(biome) || biome.is(PathChunkFeature.HAS_NO_PATHS)) return;
         if(!isFlatEnough(level, pos, set.flatnessTolerance())) return;
 
         if(footprintOverWater(level, template, pos, entry.offset(), rotation)) return;

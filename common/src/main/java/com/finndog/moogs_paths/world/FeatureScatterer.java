@@ -59,7 +59,8 @@ public final class FeatureScatterer {
         if(sy <= level.getMinBuildHeight()) return;
         BlockPos pos = new BlockPos(bx, sy, bz);
         PathDataManager.recordBiomeCall(com.finndog.moogs_paths.data.BiomeCallSite.FEATURE_PLACE_CHECK);
-        if(!biomes.contains(level.getBiome(pos))) return;
+        var biome = level.getBiome(pos);
+        if(!biomes.contains(biome) || biome.is(PathChunkFeature.HAS_NO_PATHS)) return;
         feature.place(level, generator, random, pos);
     }
 
