@@ -114,16 +114,23 @@ public final class PathsDebugCommand {
         for(OriginCandidate candidate : candidates) {
             if(verified >= MAX_LOCATE_VERIFY) break;
 
+            long pathSeed = worldSeed
+                ^ ((long) candidate.originChunkX() * PathChunkFeature.ORIGIN_X_MULT)
+                ^ ((long) candidate.originChunkZ() * PathChunkFeature.ORIGIN_Z_MULT)
+                ^ ((long) candidate.regionSize() * PathChunkFeature.ORIGIN_REGION_SIZE_MULT)
+                ^ PathChunkFeature.PATH_SEED_MIXER;
+
             if(networkFilter != null) {
-                long pathSeed = worldSeed
-                    ^ ((long) candidate.originChunkX() * PathChunkFeature.ORIGIN_X_MULT)
-                    ^ ((long) candidate.originChunkZ() * PathChunkFeature.ORIGIN_Z_MULT)
-                    ^ ((long) candidate.regionSize() * PathChunkFeature.ORIGIN_REGION_SIZE_MULT)
-                    ^ PathChunkFeature.PATH_SEED_MIXER;
-                PathNetworkType expectedNetwork = PathNetworkType.pickWeighted(candidate.networks(), RandomSource.create(pathSeed));
-                ResourceLocation expectedId = registry.getResourceKey(expectedNetwork).map(ResourceKey::location).orElse(null);
+                Optional<PathNetworkType> selected = PathChunkFeature.selectNetworkAt(
+                    generator, randomState, candidate.originChunkX(), candidate.originChunkZ(), pathSeed, candidate.networks());
+                if(selected.isEmpty()) continue;
+                ResourceLocation expectedId = registry.getResourceKey(selected.get()).map(ResourceKey::location).orElse(null);
                 if(!networkFilter.equals(expectedId)) continue;
             }
+
+            // already-rejected origins are free to skip - biome/pathfinder already determined they
+            // can't produce a path here, so they would just return empty from evaluateOrigin anyway
+            if(PathDataManager.isRejected(pathSeed)) continue;
 
             verified++;
 
@@ -133,6 +140,11 @@ public final class PathsDebugCommand {
             if(result.isEmpty()) continue;
 
             PathChunkFeature.EvaluatedOrigin ev = result.get();
+
+            if(networkFilter != null) {
+                ResourceLocation id = registry.getResourceKey(ev.network()).map(ResourceKey::location).orElse(null);
+                if(!networkFilter.equals(id)) continue;
+            }
 
             List<BlockPos> waypoints = ev.cachedPath().waypoints();
             BlockPos nearestWp = waypoints.stream()

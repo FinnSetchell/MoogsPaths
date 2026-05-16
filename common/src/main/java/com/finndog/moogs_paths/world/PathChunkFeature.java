@@ -140,6 +140,25 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
 
     public record EvaluatedOrigin(PathNetworkType network, PathType pathType, long pathSeed, PathDataManager.CachedPath cachedPath) {}
 
+    // Single source of truth for "which network does this origin route to?" - used by both
+    // worldgen (inside evaluateOrigin) and /locate's pre-filter. Keeping the biome-filter +
+    // weighted-pick step in one place prevents the two callers from drifting apart and
+    // returning different networks for the same origin.
+    public static Optional<PathNetworkType> selectNetworkAt(
+        ChunkGenerator generator, RandomState randomState,
+        int originChunkX, int originChunkZ, long pathSeed,
+        List<PathNetworkType> networksInGroup
+    ) {
+        Holder<Biome> originBiome = getOriginBiome(generator.getBiomeSource(), randomState.sampler(), originChunkX, originChunkZ);
+        if(originBiome.is(HAS_NO_PATHS)) return Optional.empty();
+        List<PathNetworkType> eligible = new ArrayList<>(networksInGroup.size());
+        for(PathNetworkType n : networksInGroup) {
+            if(n.biomes().contains(originBiome)) eligible.add(n);
+        }
+        if(eligible.isEmpty()) return Optional.empty();
+        return Optional.of(PathNetworkType.pickWeighted(eligible, RandomSource.create(pathSeed)));
+    }
+
     public static Optional<EvaluatedOrigin> evaluateOrigin(
         ServerLevel serverLevel, ChunkGenerator generator, RandomState randomState,
         long worldSeed, int originChunkX, int originChunkZ, int regionSize,
@@ -159,30 +178,16 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
             return Optional.empty();
         }
 
-        // BiomeSource.getNoiseBiome is pure noise - safe to call without loading chunks.
+        PathDebugTimer.stamp(PathDebugTimer.Stage.ORIGIN_BIOME);
+        Optional<PathNetworkType> selected = selectNetworkAt(generator, randomState, originChunkX, originChunkZ, pathSeed, networksInGroup);
+        if(selected.isEmpty()) {
+            PathDataManager.markRejected(pathSeed);
+            PathDataManager.addPathCounter(PathCounter.ORIGIN_REJECTED_BY_BIOME, 1);
+            return Optional.empty();
+        }
+        PathNetworkType network = selected.get();
         BiomeSource biomeSource = generator.getBiomeSource();
         Climate.Sampler sampler = randomState.sampler();
-
-        PathDebugTimer.stamp(PathDebugTimer.Stage.ORIGIN_BIOME);
-        Holder<Biome> originBiome = getOriginBiome(biomeSource, sampler, originChunkX, originChunkZ);
-        if(originBiome.is(HAS_NO_PATHS)) {
-            PathDataManager.markRejected(pathSeed);
-            PathDataManager.addPathCounter(PathCounter.ORIGIN_REJECTED_BY_BIOME, 1);
-            return Optional.empty();
-        }
-
-        List<PathNetworkType> eligible = new ArrayList<>(networksInGroup.size());
-        for(PathNetworkType n : networksInGroup) {
-            if(n.biomes().contains(originBiome)) eligible.add(n);
-        }
-        if(eligible.isEmpty()) {
-            PathDataManager.markRejected(pathSeed);
-            PathDataManager.addPathCounter(PathCounter.ORIGIN_REJECTED_BY_BIOME, 1);
-            return Optional.empty();
-        }
-
-        RandomSource pickRandom = RandomSource.create(pathSeed);
-        PathNetworkType network = PathNetworkType.pickWeighted(eligible, pickRandom);
 
         PathDataManager.CachedPath fastCached = PathDataManager.peekCachedPath(pathSeed);
         if(fastCached == null) {
