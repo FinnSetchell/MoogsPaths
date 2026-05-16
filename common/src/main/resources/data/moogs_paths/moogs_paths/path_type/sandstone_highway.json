@@ -13,7 +13,7 @@
     "min": 3,
     "max": 4
   },
-  "rigidness": 0.2,
+  "rigidness": 0.3,
   "carver": 0.7,
   "length": {
     "type": "minecraft:uniform",
