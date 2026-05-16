@@ -4,10 +4,14 @@
   "weight": 6,
   "region_size": 16,
   "structure_sets": [
-    "moogs_paths:mushroom_shrines"
+    "moogs_paths:mushroom_shrines",
+    "moogs_paths:mushroom_decorations",
+    "moogs_paths:candles"
   ],
   "feature_decorator_sets": [
     "moogs_paths:mushroom_scatter"
   ],
-  "bush_decorator_sets": []
+  "bush_decorator_sets": [
+    "moogs_paths:mushrooms"
+  ]
 }
