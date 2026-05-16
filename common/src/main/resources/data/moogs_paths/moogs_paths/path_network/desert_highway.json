@@ -2,7 +2,7 @@
   "path_type": "moogs_paths:sandstone_highway",
   "biomes": "minecraft:desert",
   "weight": 5,
-  "region_size": 40,
+  "region_size": 28,
   "structure_sets": [
     "moogs_paths:desert_lamps",
     "moogs_paths:birch_decorations"

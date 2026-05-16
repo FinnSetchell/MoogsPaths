@@ -2,7 +2,7 @@
   "path_type": "moogs_paths:cobblestone_road",
   "biomes": "#minecraft:is_overworld",
   "weight": 3,
-  "region_size": 48,
+  "region_size": 32,
   "structure_sets": [
     "moogs_paths:oak_posts"
   ],

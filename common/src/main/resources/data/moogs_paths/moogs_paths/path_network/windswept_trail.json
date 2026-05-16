@@ -7,7 +7,7 @@
     "minecraft:windswept_savanna"
   ],
   "weight": 4,
-  "region_size": 40,
+  "region_size": 28,
   "structure_sets": [
     "moogs_paths:simple_andesite_lamp"
   ],

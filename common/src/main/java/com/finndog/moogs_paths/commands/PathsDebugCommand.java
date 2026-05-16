@@ -120,7 +120,7 @@ public final class PathsDebugCommand {
                     ^ ((long) candidate.originChunkZ() * PathChunkFeature.ORIGIN_Z_MULT)
                     ^ ((long) candidate.regionSize() * PathChunkFeature.ORIGIN_REGION_SIZE_MULT)
                     ^ PathChunkFeature.PATH_SEED_MIXER;
-                PathNetworkType expectedNetwork = pickWeighted(candidate.networks(), RandomSource.create(pathSeed));
+                PathNetworkType expectedNetwork = PathNetworkType.pickWeighted(candidate.networks(), RandomSource.create(pathSeed));
                 ResourceLocation expectedId = registry.getResourceKey(expectedNetwork).map(ResourceKey::location).orElse(null);
                 if(!networkFilter.equals(expectedId)) continue;
             }
@@ -235,18 +235,6 @@ public final class PathsDebugCommand {
             src.sendSuccess(() -> Component.literal("  " + id + " [" + state + "]"), false);
         });
         return 1;
-    }
-
-    private static PathNetworkType pickWeighted(List<PathNetworkType> eligible, RandomSource random) {
-        int total = 0;
-        for(PathNetworkType n : eligible) total += n.weight();
-        int roll = random.nextInt(Math.max(1, total));
-        int cumulative = 0;
-        for(PathNetworkType n : eligible) {
-            cumulative += n.weight();
-            if(roll < cumulative) return n;
-        }
-        return eligible.get(0);
     }
 
     private static int debugReload(CommandSourceStack src) {

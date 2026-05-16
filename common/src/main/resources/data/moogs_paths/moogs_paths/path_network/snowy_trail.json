@@ -7,7 +7,7 @@
     "minecraft:snowy_beach"
   ],
   "weight": 6,
-  "region_size": 36,
+  "region_size": 24,
   "structure_sets": [
     "moogs_paths:snowy_cairns"
   ],
