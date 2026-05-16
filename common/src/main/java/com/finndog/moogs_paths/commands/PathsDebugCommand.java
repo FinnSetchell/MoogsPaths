@@ -20,6 +20,7 @@ import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
@@ -84,7 +85,7 @@ public final class PathsDebugCommand {
         int playerBZ = (int) player.getZ();
         int chunkX = playerBX >> 4;
         int chunkZ = playerBZ >> 4;
-        int searchRadius = 100000;
+        int searchRadius = 10000;
 
         ChunkGenerator generator = serverLevel.getChunkSource().getGenerator();
         RandomState randomState = serverLevel.getChunkSource().randomState();
@@ -112,6 +113,18 @@ public final class PathsDebugCommand {
         int verified = 0;
         for(OriginCandidate candidate : candidates) {
             if(verified >= MAX_LOCATE_VERIFY) break;
+
+            if(networkFilter != null) {
+                long pathSeed = worldSeed
+                    ^ ((long) candidate.originChunkX() * PathChunkFeature.ORIGIN_X_MULT)
+                    ^ ((long) candidate.originChunkZ() * PathChunkFeature.ORIGIN_Z_MULT)
+                    ^ ((long) candidate.regionSize() * PathChunkFeature.ORIGIN_REGION_SIZE_MULT)
+                    ^ PathChunkFeature.PATH_SEED_MIXER;
+                PathNetworkType expectedNetwork = pickWeighted(candidate.networks(), RandomSource.create(pathSeed));
+                ResourceLocation expectedId = registry.getResourceKey(expectedNetwork).map(ResourceKey::location).orElse(null);
+                if(!networkFilter.equals(expectedId)) continue;
+            }
+
             verified++;
 
             Optional<PathChunkFeature.EvaluatedOrigin> result = PathChunkFeature.evaluateOrigin(
@@ -120,11 +133,6 @@ public final class PathsDebugCommand {
             if(result.isEmpty()) continue;
 
             PathChunkFeature.EvaluatedOrigin ev = result.get();
-
-            if(networkFilter != null) {
-                ResourceLocation id = registry.getResourceKey(ev.network()).map(ResourceKey::location).orElse(null);
-                if(!networkFilter.equals(id)) continue;
-            }
 
             List<BlockPos> waypoints = ev.cachedPath().waypoints();
             BlockPos nearestWp = waypoints.stream()
@@ -226,6 +234,18 @@ public final class PathsDebugCommand {
             src.sendSuccess(() -> Component.literal("  " + id + " [" + state + "]"), false);
         });
         return 1;
+    }
+
+    private static PathNetworkType pickWeighted(List<PathNetworkType> eligible, RandomSource random) {
+        int total = 0;
+        for(PathNetworkType n : eligible) total += n.weight();
+        int roll = random.nextInt(Math.max(1, total));
+        int cumulative = 0;
+        for(PathNetworkType n : eligible) {
+            cumulative += n.weight();
+            if(roll < cumulative) return n;
+        }
+        return eligible.get(0);
     }
 
     private static int debugReload(CommandSourceStack src) {
