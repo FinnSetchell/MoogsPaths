@@ -4,11 +4,10 @@
   "weight": 8,
   "region_size": 28,
   "structure_sets": [
-    { "id": "moogs_paths:cherry_benches", "weight": 1 }
+    "moogs_paths:cherry_benches"
   ],
-  "feature_decorator_sets": [
-  ],
+  "feature_decorator_sets": [],
   "bush_decorator_sets": [
-    { "id": "moogs_paths:cherry_leaf_litter", "weight": 1 }
+    "moogs_paths:cherry_leaf_litter"
   ]
 }

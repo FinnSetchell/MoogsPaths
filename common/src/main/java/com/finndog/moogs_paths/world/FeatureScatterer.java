@@ -4,7 +4,6 @@ import com.finndog.moogs_paths.Constants;
 import com.finndog.moogs_paths.data.FeatureDecoratorSet;
 import com.finndog.moogs_paths.data.MoogsPathsDatapackRegistries;
 import com.finndog.moogs_paths.data.PathDataManager;
-import com.finndog.moogs_paths.data.PathNetworkType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.Registry;
@@ -24,11 +23,11 @@ public final class FeatureScatterer {
 
     private static final Set<ResourceLocation> WARNED_MISSING = Collections.synchronizedSet(new HashSet<>());
 
-    public static void scatterInChunk(WorldGenLevel level, ChunkGenerator generator, List<BlockPos> waypoints, List<PathNetworkType.WeightedRef> decoratorSetRefs, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random) {
+    public static void scatterInChunk(WorldGenLevel level, ChunkGenerator generator, List<BlockPos> waypoints, List<ResourceLocation> decoratorSetIds, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random) {
         Registry<ConfiguredFeature<?, ?>> featureRegistry = level.registryAccess().registryOrThrow(Registries.CONFIGURED_FEATURE);
 
-        for(PathNetworkType.WeightedRef ref : decoratorSetRefs) {
-            MoogsPathsDatapackRegistries.getFeatureDecoratorSet(level.registryAccess(), ref.id()).ifPresent(set ->
+        for(ResourceLocation id : decoratorSetIds) {
+            MoogsPathsDatapackRegistries.getFeatureDecoratorSet(level.registryAccess(), id).ifPresent(set ->
                 scatterSet(level, generator, featureRegistry, waypoints, set, biomes, chunkX, chunkZ, random));
         }
     }

@@ -2,11 +2,11 @@ package com.finndog.moogs_paths.world;
 
 import com.finndog.moogs_paths.data.MoogsPathsDatapackRegistries;
 import com.finndog.moogs_paths.data.PathDataManager;
-import com.finndog.moogs_paths.data.PathNetworkType;
 import com.finndog.moogs_paths.data.StructureSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.Vec3i;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
@@ -31,10 +31,14 @@ public final class StructurePlacer {
     // Min centre-to-centre distance between two placed structures. Squared for cheap compares.
     private static final int MIN_STRUCTURE_SPACING_SQ = 5 * 5;
 
-    public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<PathNetworkType.WeightedRef> structureSetRefs, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet placedPositions) {
-        for(PathNetworkType.WeightedRef ref : structureSetRefs) {
-            MoogsPathsDatapackRegistries.getStructureSet(level.registryAccess(), ref.id()).ifPresent(set ->
-                placeSet(level, waypoints, set, biomes, chunkX, chunkZ, random, placedPositions));
+    public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<ResourceLocation> structureSetIds, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet placedPositions) {
+        for(ResourceLocation id : structureSetIds) {
+            Optional<StructureSet> set = MoogsPathsDatapackRegistries.getStructureSet(level.registryAccess(), id);
+            if(set.isEmpty()) {
+                PathDataManager.warnMissingOnce("Structure set", id);
+                continue;
+            }
+            placeSet(level, waypoints, set.get(), biomes, chunkX, chunkZ, random, placedPositions);
         }
     }
 

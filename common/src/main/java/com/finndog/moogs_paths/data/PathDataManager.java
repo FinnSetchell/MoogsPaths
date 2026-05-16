@@ -93,6 +93,18 @@ public final class PathDataManager {
 
     //////////////////////////////
 
+    // dedupe key is category+id so the same id missing as different kinds of resource
+    // still gets one warning each
+    private static final Set<String> WARNED_MISSING = ConcurrentHashMap.newKeySet();
+
+    public static void warnMissingOnce(String category, ResourceLocation id) {
+        if(WARNED_MISSING.add(category + ":" + id)) {
+            Constants.LOG.warn("{} not found: {}", category, id);
+        }
+    }
+
+    //////////////////////////////
+
     public static Optional<StructureTemplate> getCachedTemplate(ResourceLocation id) {
         StructureTemplateManager mgr = templateManager;
         if(mgr == null) return Optional.empty();

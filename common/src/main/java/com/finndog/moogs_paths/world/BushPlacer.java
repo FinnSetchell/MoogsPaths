@@ -3,7 +3,6 @@ package com.finndog.moogs_paths.world;
 import com.finndog.moogs_paths.data.BushDecoratorSet;
 import com.finndog.moogs_paths.data.MoogsPathsDatapackRegistries;
 import com.finndog.moogs_paths.data.PathDataManager;
-import com.finndog.moogs_paths.data.PathNetworkType;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -28,8 +27,12 @@ public final class BushPlacer {
 
     private static BlockState resolveState(ResourceLocation id) {
         return RESOLVED_STATES.computeIfAbsent(id, key -> {
-            BlockState state = BuiltInRegistries.BLOCK.getOptional(key)
-                .orElse(Blocks.OAK_LEAVES).defaultBlockState();
+            Block block = BuiltInRegistries.BLOCK.getOptional(key).orElse(null);
+            if(block == null) {
+                PathDataManager.warnMissingOnce("Bush block", key);
+                block = Blocks.OAK_LEAVES;
+            }
+            BlockState state = block.defaultBlockState();
             if(state.hasProperty(LeavesBlock.PERSISTENT)) {
                 state = state.setValue(LeavesBlock.PERSISTENT, true);
             }
@@ -43,10 +46,14 @@ public final class BushPlacer {
 
     //////////////////////////////
 
-    public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<PathNetworkType.WeightedRef> bushSetRefs, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random) {
-        for(PathNetworkType.WeightedRef ref : bushSetRefs) {
-            MoogsPathsDatapackRegistries.getBushDecoratorSet(level.registryAccess(), ref.id()).ifPresent(set ->
-                placeSet(level, waypoints, set, biomes, chunkX, chunkZ, random));
+    public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<ResourceLocation> bushSetIds, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random) {
+        for(ResourceLocation id : bushSetIds) {
+            var set = MoogsPathsDatapackRegistries.getBushDecoratorSet(level.registryAccess(), id);
+            if(set.isEmpty()) {
+                PathDataManager.warnMissingOnce("Bush decorator set", id);
+                continue;
+            }
+            placeSet(level, waypoints, set.get(), biomes, chunkX, chunkZ, random);
         }
     }
 

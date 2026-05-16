@@ -8,12 +8,12 @@
   "weight": 8,
   "region_size": 32,
   "structure_sets": [
-    { "id": "moogs_paths:overworld_cairns", "weight": 1 }
+    "moogs_paths:overworld_cairns"
   ],
   "feature_decorator_sets": [
-    { "id": "moogs_paths:plains_grass_both", "weight": 1 }
+    "moogs_paths:plains_grass_both"
   ],
   "bush_decorator_sets": [
-    { "id": "moogs_paths:plains_bushes", "weight": 1 }
+    "moogs_paths:plains_bushes"
   ]
 }

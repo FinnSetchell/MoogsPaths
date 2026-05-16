@@ -4,7 +4,7 @@
   "weight": 7,
   "region_size": 16,
   "structure_sets": [
-    { "id": "moogs_paths:simple_andesite_lamp", "weight": 1 }
+    "moogs_paths:simple_andesite_lamp"
   ],
   "feature_decorator_sets": [],
   "bush_decorator_sets": []

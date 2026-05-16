@@ -31,8 +31,14 @@ public final class PathRasteriser {
     private static final ConcurrentHashMap<ResourceLocation, Block> RESOLVED_BLOCKS = new ConcurrentHashMap<>();
 
     static Block resolveBlock(ResourceLocation id) {
-        return RESOLVED_BLOCKS.computeIfAbsent(id, key ->
-            BuiltInRegistries.BLOCK.getOptional(key).orElse(Blocks.DIRT));
+        return RESOLVED_BLOCKS.computeIfAbsent(id, key -> {
+            Block block = BuiltInRegistries.BLOCK.getOptional(key).orElse(null);
+            if(block == null) {
+                com.finndog.moogs_paths.data.PathDataManager.warnMissingOnce("Path block", key);
+                return Blocks.DIRT;
+            }
+            return block;
+        });
     }
 
     public static void clearBlockCache() {

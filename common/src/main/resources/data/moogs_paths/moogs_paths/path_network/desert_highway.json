@@ -4,11 +4,11 @@
   "weight": 5,
   "region_size": 40,
   "structure_sets": [
-    { "id": "moogs_paths:desert_lamps", "weight": 1 },
-    { "id": "moogs_paths:birch_decorations", "weight": 1 }
+    "moogs_paths:desert_lamps",
+    "moogs_paths:birch_decorations"
   ],
   "feature_decorator_sets": [
-    { "id": "moogs_paths:desert_dead_bushes", "weight": 1 }
+    "moogs_paths:desert_dead_bushes"
   ],
   "bush_decorator_sets": []
 }

@@ -4,10 +4,10 @@
   "weight": 6,
   "region_size": 28,
   "structure_sets": [
-    { "id": "moogs_paths:jungle_branch_shrines", "weight": 1 }
+    "moogs_paths:jungle_branch_shrines"
   ],
   "feature_decorator_sets": [],
   "bush_decorator_sets": [
-    { "id": "moogs_paths:jungle_saplings", "weight": 1 }
+    "moogs_paths:jungle_saplings"
   ]
 }

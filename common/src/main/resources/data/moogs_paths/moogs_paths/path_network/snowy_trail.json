@@ -9,10 +9,10 @@
   "weight": 6,
   "region_size": 36,
   "structure_sets": [
-    { "id": "moogs_paths:snowy_cairns", "weight": 1 }
+    "moogs_paths:snowy_cairns"
   ],
   "feature_decorator_sets": [],
   "bush_decorator_sets": [
-    { "id": "moogs_paths:snowy_spruce", "weight": 1 }
+    "moogs_paths:snowy_spruce"
   ]
 }

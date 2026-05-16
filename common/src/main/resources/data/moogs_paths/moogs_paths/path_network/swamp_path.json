@@ -7,10 +7,10 @@
   "weight": 5,
   "region_size": 32,
   "structure_sets": [
-    { "id": "moogs_paths:swamp_posts", "weight": 1 }
+    "moogs_paths:swamp_posts"
   ],
   "feature_decorator_sets": [
-    { "id": "moogs_paths:swamp_grass", "weight": 1 }
+    "moogs_paths:swamp_grass"
   ],
   "bush_decorator_sets": []
 }

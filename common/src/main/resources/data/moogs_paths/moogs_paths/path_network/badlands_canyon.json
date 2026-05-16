@@ -8,7 +8,7 @@
   "weight": 4,
   "region_size": 24,
   "structure_sets": [
-    { "id": "moogs_paths:badlands_markers", "weight": 1 }
+    "moogs_paths:badlands_markers"
   ],
   "feature_decorator_sets": [],
   "bush_decorator_sets": []

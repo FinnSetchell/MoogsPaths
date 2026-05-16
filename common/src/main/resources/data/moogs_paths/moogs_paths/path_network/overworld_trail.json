@@ -4,10 +4,10 @@
   "weight": 3,
   "region_size": 48,
   "structure_sets": [
-    { "id": "moogs_paths:oak_posts", "weight": 1 }
+    "moogs_paths:oak_posts"
   ],
   "feature_decorator_sets": [
-    { "id": "moogs_paths:forest_flowers_left", "weight": 1 }
+    "moogs_paths:forest_flowers_left"
   ],
   "bush_decorator_sets": []
 }

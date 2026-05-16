@@ -4,9 +4,8 @@
   "weight": 5,
   "region_size": 40,
   "structure_sets": [
-    { "id": "moogs_paths:brick_lantern_and_oak_sign", "weight": 5 }
+    "moogs_paths:brick_lantern_and_oak_sign"
   ],
-  "feature_decorator_sets": [
-  ],
+  "feature_decorator_sets": [],
   "bush_decorator_sets": []
 }

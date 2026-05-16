@@ -15,9 +15,9 @@ public record PathNetworkType(
     HolderSet<Biome> biomes,
     int weight,
     int regionSize,
-    List<WeightedRef> structureSets,
-    List<WeightedRef> featureDecoratorSets,
-    List<WeightedRef> bushDecoratorSets
+    List<ResourceLocation> structureSets,
+    List<ResourceLocation> featureDecoratorSets,
+    List<ResourceLocation> bushDecoratorSets
 ) {
 
     public static final Codec<PathNetworkType> CODEC = RecordCodecBuilder.create(instance -> instance.group(
@@ -25,15 +25,8 @@ public record PathNetworkType(
         RegistryCodecs.homogeneousList(Registries.BIOME).fieldOf("biomes").forGetter(PathNetworkType::biomes),
         Codec.INT.fieldOf("weight").forGetter(PathNetworkType::weight),
         Codec.INT.fieldOf("region_size").forGetter(PathNetworkType::regionSize),
-        WeightedRef.CODEC.listOf().optionalFieldOf("structure_sets", List.of()).forGetter(PathNetworkType::structureSets),
-        WeightedRef.CODEC.listOf().optionalFieldOf("feature_decorator_sets", List.of()).forGetter(PathNetworkType::featureDecoratorSets),
-        WeightedRef.CODEC.listOf().optionalFieldOf("bush_decorator_sets", List.of()).forGetter(PathNetworkType::bushDecoratorSets)
+        ResourceLocation.CODEC.listOf().optionalFieldOf("structure_sets", List.of()).forGetter(PathNetworkType::structureSets),
+        ResourceLocation.CODEC.listOf().optionalFieldOf("feature_decorator_sets", List.of()).forGetter(PathNetworkType::featureDecoratorSets),
+        ResourceLocation.CODEC.listOf().optionalFieldOf("bush_decorator_sets", List.of()).forGetter(PathNetworkType::bushDecoratorSets)
     ).apply(instance, PathNetworkType::new));
-
-    public record WeightedRef(ResourceLocation id, int weight) {
-        public static final Codec<WeightedRef> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-            ResourceLocation.CODEC.fieldOf("id").forGetter(WeightedRef::id),
-            Codec.INT.fieldOf("weight").forGetter(WeightedRef::weight)
-        ).apply(instance, WeightedRef::new));
-    }
 }
