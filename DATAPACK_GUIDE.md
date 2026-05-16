@@ -16,6 +16,12 @@ A network references the path_type and the decorator sets by id, so the same pat
 
 The `moogs_paths:has_no_paths` biome tag is a hard blocklist. Any biome in this tag never generates paths, regardless of network bindings.
 
+Every numeric field has codec-level bounds checking. Weights must be `>= 1`,
+densities must be in `[0, 1]`, `width.min <= width.max`, `region_size >= 1`,
+and so on. Invalid values fail at server start with a clear DataResult error
+naming the bad field and the configured value, so misconfigured datapacks
+never silently produce broken paths.
+
 ## Tutorial: adding a new path
 
 This walks through adding a new "stone trail" path that generates in plains biomes with cobblestone signposts on the side.
@@ -81,7 +87,7 @@ You will also need to put `stone_signpost.nbt` at `data/mypack/structures/stone_
   "weight": 3,
   "region_size": 48,
   "structure_sets": [
-    { "id": "mypack:stone_signposts", "weight": 1 }
+    "mypack:stone_signposts"
   ],
   "feature_decorator_sets": [],
   "bush_decorator_sets": []
@@ -101,7 +107,7 @@ The visual and structural definition of a path.
 | `surface_blocks` | weighted block list | The top layer of the path. One entry is rolled per tile. |
 | `edge_blocks` | weighted block list (optional, default `[]`) | Used for the outermost ring of tiles when defined. If empty, surface_blocks is used everywhere. |
 | `fill_block` | block id | Block placed beneath the surface to fill any gaps below the path tile (so paths sit cleanly on uneven terrain). |
-| `width` | `{ "min": int, "max": int }` | Total path width in blocks. `max` is what actually drives generation today. `min` is parsed but not yet used by the rasteriser. |
+| `width` | `{ "min": int, "max": int }` | Total path width in blocks. The rasteriser tapers the width along the fade region from `min` near the endpoints to `max` along the middle of the path. Set `min == max` for a constant-width path. Both clamped to `[0, 32]` and `min <= max` is enforced at load. |
 | `rigidness` | float `0.0`-`1.0` | How strictly the path holds its target Y. Higher values make straighter, flatter paths that cut/fill terrain more aggressively. |
 | `carver` | float `0.0`-`1.0` | How willing the path is to dig through obstacles vs route around them. Higher values cut through hills; lower values snake around them. |
 | `length` | IntProvider | Total path length in blocks. Use vanilla IntProvider syntax (`uniform`, `constant`, etc). Bounded `[1, 100000]`. |
@@ -147,14 +153,17 @@ Binds a path_type to biomes and decorations. This is what the worldgen actually 
 | `biomes` | biome holder set | A single biome id, a list of biome ids, or a `#tag:like_this`. Standard vanilla holderset syntax. Tags from any namespace work, including modded ones (`#c:is_overworld`, `#forge:is_overworld`, mod-specific biome tags), so networks can extend cleanly to modded biomes. |
 | `weight` | int | Relative weight when multiple networks compete for the same biome. Higher = more likely to win. |
 | `region_size` | int | Size of the worldgen region (in chunks) within which the network plans a path. Larger = longer, less frequent paths. Typical range 32-64. |
-| `structure_sets` | weighted ref list (optional) | Structure sets to pull from when decorating. One is picked per placement opportunity. |
-| `feature_decorator_sets` | weighted ref list (optional) | Feature decorator sets used for scattered features. |
-| `bush_decorator_sets` | weighted ref list (optional) | Bush decorator sets used for leaf blobs along the path. |
+| `structure_sets` | list of resource locations (optional) | Structure sets to scatter along the path. Each entry runs independently - there is no weighted pick here. |
+| `feature_decorator_sets` | list of resource locations (optional) | Feature decorator sets used for scattered features. |
+| `bush_decorator_sets` | list of resource locations (optional) | Bush decorator sets used for leaf blobs along the path. |
 
-A weighted ref looks like:
+Decorator set lists are plain arrays of ids:
 
 ```json
-{ "id": "mypack:stone_signposts", "weight": 1 }
+"structure_sets": [
+  "mypack:stone_signposts",
+  "mypack:rare_milestones"
+]
 ```
 
 ### structure_set
