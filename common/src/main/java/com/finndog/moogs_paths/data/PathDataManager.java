@@ -4,8 +4,6 @@ import com.finndog.moogs_paths.Constants;
 import com.finndog.moogs_paths.world.BushPlacer;
 import com.finndog.moogs_paths.world.PathChunkFeature;
 import com.finndog.moogs_paths.world.PathRasteriser;
-import it.unimi.dsi.fastutil.longs.LongIterator;
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
@@ -18,8 +16,10 @@ import java.util.function.Supplier;
 
 public final class PathDataManager {
 
-    private static final int WAYPOINT_CACHE_MAX_SIZE = 512;
-    // Sized for long sessions without trim-thrashing. ~2M entries at ~8 bytes = ~16MB worst case.
+    // sized to cover a 24-chunk view distance worth of accepted origins so adjacent chunks
+    // don't evict each other's paths and re-trigger A*. ~4096 entries at ~30KB each worst
+    // case is ~120MB - paths typically much smaller, real footprint is single-digit MB.
+    private static final int WAYPOINT_CACHE_MAX_SIZE = 4096;
     private static final int REJECTED_CACHE_MAX_SIZE = 2_097_152;
 
     // bbox lets per-chunk feature placement early-out cheaply for chunks outside the path.
@@ -49,8 +49,10 @@ public final class PathDataManager {
     private static final Map<Long, CachedPath> WAYPOINT_CACHE = new ConcurrentHashMap<>();
 
     // Negative cache for pathSeeds whose origin failed the biome filter. Separate from
-    // WAYPOINT_CACHE so a flood of rejects can't evict real computed paths.
-    private static final LongOpenHashSet REJECTED_CACHE = new LongOpenHashSet();
+    // WAYPOINT_CACHE so a flood of rejects can't evict real computed paths. ConcurrentHashMap
+    // keyset because every worldgen-thread call to isRejected hits this and a synchronized
+    // LongOpenHashSet serialised all those reads.
+    private static final Set<Long> REJECTED_CACHE = ConcurrentHashMap.newKeySet();
 
     private static final Map<ResourceLocation, Optional<StructureTemplate>> CACHED_TEMPLATES = new ConcurrentHashMap<>();
 
@@ -115,14 +117,12 @@ public final class PathDataManager {
     }
 
     public static boolean isRejected(long pathSeed) {
-        synchronized(REJECTED_CACHE) { return REJECTED_CACHE.contains(pathSeed); }
+        return REJECTED_CACHE.contains(pathSeed);
     }
 
     public static void markRejected(long pathSeed) {
-        synchronized(REJECTED_CACHE) {
-            REJECTED_CACHE.add(pathSeed);
-            if(REJECTED_CACHE.size() > REJECTED_CACHE_MAX_SIZE) trimRejectedCache();
-        }
+        REJECTED_CACHE.add(pathSeed);
+        if(REJECTED_CACHE.size() > REJECTED_CACHE_MAX_SIZE) trimRejectedCache();
     }
 
     private static CachedPath buildCachedPath(List<BlockPos> waypoints) {
@@ -156,11 +156,10 @@ public final class PathDataManager {
     }
 
     private static void trimRejectedCache() {
-        // must be called with REJECTED_CACHE lock held
         int target = REJECTED_CACHE_MAX_SIZE / 2;
-        LongIterator it = REJECTED_CACHE.iterator();
+        Iterator<Long> it = REJECTED_CACHE.iterator();
         while(it.hasNext() && REJECTED_CACHE.size() > target) {
-            it.nextLong();
+            it.next();
             it.remove();
         }
     }
@@ -172,7 +171,7 @@ public final class PathDataManager {
     public static void clearCaches() {
         cacheVersion++;
         WAYPOINT_CACHE.clear();
-        synchronized(REJECTED_CACHE) { REJECTED_CACHE.clear(); }
+        REJECTED_CACHE.clear();
         CACHED_TEMPLATES.clear();
         PathRasteriser.clearBlockCache();
         BushPlacer.clearBlockCache();
