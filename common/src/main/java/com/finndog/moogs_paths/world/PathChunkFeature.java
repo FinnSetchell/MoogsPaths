@@ -36,13 +36,14 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
 
     public static final TagKey<Biome> HAS_NO_PATHS = TagKey.create(Registries.BIOME, new ResourceLocation(Constants.MOD_ID, "has_no_paths"));
 
-    // mixer constants - distinct random streams derived from pathSeed by xor with these
+    // PathsDebugCommand reproduces evaluateOrigin against the same pathSeed inputs; the
+    // mixer constants must stay public so the locate command derives matching seeds.
     public static final long PATH_SEED_MIXER = 0xABCDEF1234567890L;
-    public static final long WALK_MIXER = 0x1L;
     public static final long ORIGIN_X_MULT = 341873128712L;
     public static final long ORIGIN_Z_MULT = 132897987541L;
     public static final long ORIGIN_REGION_SIZE_MULT = 27182818284L;
-    public static final int BIOME_FILTER_Y = 64;
+    private static final long WALK_MIXER = 0x1L;
+    private static final int BIOME_FILTER_Y = 64;
     private static final long RASTER_CHUNK_X_MULT = 1234567L;
     private static final long RASTER_CHUNK_Z_MULT = 9876543L;
     private static final long STRUCTURE_MIXER = 0x9E3779B97F4A7C15L;
@@ -53,7 +54,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
     // chunk that visits it. Without this the same origin gets re-sampled maxRadius-many times.
     private static final ConcurrentHashMap<BiomeSource, ConcurrentHashMap<Long, Holder<Biome>>> ORIGIN_BIOME_CACHE = new ConcurrentHashMap<>();
     private static final int ORIGIN_BIOME_CACHE_SOFT_CAP = 131072;
-    public static final int ORIGIN_BIOME_CELL_SHIFT = 1;
+    private static final int ORIGIN_BIOME_CELL_SHIFT = 1;
 
     public PathChunkFeature(Codec<NoneFeatureConfiguration> codec) {
         super(codec);
@@ -196,7 +197,6 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
         } else {
             int originSurfaceY = generator.getBaseHeight(originBlockX, originBlockZ, Heightmap.Types.WORLD_SURFACE_WG, serverLevel, randomState);
             BlockPos originPos = new BlockPos(originBlockX, originSurfaceY, originBlockZ);
-            PathNetworkType finalNetwork = network;
             int biomeQuartY = QuartPos.fromBlock(BIOME_FILTER_Y);
             cachedPath = PathDataManager.getOrComputeWaypoints(pathSeed, () -> {
                 PathDataManager.addPathCounter(PathCounter.PATH_ACTUALLY_COMPUTED, 1);
@@ -205,7 +205,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                     (x, z) -> generator.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, serverLevel, randomState),
                     (gx, gz) -> {
                         PathDataManager.recordBiomeCall(com.finndog.moogs_paths.data.BiomeCallSite.PATHFINDER_GOAL_CHECK);
-                        return finalNetwork.biomes().contains(biomeSource.getNoiseBiome(
+                        return network.biomes().contains(biomeSource.getNoiseBiome(
                             QuartPos.fromBlock(gx), biomeQuartY, QuartPos.fromBlock(gz), sampler));
                     });
             });

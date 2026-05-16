@@ -165,7 +165,7 @@ public final class PathDataManager {
     }
 
     public static Map<ResourceLocation, Optional<StructureTemplate>> getCachedTemplatesSnapshot() {
-        return CACHED_TEMPLATES;
+        return Collections.unmodifiableMap(CACHED_TEMPLATES);
     }
 
     public static void clearCaches() {

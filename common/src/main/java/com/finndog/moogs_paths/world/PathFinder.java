@@ -109,8 +109,8 @@ public final class PathFinder {
         int iters = 0;
 
         // Ellipse with foci at start and goal. A cell stays in-bounds while
-        // octile(cell,start) + octile(cell,goal) <= ellipseSum. ELLIPSE_SLACK=1.20 leaves
-        // ~20% room to detour around obstacles without letting A* wander far off the line.
+        // octile(cell,start) + octile(cell,goal) <= ellipseSum. The slack lets A* detour
+        // around obstacles; the +4 is a floor so short paths still have a few cells of room.
         double startToGoal = octile(startX, startZ, goalX, goalZ);
         double ellipseSum = startToGoal * ELLIPSE_SLACK + 4.0;
 
