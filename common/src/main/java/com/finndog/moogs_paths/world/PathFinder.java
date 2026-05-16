@@ -31,6 +31,7 @@ public final class PathFinder {
     private static final double PROXIMITY_FRACTION = 0.10; // bail when bestReachedH drops to this fraction of startToGoal (0.10 = 90% covered)
     private static final int STAGNATION_LIMIT = 200; // bail after this many real pops with no improvement to bestReachedH
     private static final int HEIGHT_UNSET = Integer.MIN_VALUE; // sentinel in the height memo cache meaning "not yet sampled"
+    private static final int COARSE_HEIGHT_STRIDE = 16; // A* snaps height samples to this stride so adjacent cells share noise lookups
     private static final long NO_PREV = Long.MIN_VALUE; // sentinel in cameFrom meaning "no predecessor cell"
 
     // Primitive variant of BiFunction<Integer,Integer,Integer> - avoids autoboxing per call.
@@ -46,7 +47,11 @@ public final class PathFinder {
     }
 
     public static List<BlockPos> findPath(BlockPos origin, PathType pathType, RandomSource random, HeightSampler rawHeightAt, BiomeAccept biomeAccept) {
-        HeightSampler heightAt = memoise(rawHeightAt);
+        // A* only needs heights for the slope filter and step cost, both tolerant of coarse
+        // approximations. Snapping to a 16-block grid shares one noise eval across 16 cells.
+        HeightSampler coarseHeightAt = memoiseCoarse(rawHeightAt);
+        // interpolateToBlocks wants per-block heights so the rasteriser sees a smooth Y curve.
+        HeightSampler preciseHeightAt = memoise(rawHeightAt);
         BiomeAccept biome = memoiseBiome(biomeAccept);
 
         int length = pathType.length().sample(random);
@@ -70,9 +75,9 @@ public final class PathFinder {
 
         List<int[]> cellPath = astarCells(
             startCellX, startCellZ, goalCellX, goalCellZ,
-            pathType.rigidness(), length, heightAt, biome);
+            pathType.rigidness(), length, coarseHeightAt, biome);
 
-        List<BlockPos> blockWaypoints = interpolateToBlocks(cellPath, heightAt, origin.getY());
+        List<BlockPos> blockWaypoints = interpolateToBlocks(cellPath, preciseHeightAt, origin.getY());
         carverSmooth(blockWaypoints, pathType.carver());
         return chaikinOnce(blockWaypoints);
     }
@@ -97,7 +102,10 @@ public final class PathFinder {
         gScore.put(startKey, 0.0);
         open.push(startKey, HEURISTIC_WEIGHT * octile(startX, startZ, goalX, goalZ), startYRaw);
 
-        int iterCap = Math.max(BASE_ITER_CAP, length * 8);
+        // length is straight-line block distance; CELL_SIZE=4 makes it 4x the cell-space
+        // distance to the goal, which is roughly the slack a weighted-A* search needs to
+        // detour around obstacles before giving up.
+        int iterCap = Math.max(BASE_ITER_CAP, length);
         int iters = 0;
 
         // Ellipse with foci at start and goal. A cell stays in-bounds while
@@ -378,6 +386,25 @@ public final class PathFinder {
             int v = cache.get(key);
             if(v != HEIGHT_UNSET) return v;
             int computed = source.sampleAt(x, z);
+            cache.put(key, computed);
+            return computed;
+        };
+    }
+
+    // Snaps (x, z) down to a COARSE_HEIGHT_STRIDE-aligned anchor before sampling. Any A* cell
+    // inside the same stride tile shares one noise evaluation. The slope filter and slope cost
+    // both tolerate this approximation; the worst case is a couple of adjacent cells claiming
+    // the same Y when terrain is moving fast, which the post-A* carver/chaikin pass smooths out.
+    private static HeightSampler memoiseCoarse(HeightSampler source) {
+        Long2IntOpenHashMap cache = new Long2IntOpenHashMap();
+        cache.defaultReturnValue(HEIGHT_UNSET);
+        return (x, z) -> {
+            int sx = Math.floorDiv(x, COARSE_HEIGHT_STRIDE) * COARSE_HEIGHT_STRIDE;
+            int sz = Math.floorDiv(z, COARSE_HEIGHT_STRIDE) * COARSE_HEIGHT_STRIDE;
+            long key = ((long) sx << 32) | (sz & 0xFFFFFFFFL);
+            int v = cache.get(key);
+            if(v != HEIGHT_UNSET) return v;
+            int computed = source.sampleAt(sx, sz);
             cache.put(key, computed);
             return computed;
         };
