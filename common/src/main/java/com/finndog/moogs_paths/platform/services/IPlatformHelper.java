@@ -16,14 +16,4 @@ public interface IPlatformHelper {
     void registerServerStartingListener(Consumer<MinecraftServer> listener);
 
     void registerCommandListener(Consumer<CommandDispatcher<CommandSourceStack>> listener);
-
-    String getPlatformName();
-
-    boolean isModLoaded(String modId);
-
-    boolean isDevelopmentEnvironment();
-
-    default String getEnvironmentName() {
-        return isDevelopmentEnvironment() ? "development" : "production";
-    }
 }

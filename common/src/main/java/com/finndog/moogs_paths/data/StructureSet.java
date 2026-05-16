@@ -8,7 +8,6 @@ import net.minecraft.util.StringRepresentable;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 public record StructureSet(
         List<StructureEntry> structures,
@@ -75,9 +74,6 @@ public record StructureSet(
     public enum PlacementMode implements StringRepresentable {
         ENDPOINT("endpoint"),
         INTERVAL("interval");
-
-        public static final Map<String, PlacementMode> BY_NAME = Arrays.stream(values())
-                .collect(Collectors.toMap(PlacementMode::getSerializedName, v -> v));
 
         public static final Codec<PlacementMode> CODEC = StringRepresentable.fromEnum(PlacementMode::values);
 

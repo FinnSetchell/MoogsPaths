@@ -1,8 +1,7 @@
 {
   "structures": [
     { "nbt": "moogs_paths:birch_button", "rotation": "none", "weight": 6, "offset": [0, 1, 0] },
-    { "nbt": "moogs_paths:birch_pressure_plate", "rotation": "none", "weight": 4, "offset": [0, 1, 0] },
-    { "nbt": "moogs_paths:sandstone_pillar", "rotation": "none", "weight": 1, "offset": [2, 1, 0], "placement_chance": 0.1 }
+    { "nbt": "moogs_paths:birch_pressure_plate", "rotation": "none", "weight": 4, "offset": [0, 1, 0] }
   ],
   "placement": "interval",
   "spacing": 20,

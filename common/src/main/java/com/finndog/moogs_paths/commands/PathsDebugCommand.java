@@ -165,7 +165,8 @@ public final class PathsDebugCommand {
             return 1;
         }
 
-        src.sendFailure(Component.literal("[paths] No path found within " + searchRadius + " blocks"));
+        String target = networkFilter != null ? networkFilter.toString() : "nearest";
+        src.sendFailure(Component.literal("[paths] No " + target + " path found within " + searchRadius + " blocks"));
         return 0;
     }
 

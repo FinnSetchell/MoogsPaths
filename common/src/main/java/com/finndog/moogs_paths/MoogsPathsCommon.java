@@ -3,7 +3,6 @@ package com.finndog.moogs_paths;
 import com.finndog.moogs_paths.commands.PathsDebugCommand;
 import com.finndog.moogs_paths.data.MoogsPathsDatapackRegistries;
 import com.finndog.moogs_paths.data.PathDataManager;
-import com.finndog.moogs_paths.debug.PathDebugLogger;
 import com.finndog.moogs_paths.debug.PathDebugTimer;
 import com.finndog.moogs_paths.platform.Services;
 
@@ -20,12 +19,8 @@ public class MoogsPathsCommon {
             PathDataManager.onServerStart(server.getStructureManager());
             if(DEBUG_INITIALISED.compareAndSet(false, true)) {
                 Path logDir = server.getServerDirectory().toPath().resolve("logs");
-                PathDebugLogger.init(logDir);
                 PathDebugTimer.init(logDir);
-                Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                    PathDebugLogger.close();
-                    PathDebugTimer.close();
-                }, "moogs_paths_debug-shutdown"));
+                Runtime.getRuntime().addShutdownHook(new Thread(PathDebugTimer::close, "moogs_paths_debug-shutdown"));
             }
         });
         Services.PLATFORM.registerCommandListener(PathsDebugCommand::register);

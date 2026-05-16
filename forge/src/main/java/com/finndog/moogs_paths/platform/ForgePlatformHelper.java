@@ -10,9 +10,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
-import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
-import net.minecraftforge.fml.loading.FMLLoader;
 import net.minecraftforge.registries.DataPackRegistryEvent;
 
 import java.util.ArrayList;
@@ -53,20 +51,5 @@ public class ForgePlatformHelper implements IPlatformHelper {
     @Override
     public void registerCommandListener(Consumer<CommandDispatcher<CommandSourceStack>> listener) {
         MinecraftForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> listener.accept(event.getDispatcher()));
-    }
-
-    @Override
-    public String getPlatformName() {
-        return "Forge";
-    }
-
-    @Override
-    public boolean isModLoaded(String modId) {
-        return ModList.get().isLoaded(modId);
-    }
-
-    @Override
-    public boolean isDevelopmentEnvironment() {
-        return !FMLLoader.isProduction();
     }
 }

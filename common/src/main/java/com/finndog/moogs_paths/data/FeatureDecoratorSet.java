@@ -6,7 +6,6 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.StringRepresentable;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 public record FeatureDecoratorSet(
         List<FeatureEntry> features,
@@ -36,9 +35,6 @@ public record FeatureDecoratorSet(
         RIGHT("right"),
         BOTH("both"),
         CENTER("center");
-
-        public static final Map<String, Side> BY_NAME = Arrays.stream(values())
-                .collect(Collectors.toMap(Side::getSerializedName, v -> v));
 
         public static final Codec<Side> CODEC = StringRepresentable.fromEnum(Side::values);
 
