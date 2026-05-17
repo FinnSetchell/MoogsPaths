@@ -17,9 +17,5 @@ public enum PathCounter {
     // A* exited because bestReachedH dropped below PROXIMITY_FRACTION * startToGoal
     PATH_BAILED_ON_PROXIMITY,
     // A* exited because no progress on bestReachedH for STAGNATION_LIMIT pops
-    PATH_BAILED_ON_STAGNATION,
-    // curl noise calls inside the A* step-cost loop. Roughly 8 per A* iteration.
-    // Watch this against A_STAR_ITERATIONS - if curl turns out to dominate runtime,
-    // it's the candidate to memoise or cull first.
-    CURL_NOISE_SAMPLES
+    PATH_BAILED_ON_STAGNATION
 }

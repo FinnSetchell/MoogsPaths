@@ -8,7 +8,6 @@ import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import it.unimi.dsi.fastutil.longs.Long2LongOpenHashMap;
 import net.minecraft.core.BlockPos;
 import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.levelgen.synth.SimplexNoise;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -34,15 +33,6 @@ public final class PathFinder {
     private static final int HEIGHT_UNSET = Integer.MIN_VALUE; // sentinel in the height memo cache meaning "not yet sampled"
     private static final int COARSE_HEIGHT_STRIDE = 16; // A* snaps height samples to this stride so adjacent cells share noise lookups
     private static final long NO_PREV = Long.MIN_VALUE; // sentinel in cameFrom meaning "no predecessor cell"
-
-    // Curl noise pushes paths off the straight line so flat-terrain routes don't render as
-    // long perfect lines. Per-cell simplex evaluation is cheap and the wavelength is set so
-    // a typical 300-1000 block path crosses 4-10 noise zero-crossings (i.e. visible bends).
-    // CURL_STRENGTH is the noise weight added to step cost; STEP_COST cardinals are 1.0 so
-    // values 0.0-0.5 are sane. CURL_SCALE in 1/cells; 0.05 ≈ a 20-cell (80-block) wavelength.
-    private static final double CURL_STRENGTH = 0.35;
-    private static final double CURL_SCALE = 0.05;
-    private static final SimplexNoise CURL_NOISE = new SimplexNoise(RandomSource.create(0x6D75D5A06A7C9F1FL));
 
     // Primitive variant of BiFunction<Integer,Integer,Integer> - avoids autoboxing per call.
     @FunctionalInterface
@@ -187,11 +177,7 @@ public final class PathFinder {
                 int slopeDelta = Math.abs(ny - curY);
                 if(slopeDelta > MAX_NATURAL_STEP) continue;
 
-                // curl noise injects a smooth scalar field so flat-terrain routes can still
-                // weave. Math.abs maps [-1,1] to [0,1] so the noise is purely a cost addition.
-                double curl = Math.abs(CURL_NOISE.getValue(nx * CURL_SCALE, nz * CURL_SCALE)) * CURL_STRENGTH;
-                PathDataManager.addPathCounter(PathCounter.CURL_NOISE_SAMPLES, 1);
-                double stepCost = STEP_COST[d] + (double) slopeDelta * slopeDelta * (1.0 - rigidness) * SLOPE_COST_SCALE + curl;
+                double stepCost = STEP_COST[d] + (double) slopeDelta * slopeDelta * (1.0 - rigidness) * SLOPE_COST_SCALE;
                 double tentativeG = curG + stepCost;
                 long neighKey = packCell(nx, nz);
                 double prev = gScore.get(neighKey);
