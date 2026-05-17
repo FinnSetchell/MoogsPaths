@@ -3,9 +3,9 @@
     { "nbt": "moogs_paths:swamp_post", "rotation": "random", "weight": 3, "offset": [0, 0, 0] }
   ],
   "placement": "interval",
-  "spacing": 16,
+  "spacing": 22,
   "spacing_variance": 10,
-  "flatness_tolerance": 5,
+  "flatness_tolerance": 2,
   "terrain_adjustment": "beard_thin",
-  "side_offset": 2
+  "side_offset": 3
 }

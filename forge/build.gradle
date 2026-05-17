@@ -1,6 +1,7 @@
 plugins {
     id 'multiloader-loader'
     id 'net.neoforged.moddev.legacyforge'
+    id 'me.modmuss50.mod-publish-plugin'
 }
 
 legacyForge {
@@ -40,4 +41,51 @@ sourceSets.main.resources.srcDir 'src/generated/resources'
 
 jar {
     finalizedBy('reobfJar')
+}
+
+def changelogContent = rootProject.file('CHANGELOG.md').exists() ? rootProject.file('CHANGELOG.md').getText('UTF-8') : ''
+def changelogMatcher = ~/(?s)## \[${version}\][^\n]*\r?\n(.*?)(?=\r?\n---|\r?\n## \[|\z)/
+def changelogMatch = (changelogContent =~ changelogMatcher)
+def changelogLatest = changelogMatch.find() ? changelogMatch.group(1).trim() : ''
+
+publishMods {
+    file = tasks.named('jar').flatMap { it.archiveFile }
+    changelog = changelogLatest
+    version = project.version.toString()
+    type = STABLE
+    displayName = "${mod_name} ${project.version}-${minecraft_version} (Forge)"
+    modLoaders.add("forge")
+    dryRun = providers.environmentVariable('PUBLISH_DRY_RUN').map { it == 'true' }.orElse(false)
+    maxRetries = 3
+
+    if (providers.environmentVariable('MODRINTH_API_KEY').isPresent() && project.hasProperty('modrinth_project_id') && modrinth_project_id) {
+        modrinth {
+            accessToken = providers.environmentVariable('MODRINTH_API_KEY')
+            projectId = modrinth_project_id
+            minecraftVersionRange {
+                start = publish_mc_start
+                end = publish_mc_end
+            }
+        }
+    }
+
+    if (providers.environmentVariable('CURSEFORGE_API_KEY').isPresent() && project.hasProperty('cf_project_id') && cf_project_id) {
+        curseforge {
+            accessToken = providers.environmentVariable('CURSEFORGE_API_KEY')
+            projectId = cf_project_id
+            minecraftVersionRange {
+                start = publish_mc_start
+                end = publish_mc_end
+            }
+        }
+    }
+
+    if (providers.environmentVariable('GITHUB_TOKEN').isPresent()) {
+        github {
+            accessToken = providers.environmentVariable('GITHUB_TOKEN')
+            repository = 'FinnSetchell/MoogsPaths'
+            commitish = 'main'
+            tagName = providers.environmentVariable('GITHUB_REF_NAME').orElse("v${project.version}")
+        }
+    }
 }

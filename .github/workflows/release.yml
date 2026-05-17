@@ -28,7 +28,9 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: publish
-        run: ./gradlew publishMods
+        run: ./gradlew :fabric:publishMods :forge:publishMods
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
+          MODRINTH_API_KEY: ${{ secrets.MODRINTH_API_KEY }}
+          CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}

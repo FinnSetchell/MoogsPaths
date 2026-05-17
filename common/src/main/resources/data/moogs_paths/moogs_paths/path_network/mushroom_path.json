@@ -9,9 +9,8 @@
     "moogs_paths:candles"
   ],
   "feature_decorator_sets": [
-    "moogs_paths:mushroom_scatter"
+    "moogs_paths:sparse_mushrooms"
   ],
   "bush_decorator_sets": [
-    "moogs_paths:mushrooms"
   ]
 }
