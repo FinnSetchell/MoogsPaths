@@ -190,6 +190,7 @@ public final class PathFinder {
                 // curl noise injects a smooth scalar field so flat-terrain routes can still
                 // weave. Math.abs maps [-1,1] to [0,1] so the noise is purely a cost addition.
                 double curl = Math.abs(CURL_NOISE.getValue(nx * CURL_SCALE, nz * CURL_SCALE)) * CURL_STRENGTH;
+                PathDataManager.addPathCounter(PathCounter.CURL_NOISE_SAMPLES, 1);
                 double stepCost = STEP_COST[d] + (double) slopeDelta * slopeDelta * (1.0 - rigidness) * SLOPE_COST_SCALE + curl;
                 double tentativeG = curG + stepCost;
                 long neighKey = packCell(nx, nz);
