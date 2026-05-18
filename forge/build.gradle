@@ -84,7 +84,7 @@ publishMods {
         github {
             accessToken = providers.environmentVariable('GITHUB_TOKEN')
             repository = 'FinnSetchell/MoogsPaths'
-            commitish = 'main'
+            commitish = '1.20.1'
             tagName = providers.environmentVariable('GITHUB_REF_NAME').orElse("v${project.version}")
         }
     }
