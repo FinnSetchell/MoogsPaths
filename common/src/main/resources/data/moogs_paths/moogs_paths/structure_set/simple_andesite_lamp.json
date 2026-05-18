@@ -1,6 +1,15 @@
 {
   "structures": [
-    { "nbt": "moogs_paths:simple_andesite_lamp", "rotation": "random", "weight": 1, "offset": [0, 0, 0] }
+    {
+      "nbt": "moogs_paths:simple_andesite_lamp",
+      "rotation": "random",
+      "weight": 1,
+      "offset": [
+        0,
+        0,
+        0
+      ]
+    }
   ],
   "placement": "interval",
   "spacing": 8,

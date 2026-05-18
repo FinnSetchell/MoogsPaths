@@ -1,8 +1,17 @@
 {
   "surface_blocks": [
-    { "block": "minecraft:mycelium", "weight": 5 },
-    { "block": "minecraft:podzol", "weight": 3 },
-    { "block": "minecraft:coarse_dirt", "weight": 1 }
+    {
+      "block": "minecraft:mycelium",
+      "weight": 5
+    },
+    {
+      "block": "minecraft:podzol",
+      "weight": 3
+    },
+    {
+      "block": "minecraft:coarse_dirt",
+      "weight": 1
+    }
   ],
   "edge_blocks": [
   ],
@@ -15,7 +24,10 @@
   "carver": 0.35,
   "length": {
     "type": "minecraft:uniform",
-    "value": { "min_inclusive": 150, "max_inclusive": 400 }
+    "value": {
+      "min_inclusive": 150,
+      "max_inclusive": 400
+    }
   },
   "fade": {
     "start_blocks": 8,

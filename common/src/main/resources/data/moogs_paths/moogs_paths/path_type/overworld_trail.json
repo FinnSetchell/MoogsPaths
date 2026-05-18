@@ -1,13 +1,31 @@
 {
   "surface_blocks": [
-    { "block": "minecraft:cobblestone", "weight": 4 },
-    { "block": "minecraft:mossy_cobblestone", "weight": 2 },
-    { "block": "minecraft:gravel", "weight": 2 },
-    { "block": "minecraft:structure_void", "weight": 1 }
+    {
+      "block": "minecraft:cobblestone",
+      "weight": 4
+    },
+    {
+      "block": "minecraft:mossy_cobblestone",
+      "weight": 2
+    },
+    {
+      "block": "minecraft:gravel",
+      "weight": 2
+    },
+    {
+      "block": "minecraft:structure_void",
+      "weight": 1
+    }
   ],
   "edge_blocks": [
-    { "block": "minecraft:cobblestone", "weight": 2 },
-    { "block": "minecraft:mossy_cobblestone", "weight": 1 }
+    {
+      "block": "minecraft:cobblestone",
+      "weight": 2
+    },
+    {
+      "block": "minecraft:mossy_cobblestone",
+      "weight": 1
+    }
   ],
   "fill_block": "minecraft:cobblestone",
   "width": {
@@ -18,7 +36,10 @@
   "carver": 0.55,
   "length": {
     "type": "minecraft:uniform",
-    "value": { "min_inclusive": 150, "max_inclusive": 400 }
+    "value": {
+      "min_inclusive": 150,
+      "max_inclusive": 400
+    }
   },
   "fade": {
     "start_blocks": 10,

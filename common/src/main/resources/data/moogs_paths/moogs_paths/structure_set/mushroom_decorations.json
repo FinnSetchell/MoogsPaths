@@ -1,7 +1,25 @@
 {
   "structures": [
-    { "nbt": "moogs_paths:red_mushroom", "rotation": "random", "weight": 1, "offset": [0, 1, 0] },
-    { "nbt": "moogs_paths:brown_mushroom", "rotation": "random", "weight": 1, "offset": [0, 1, 0] }
+    {
+      "nbt": "moogs_paths:red_mushroom",
+      "rotation": "random",
+      "weight": 1,
+      "offset": [
+        0,
+        1,
+        0
+      ]
+    },
+    {
+      "nbt": "moogs_paths:brown_mushroom",
+      "rotation": "random",
+      "weight": 1,
+      "offset": [
+        0,
+        1,
+        0
+      ]
+    }
   ],
   "placement": "interval",
   "spacing": 20,

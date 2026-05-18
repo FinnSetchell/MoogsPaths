@@ -1,6 +1,15 @@
 {
   "structures": [
-    { "nbt": "moogs_paths:snowy_cairn", "rotation": "random", "weight": 3, "offset": [0, 0, 0] }
+    {
+      "nbt": "moogs_paths:snowy_cairn",
+      "rotation": "random",
+      "weight": 3,
+      "offset": [
+        0,
+        0,
+        0
+      ]
+    }
   ],
   "placement": "interval",
   "spacing": 20,

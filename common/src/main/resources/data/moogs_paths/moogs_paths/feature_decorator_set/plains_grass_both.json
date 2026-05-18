@@ -1,7 +1,13 @@
 {
   "features": [
-    { "feature": "minecraft:patch_tall_grass", "weight": 4 },
-    { "feature": "minecraft:flower_plains", "weight": 2 }
+    {
+      "feature": "minecraft:patch_tall_grass",
+      "weight": 4
+    },
+    {
+      "feature": "minecraft:flower_plains",
+      "weight": 2
+    }
   ],
   "density": 0.04,
   "side": "both",

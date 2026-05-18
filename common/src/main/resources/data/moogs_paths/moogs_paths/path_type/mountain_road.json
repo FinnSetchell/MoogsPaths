@@ -1,10 +1,25 @@
 {
   "surface_blocks": [
-    { "block": "minecraft:cobblestone", "weight": 3 },
-    { "block": "minecraft:andesite", "weight": 2 },
-    { "block": "minecraft:stone_bricks", "weight": 2 },
-    { "block": "minecraft:cracked_stone_bricks", "weight": 1 },
-    { "block": "minecraft:structure_void", "weight": 1 }
+    {
+      "block": "minecraft:cobblestone",
+      "weight": 3
+    },
+    {
+      "block": "minecraft:andesite",
+      "weight": 2
+    },
+    {
+      "block": "minecraft:stone_bricks",
+      "weight": 2
+    },
+    {
+      "block": "minecraft:cracked_stone_bricks",
+      "weight": 1
+    },
+    {
+      "block": "minecraft:structure_void",
+      "weight": 1
+    }
   ],
   "fill_block": "minecraft:coarse_dirt",
   "width": {
@@ -15,7 +30,10 @@
   "carver": 0.50,
   "length": {
     "type": "minecraft:uniform",
-    "value": { "min_inclusive": 400, "max_inclusive": 1000 }
+    "value": {
+      "min_inclusive": 400,
+      "max_inclusive": 1000
+    }
   },
   "fade": {
     "start_blocks": 12,

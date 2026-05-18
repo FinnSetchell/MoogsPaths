@@ -1,8 +1,17 @@
 {
   "surface_blocks": [
-    { "block": "minecraft:red_sand", "weight": 5 },
-    { "block": "minecraft:red_sandstone", "weight": 2 },
-    { "block": "minecraft:terracotta", "weight": 1 }
+    {
+      "block": "minecraft:red_sand",
+      "weight": 5
+    },
+    {
+      "block": "minecraft:red_sandstone",
+      "weight": 2
+    },
+    {
+      "block": "minecraft:terracotta",
+      "weight": 1
+    }
   ],
   "fill_block": "minecraft:red_sandstone",
   "width": {
@@ -13,7 +22,10 @@
   "carver": 0.50,
   "length": {
     "type": "minecraft:uniform",
-    "value": { "min_inclusive": 400, "max_inclusive": 1000 }
+    "value": {
+      "min_inclusive": 400,
+      "max_inclusive": 1000
+    }
   },
   "fade": {
     "start_blocks": 8,

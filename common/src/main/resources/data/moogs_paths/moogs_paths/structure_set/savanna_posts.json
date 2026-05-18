@@ -1,8 +1,35 @@
 {
   "structures": [
-    { "nbt": "moogs_paths:savanna_post_1", "rotation": "random", "weight": 2, "offset": [0, 0, 0] },
-    { "nbt": "moogs_paths:savanna_post_2", "rotation": "random", "weight": 2, "offset": [0, 0, 0] },
-    { "nbt": "moogs_paths:savanna_post_3", "rotation": "random", "weight": 1, "offset": [0, 0, 0] }
+    {
+      "nbt": "moogs_paths:savanna_post_1",
+      "rotation": "random",
+      "weight": 2,
+      "offset": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "nbt": "moogs_paths:savanna_post_2",
+      "rotation": "random",
+      "weight": 2,
+      "offset": [
+        0,
+        0,
+        0
+      ]
+    },
+    {
+      "nbt": "moogs_paths:savanna_post_3",
+      "rotation": "random",
+      "weight": 1,
+      "offset": [
+        0,
+        0,
+        0
+      ]
+    }
   ],
   "placement": "interval",
   "spacing": 14,

@@ -1,6 +1,15 @@
 {
   "structures": [
-    { "nbt": "moogs_paths:swamp_post", "rotation": "random", "weight": 3, "offset": [0, 0, 0] }
+    {
+      "nbt": "moogs_paths:swamp_post",
+      "rotation": "random",
+      "weight": 3,
+      "offset": [
+        0,
+        0,
+        0
+      ]
+    }
   ],
   "placement": "interval",
   "spacing": 22,
