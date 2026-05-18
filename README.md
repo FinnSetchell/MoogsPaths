@@ -20,28 +20,29 @@ Everything is defined in JSON. No new items, no crafting recipes. The mod ships 
 
 ![paths](https://pub-24a4e0e7ea8544a5b6f73c3a23512589.r2.dev/images/a3ebaaa8a9f74f1684efcfc8a8b118d4.png)
 
-**14 path networks** across every major overworld biome:
+**15 path networks** across every major overworld biome:
 
-*   **Plains Trail** - dirt path with grass, wildflowers and oak bushes alongside
-*   **Dirt Road** - wide coarse dirt road through taiga and dark forest, lined with ferns and spruce bushes
-*   **Cobblestone Road** - mossy cobblestone through forests and savannas with flower borders and signposts
-*   **Brick Road** - polished granite and brick across the general overworld with roadside wildflowers
-*   **Mountain Road** - narrow stone and andesite switchbacks through peaks and slopes
-*   **Sandstone Highway** - wide, long cut sandstone road across deserts with lamps at each end
-*   **Jungle Path** - mossy stone bricks winding under the canopy with shrines and leaf overgrowth
-*   **Badlands Canyon Trail** - red sand and terracotta through mesas with weathered markers
-*   **Snowy Trail** - packed snow and ice with gravel underfoot, cairns and spruce bushes along the route
-*   **Swamp Boardwalk** - dark oak and spruce planks over mud and water with wooden posts
-*   **Cherry Grove Path** - polished diorite and quartz lined with cherry planks, flowers and leaf litter
-*   **Mushroom Trail** - mycelium and podzol through mushroom fields with mushroom scatter
-*   **Windswept Trail** - rugged gravel and cobblestone across exposed windswept terrain
-*   **Wildlands Trail** - a rare fallback dirt trail that can appear in any overworld biome
+*   **Plains Trail** - dirt path through plains and meadows with grass and wildflower scatter, oak and azalea bush clusters alongside
+*   **Dirt Road** - wide coarse dirt, podzol and rooted dirt road through taiga and dark forest with cairns along the route
+*   **Overworld Trail** - cobblestone and mossy cobblestone road that can appear across any overworld biome with oak posts and wildflowers
+*   **Brick Road** - bricks and polished granite across the general overworld with brick lanterns and oak signposts at intervals
+*   **Mountain Road** - cobblestone, andesite and stone brick path through all mountain biomes with andesite lamps
+*   **Desert Highway** - wide smooth and cut sandstone road across deserts with lamps and birch posts, dead bushes scattered alongside
+*   **Jungle Path** - mossy stone bricks winding under the canopy with branch shrines and leaf overgrowth
+*   **Badlands Canyon Trail** - red sand and terracotta through mesas and eroded badlands with weathered markers
+*   **Snowy Trail** - packed snow, ice and gravel through snowy biomes with cairns and spruce bush clusters
+*   **Swamp Path** - mud bricks and packed mud through swamps and mangrove swamps, switching to oak and spruce planks over water, with wooden posts and swamp grass
+*   **Cherry Grove Path** - winding dirt path through cherry groves with benches and cherry leaf litter
+*   **Mushroom Trail** - mycelium and podzol through mushroom fields with shrines, mushroom decorations, candles and scattered mushrooms
+*   **Savanna Path** - dirt trail through savanna biomes with wooden posts
+*   **Windswept Trail** - rugged gravel and cobblestone across exposed windswept terrain with andesite lamps
+*   **Wildlands Trail** - a rare fallback dirt trail with andesite lamps that can appear in any overworld biome
 
 Each path is decorated with a combination of:
 
-*   **15 NBT structures** - cairns, lamps, signposts, shrines, benches, and markers
-*   **Scattered features** - flowers, ferns, dead bushes, mushrooms, tall grass
-*   **Bush clusters** - spruce, oak, cherry, jungle and azalea leaf blobs alongside the path
+*   **15 NBT structures** - cairns, lamps, signposts, shrines, benches, markers, posts, and candles
+*   **Scattered features** - flowers, dead bushes, mushrooms, tall grass
+*   **Bush clusters** - oak, azalea, spruce and cherry leaf blobs alongside the path
 
 ![features](https://pub-24a4e0e7ea8544a5b6f73c3a23512589.r2.dev/images/9c90489705864e9b8b5ed564dc536d7d.png)
 
@@ -78,12 +79,5 @@ The best way to get a reply is to join the Discord server.
 *   [Discord](https://discord.gg/S5nffJbuvA)
 *   [GitHub / Issue Tracker](https://github.com/FinnSetchell/MoogsPaths)
 *   [Ko-fi](https://ko-fi.com/finndog)
-
----
-
-**CREDITS**
-
-*   FinnDog - author
-*   Phantax - author
 
 ![BH promo banner](https://pub-24a4e0e7ea8544a5b6f73c3a23512589.r2.dev/images/0b15a121fb4947bcad4f6fc542f3b9bf.png)
