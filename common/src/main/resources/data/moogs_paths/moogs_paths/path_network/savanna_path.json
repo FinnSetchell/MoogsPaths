@@ -1,0 +1,15 @@
+{
+  "path_type": "moogs_paths:dirt_trail",
+  "biomes": [
+    "minecraft:savanna",
+    "minecraft:savanna_plateau",
+    "minecraft:windswept_savanna"
+  ],
+  "weight": 6,
+  "region_size": 20,
+  "structure_sets": [
+    "moogs_paths:savanna_posts"
+  ],
+  "feature_decorator_sets": [],
+  "bush_decorator_sets": []
+}

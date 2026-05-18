@@ -7,7 +7,5 @@
     "moogs_paths:jungle_branch_shrines"
   ],
   "feature_decorator_sets": [],
-  "bush_decorator_sets": [
-    "moogs_paths:jungle_saplings"
-  ]
+  "bush_decorator_sets": []
 }

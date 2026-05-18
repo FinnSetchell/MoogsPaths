@@ -3,16 +3,22 @@
     { "block": "minecraft:mossy_stone_bricks", "weight": 6 },
     { "block": "minecraft:mossy_cobblestone", "weight": 3 },
     { "block": "minecraft:rooted_dirt", "weight": 1 },
-    { "block": "minecraft:stone_bricks", "weight": 7 }
+    { "block": "minecraft:stone_bricks", "weight": 5 }
   ],
   "edge_blocks": [
+    { "block": "minecraft:mossy_stone_bricks", "weight": 1 },
+    { "block": "minecraft:mossy_cobblestone", "weight": 1 },
+    { "block": "minecraft:rooted_dirt", "weight": 1 },
+    { "block": "minecraft:stone_bricks", "weight": 1 },
+    { "block": "minecraft:moss", "weight": 10 },
+    { "block": "minecraft:structure_void", "weight": 30 }
   ],
   "fill_block": "minecraft:dirt",
   "width": {
-    "min": 3,
+    "min": 2,
     "max": 4
   },
-  "rigidness": 0.25,
+  "rigidness": 0.15,
   "carver": 0.2,
   "length": {
     "type": "minecraft:uniform",
