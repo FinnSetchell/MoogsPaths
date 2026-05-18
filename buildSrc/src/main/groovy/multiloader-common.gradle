@@ -98,7 +98,14 @@ processResources {
             "forge_version": forge_version,
             "forge_loader_version_range": forge_loader_version_range,
             'credits'                      : credits,
-            'java_version'                 : java_version
+            'java_version'                 : java_version,
+            'mod_issues'                   : mod_issues,
+            'mod_discord'                  : mod_discord,
+            'mod_kofi'                     : mod_kofi,
+            'mod_curseforge'               : mod_curseforge,
+            'mod_modrinth'                 : mod_modrinth,
+            'mod_releases'                 : mod_releases,
+            'mod_homepage'                 : mod_homepage
     ]
 
     var jsonExpandProps = expandProps.collectEntries {
@@ -109,7 +116,7 @@ processResources {
         expand expandProps
     }
 
-    filesMatching(['pack.mcmeta', 'fabric.mod.json', '*.mixins.json']) {
+    filesMatching(['pack.mcmeta', 'fabric.mod.json', '*.mixins.json', '**/lang/en_us.json']) {
         expand jsonExpandProps
     }
 

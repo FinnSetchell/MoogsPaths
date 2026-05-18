@@ -1,0 +1,9 @@
+{
+    "modmenu.nameTranslation.moogs_paths": "Moog's Paths",
+    "modmenu.summaryTranslation.moogs_paths": "Adds a generated network of paths and trails to the overworld, with biome-specific surfaces and scattered decorations like cairns, signposts and shrines. Fully configurable through datapacks.",
+    "modmenu.descriptionTranslation.moogs_paths": "${description}",
+    "moogs_paths.releases": "GitHub Releases",
+    "moogs_paths.kofi": "Ko-fi",
+    "moogs_paths.curseforge": "CurseForge",
+    "moogs_paths.modrinth": "Modrinth"
+}

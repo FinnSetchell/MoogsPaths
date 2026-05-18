@@ -2,13 +2,13 @@
 
 [![Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/D1D8LKA5N)
 
-[![Discord](https://img.shields.io/discord/869218732650688543?color=1A6E8A&label=DISCORD&style=for-the-badge)](https://discord.com/invite/S5nffJbuvA)
+[![Discord](https://img.shields.io/discord/869218732650688543?color=F46B10&label=DISCORD&style=for-the-badge)](https://discord.com/invite/S5nffJbuvA)
 
-[![My projects](https://img.shields.io/badge/CurseForge-projects-1A6E8A?style=for-the-badge&logo=curseforge)](https://www.curseforge.com/members/finndog_123/projects)
+[![My projects](https://img.shields.io/badge/CurseForge-projects-F46B10?style=for-the-badge&logo=curseforge)](https://www.curseforge.com/members/finndog_123/projects)
 
-[![My projects](https://img.shields.io/badge/Modrinth-projects-1A6E8A?style=for-the-badge&logo=modrinth)](https://modrinth.com/user/FinnSetchell)
+[![My projects](https://img.shields.io/badge/Modrinth-projects-F46B10?style=for-the-badge&logo=modrinth)](https://modrinth.com/user/FinnSetchell)
 
-A data-driven path and trail network for Minecraft worldgen. Biome-specific surfaces, scattered landmarks, and roadside decorations bring the overworld to life. Fully configurable through datapacks.
+A data-driven path and trail network for Minecraft. Biome-specific paths and roadside decorations bring the overworld to life. Fully configurable through datapacks.
 
 This mod works on Fabric and Forge for Minecraft 1.20.1.
 

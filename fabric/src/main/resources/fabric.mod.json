@@ -8,9 +8,13 @@
         "${mod_author}"
     ],
     "contact": {
-        "homepage": "https://github.com/FinnSetchell/MoogsPaths",
-        "sources": "https://github.com/FinnSetchell/MoogsPaths",
-        "discord": "https://discord.gg/S5nffJbuvA"
+        "homepage": "${mod_homepage}",
+        "sources": "${mod_homepage}",
+        "issues": "${mod_issues}",
+        "discord": "${mod_discord}",
+        "ko-fi": "${mod_kofi}",
+        "curseforge": "${mod_curseforge}",
+        "modrinth": "${mod_modrinth}"
     },
     "license": "${license}",
     "icon": "assets/moogs_paths/icon.png",
@@ -25,6 +29,21 @@
         "fabric": "*",
         "minecraft": "${minecraft_version}",
         "java": ">=17"
+    },
+    "suggests": {
+        "modmenu": "*"
+    },
+    "custom": {
+        "modmenu": {
+            "links": {
+                "moogs_paths.releases": "${mod_releases}",
+                "modmenu.discord": "${mod_discord}",
+                "moogs_paths.kofi": "${mod_kofi}",
+                "moogs_paths.curseforge": "${mod_curseforge}",
+                "moogs_paths.modrinth": "${mod_modrinth}"
+            },
+            "update_checker": true
+        }
     }
 }
   

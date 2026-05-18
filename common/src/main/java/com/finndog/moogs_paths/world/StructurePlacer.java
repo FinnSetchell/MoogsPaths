@@ -141,27 +141,32 @@ public final class StructurePlacer {
         placedPositions.add(((long) waypoint.getX() << 32) | (waypoint.getZ() & 0xFFFFFFFFL));
     }
 
+    private static int fillPad(int sizeX, int sizeZ) {
+        return Math.max(1, Math.min(2, (Math.max(sizeX, sizeZ) + 1) / 2));
+    }
+
     private static boolean footprintOverWater(WorldGenLevel level, StructureTemplate template, BlockPos pos, Vec3i offset, Rotation rotation) {
         Vec3i rawSize = template.getSize();
         boolean rotated90 = rotation == Rotation.CLOCKWISE_90 || rotation == Rotation.COUNTERCLOCKWISE_90;
         int sizeX = rotated90 ? rawSize.getZ() : rawSize.getX();
         int sizeZ = rotated90 ? rawSize.getX() : rawSize.getZ();
-        int minX = pos.getX() - sizeX / 2 + offset.getX();
-        int minZ = pos.getZ() - sizeZ / 2 + offset.getZ();
+        int pad = fillPad(sizeX, sizeZ);
+        int minX = pos.getX() - sizeX / 2 + offset.getX() - pad;
+        int minZ = pos.getZ() - sizeZ / 2 + offset.getZ() - pad;
+        int totalX = sizeX + 2 * pad;
+        int totalZ = sizeZ + 2 * pad;
 
         BlockPos.MutableBlockPos mpos = new BlockPos.MutableBlockPos();
 
-        // quick pre-check: centre + 4 corners to catch the common "edge of footprint over water"
-        // case without running the full strided pass
-        if(isColumnOverWater(level, minX + sizeX / 2, minZ + sizeZ / 2, mpos)) return true;
+        if(isColumnOverWater(level, minX + totalX / 2, minZ + totalZ / 2, mpos)) return true;
         if(isColumnOverWater(level, minX, minZ, mpos)) return true;
-        if(isColumnOverWater(level, minX + sizeX, minZ, mpos)) return true;
-        if(isColumnOverWater(level, minX, minZ + sizeZ, mpos)) return true;
-        if(isColumnOverWater(level, minX + sizeX, minZ + sizeZ, mpos)) return true;
+        if(isColumnOverWater(level, minX + totalX, minZ, mpos)) return true;
+        if(isColumnOverWater(level, minX, minZ + totalZ, mpos)) return true;
+        if(isColumnOverWater(level, minX + totalX, minZ + totalZ, mpos)) return true;
 
         int stride = 2;
-        for(int dx = 0; dx <= sizeX; dx += stride) {
-            for(int dz = 0; dz <= sizeZ; dz += stride) {
+        for(int dx = 0; dx <= totalX; dx += stride) {
+            for(int dz = 0; dz <= totalZ; dz += stride) {
                 int x = minX + dx;
                 int z = minZ + dz;
                 if(isColumnOverWater(level, x, z, mpos)) return true;
@@ -170,48 +175,34 @@ public final class StructurePlacer {
         return false;
     }
 
-    // Outer ring of the footprint is thinned probabilistically so the fill pad fades into
-    // surrounding terrain instead of leaving a hard square step.
     private static void applyBeardThin(WorldGenLevel level, StructureTemplate template, BlockPos pos, Vec3i offset, Rotation rotation, RandomSource random) {
         Vec3i rawSize = template.getSize();
         boolean rotated90 = rotation == Rotation.CLOCKWISE_90 || rotation == Rotation.COUNTERCLOCKWISE_90;
         int sizeX = rotated90 ? rawSize.getZ() : rawSize.getX();
-        int sizeY = rawSize.getY();
         int sizeZ = rotated90 ? rawSize.getX() : rawSize.getZ();
-        int minX = pos.getX() - sizeX / 2 + offset.getX();
-        int minZ = pos.getZ() - sizeZ / 2 + offset.getZ();
+        int pad = fillPad(sizeX, sizeZ);
+        int fillSizeX = sizeX + 2 * pad;
+        int fillSizeZ = sizeZ + 2 * pad;
+        int fillMinX = pos.getX() - sizeX / 2 + offset.getX() - pad;
+        int fillMinZ = pos.getZ() - sizeZ / 2 + offset.getZ() - pad;
         int baseY = pos.getY() + offset.getY();
-        int topY = baseY + sizeY - 1;
 
         BlockPos.MutableBlockPos mpos = new BlockPos.MutableBlockPos();
 
-        // Only fill upward to support the structure where terrain dips below its base.
-        // We deliberately do NOT carve terrain that sits at or above baseY: cells in the
-        // structure's footprint that have no block (or structure_void) in the NBT should
-        // leave existing terrain alone, the same way structure_void works in path tiles.
-        // Where the structure does have a block at that position, placeInWorld (flag 3)
-        // overwrites the terrain. Where it does not, the natural surface block remains
-        // visible instead of leaving an air pocket. The flatness_tolerance check upstream
-        // already keeps placements on near-flat ground, so bulges through the structure
-        // are rare.
-        for(int dx = 0; dx < sizeX; dx++) {
-            for(int dz = 0; dz < sizeZ; dz++) {
-                int wx = minX + dx;
-                int wz = minZ + dz;
-                int edgeDist = Math.min(Math.min(dx, sizeX - 1 - dx), Math.min(dz, sizeZ - 1 - dz));
+        for(int dx = 0; dx < fillSizeX; dx++) {
+            for(int dz = 0; dz < fillSizeZ; dz++) {
+                int wx = fillMinX + dx;
+                int wz = fillMinZ + dz;
+                int edgeDist = Math.min(Math.min(dx, fillSizeX - 1 - dx), Math.min(dz, fillSizeZ - 1 - dz));
                 int naturalY = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, wx, wz) - 1;
 
                 if(naturalY < baseY) {
-                    // Sample the biome's actual surface and sub-surface blocks so the fill
-                    // matches the terrain (sand in desert, red sand in badlands, etc.)
-                    // rather than always placing dirt.
                     BlockState topFill = naturalY >= level.getMinBuildHeight()
                             ? level.getBlockState(mpos.set(wx, naturalY, wz))
                             : Blocks.GRASS_BLOCK.defaultBlockState();
                     BlockState subFill = naturalY - 1 >= level.getMinBuildHeight()
                             ? level.getBlockState(mpos.set(wx, naturalY - 1, wz))
                             : Blocks.DIRT.defaultBlockState();
-                    // Fill below: solid pad in the centre, thinned at the outermost ring.
                     for(int y = naturalY + 1; y < baseY; y++) {
                         if(edgeDist == 0 && random.nextFloat() > 0.5f) continue;
                         mpos.set(wx, y, wz);
