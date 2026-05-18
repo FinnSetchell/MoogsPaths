@@ -86,6 +86,7 @@ publishMods {
             repository = 'FinnSetchell/MoogsPaths'
             commitish = '1.20.1'
             tagName = providers.environmentVariable('GITHUB_REF_NAME').orElse("v${project.version}")
+            parent = projects.fabric.tasks.named('publishGithub')
         }
     }
 }
