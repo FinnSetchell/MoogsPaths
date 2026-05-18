@@ -31,7 +31,7 @@ public final class PathFinder {
     private static final double PROXIMITY_FRACTION = 0.10; // bail when bestReachedH drops to this fraction of startToGoal (0.10 = 90% covered)
     private static final int STAGNATION_LIMIT = 200; // bail after this many real pops with no improvement to bestReachedH
     private static final int HEIGHT_UNSET = Integer.MIN_VALUE; // sentinel in the height memo cache meaning "not yet sampled"
-    private static final int COARSE_HEIGHT_STRIDE = 16; // A* snaps height samples to this stride so adjacent cells share noise lookups
+    private static final int COARSE_HEIGHT_STRIDE = 8; // A* snaps height samples to this stride so adjacent cells share noise lookups
     private static final long NO_PREV = Long.MIN_VALUE; // sentinel in cameFrom meaning "no predecessor cell"
 
     // Primitive variant of BiFunction<Integer,Integer,Integer> - avoids autoboxing per call.

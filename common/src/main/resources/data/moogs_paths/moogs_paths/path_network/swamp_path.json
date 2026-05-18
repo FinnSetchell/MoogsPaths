@@ -4,8 +4,8 @@
     "minecraft:swamp",
     "minecraft:mangrove_swamp"
   ],
-  "weight": 5,
-  "region_size": 22,
+  "weight": 4,
+  "region_size": 30,
   "structure_sets": [
     "moogs_paths:swamp_posts"
   ],

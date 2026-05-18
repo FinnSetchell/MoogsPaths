@@ -5,8 +5,8 @@
     "minecraft:sunflower_plains",
     "minecraft:meadow"
   ],
-  "weight": 8,
-  "region_size": 22,
+  "weight": 6,
+  "region_size": 32,
   "structure_sets": [
     "moogs_paths:overworld_cairns"
   ],

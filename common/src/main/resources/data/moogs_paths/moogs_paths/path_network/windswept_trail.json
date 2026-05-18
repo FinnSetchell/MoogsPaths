@@ -6,8 +6,8 @@
     "minecraft:windswept_forest",
     "minecraft:windswept_savanna"
   ],
-  "weight": 4,
-  "region_size": 28,
+  "weight": 3,
+  "region_size": 36,
   "structure_sets": [
     "moogs_paths:simple_andesite_lamp"
   ],

@@ -1,8 +1,8 @@
 {
   "path_type": "moogs_paths:brick_road",
   "biomes": "#minecraft:is_overworld",
-  "weight": 5,
-  "region_size": 28,
+  "weight": 4,
+  "region_size": 48,
   "structure_sets": [
     "moogs_paths:brick_lantern_and_oak_sign"
   ],

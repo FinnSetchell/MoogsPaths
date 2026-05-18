@@ -62,7 +62,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
 
     @Override
     public boolean place(FeaturePlaceContext<NoneFeatureConfiguration> ctx) {
-        PathDebugTimer.begin();
+        if(Constants.ENABLE_DEBUG_TIMER) PathDebugTimer.begin();
         try {
         WorldGenLevel level = ctx.level();
         ChunkGenerator generator = ctx.chunkGenerator();
@@ -86,7 +86,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
             int regionSize = entry.getKey();
             List<PathNetworkType> networks = entry.getValue();
             int maxRadius = MoogsPathsDatapackRegistries.networksMaxRadiusForRegionSize(level.registryAccess(), regionSize);
-            PathDebugTimer.stamp(PathDebugTimer.Stage.ORIGIN_ENUM);
+            if(Constants.ENABLE_DEBUG_TIMER) PathDebugTimer.stamp(PathDebugTimer.Stage.ORIGIN_ENUM);
             List<int[]> origins = PathRegionSelector.originsInRange(worldSeed, chunkX, chunkZ, maxRadius, regionSize);
 
             for(int[] origin : origins) {
@@ -107,18 +107,18 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                 if(!intersectsWithPad(cachedPath, chunkX, chunkZ, bboxPad)) continue;
 
                 RandomSource rasterRandom = RandomSource.create(pathSeed ^ ((long) chunkX * RASTER_CHUNK_X_MULT) ^ ((long) chunkZ * RASTER_CHUNK_Z_MULT));
-                PathDebugTimer.stamp(PathDebugTimer.Stage.RASTER);
+                if(Constants.ENABLE_DEBUG_TIMER) PathDebugTimer.stamp(PathDebugTimer.Stage.RASTER);
                 PathRasteriser.rasteriseInChunk(level, cachedPath.waypoints(), pathType, chunkX, chunkZ, rasterRandom);
 
                 if(!network.structureSets().isEmpty()) {
                     RandomSource structureRandom = RandomSource.create(pathSeed ^ STRUCTURE_MIXER);
-                    PathDebugTimer.stamp(PathDebugTimer.Stage.STRUCTURES);
+                    if(Constants.ENABLE_DEBUG_TIMER) PathDebugTimer.stamp(PathDebugTimer.Stage.STRUCTURES);
                     StructurePlacer.placeInChunk(level, cachedPath.waypoints(), network.structureSets(), network.biomes(), chunkX, chunkZ, structureRandom, placedStructurePositions);
                 }
 
                 if(!network.featureDecoratorSets().isEmpty()) {
                     RandomSource featureRandom = RandomSource.create(pathSeed ^ FEATURE_MIXER);
-                    PathDebugTimer.stamp(PathDebugTimer.Stage.FEATURES);
+                    if(Constants.ENABLE_DEBUG_TIMER) PathDebugTimer.stamp(PathDebugTimer.Stage.FEATURES);
                     FeatureScatterer.scatterInChunk(level, generator, cachedPath.waypoints(), network.featureDecoratorSets(), network.biomes(), chunkX, chunkZ, featureRandom);
                 }
 
