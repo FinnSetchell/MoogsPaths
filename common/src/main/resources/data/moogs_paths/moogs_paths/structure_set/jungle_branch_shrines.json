@@ -1,7 +1,6 @@
 {
   "structures": [
-    { "nbt": "moogs_paths:jungle_shrine", "rotation": "random", "weight": 1, "offset": [0, 0, 0] },
-    { "nbt": "moogs_paths:cherry_bench", "rotation": "random", "weight": 5, "offset": [0, 0, 0] }
+    { "nbt": "moogs_paths:jungle_shrine", "rotation": "random", "weight": 1, "offset": [0, 0, 0] }
   ],
   "placement": "interval",
   "spacing": 200,

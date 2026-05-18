@@ -1,5 +1,6 @@
 package com.finndog.moogs_paths.world;
 
+import com.finndog.moogs_paths.Constants;
 import com.finndog.moogs_paths.data.MoogsPathsDatapackRegistries;
 import com.finndog.moogs_paths.data.PathDataManager;
 import com.finndog.moogs_paths.data.StructureSet;
@@ -125,7 +126,7 @@ public final class StructurePlacer {
         if(!level.getFluidState(new BlockPos(waypoint.getX(), surfaceY - 1, waypoint.getZ())).isEmpty()) return;
         BlockPos pos = new BlockPos(waypoint.getX(), surfaceY - 1, waypoint.getZ());
 
-        PathDataManager.recordBiomeCall(com.finndog.moogs_paths.data.BiomeCallSite.STRUCTURE_PLACE_CHECK);
+        if(Constants.ENABLE_DEBUG_TIMER) PathDataManager.recordBiomeCall(com.finndog.moogs_paths.data.BiomeCallSite.STRUCTURE_PLACE_CHECK);
         var biome = level.getBiome(pos);
         if(!biomes.contains(biome) || biome.is(PathChunkFeature.HAS_NO_PATHS)) return;
         if(!isFlatEnough(level, pos, set.flatnessTolerance())) return;
@@ -182,9 +183,6 @@ public final class StructurePlacer {
         int baseY = pos.getY() + offset.getY();
         int topY = baseY + sizeY - 1;
 
-        BlockState topFill = Blocks.GRASS_BLOCK.defaultBlockState();
-        BlockState subFill = Blocks.DIRT.defaultBlockState();
-
         BlockPos.MutableBlockPos mpos = new BlockPos.MutableBlockPos();
 
         // Only fill upward to support the structure where terrain dips below its base.
@@ -204,6 +202,15 @@ public final class StructurePlacer {
                 int naturalY = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, wx, wz) - 1;
 
                 if(naturalY < baseY) {
+                    // Sample the biome's actual surface and sub-surface blocks so the fill
+                    // matches the terrain (sand in desert, red sand in badlands, etc.)
+                    // rather than always placing dirt.
+                    BlockState topFill = naturalY >= level.getMinBuildHeight()
+                            ? level.getBlockState(mpos.set(wx, naturalY, wz))
+                            : Blocks.GRASS_BLOCK.defaultBlockState();
+                    BlockState subFill = naturalY - 1 >= level.getMinBuildHeight()
+                            ? level.getBlockState(mpos.set(wx, naturalY - 1, wz))
+                            : Blocks.DIRT.defaultBlockState();
                     // Fill below: solid pad in the centre, thinned at the outermost ring.
                     for(int y = naturalY + 1; y < baseY; y++) {
                         if(edgeDist == 0 && random.nextFloat() > 0.5f) continue;

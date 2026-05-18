@@ -27,6 +27,9 @@ jobs:
       - name: make gradle wrapper executable
         run: chmod +x ./gradlew
 
+      - name: disable debug timer for release
+        run: sed -i 's/ENABLE_DEBUG_TIMER = true/ENABLE_DEBUG_TIMER = false/' common/src/main/java/com/finndog/moogs_paths/Constants.java
+
       - name: publish
         run: ./gradlew :fabric:publishMods :forge:publishMods
         env:

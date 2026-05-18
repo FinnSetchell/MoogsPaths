@@ -1,5 +1,6 @@
 package com.finndog.moogs_paths.world;
 
+import com.finndog.moogs_paths.Constants;
 import com.finndog.moogs_paths.data.PathCounter;
 import com.finndog.moogs_paths.data.PathDataManager;
 import com.finndog.moogs_paths.data.PathType;
@@ -152,14 +153,14 @@ public final class PathFinder {
                 improvedOnce = true;
                 popsSinceImprovement = 0;
                 if(bestReachedH <= proximityH) {
-                    PathDataManager.addPathCounter(PathCounter.PATH_BAILED_ON_PROXIMITY, 1);
+                    if(Constants.ENABLE_DEBUG_TIMER) PathDataManager.addPathCounter(PathCounter.PATH_BAILED_ON_PROXIMITY, 1);
                     result = reconstruct(cameFrom, startKey, bestReachedKey);
                     break;
                 }
             } else if(improvedOnce) {
                 popsSinceImprovement++;
                 if(popsSinceImprovement > STAGNATION_LIMIT) {
-                    PathDataManager.addPathCounter(PathCounter.PATH_BAILED_ON_STAGNATION, 1);
+                    if(Constants.ENABLE_DEBUG_TIMER) PathDataManager.addPathCounter(PathCounter.PATH_BAILED_ON_STAGNATION, 1);
                     result = reconstruct(cameFrom, startKey, bestReachedKey);
                     break;
                 }
@@ -188,7 +189,7 @@ public final class PathFinder {
                 }
             }
         }
-        PathDataManager.addPathCounter(PathCounter.A_STAR_ITERATIONS, iters);
+        if(Constants.ENABLE_DEBUG_TIMER) PathDataManager.addPathCounter(PathCounter.A_STAR_ITERATIONS, iters);
         if(result == null) result = reconstruct(cameFrom, startKey, bestReachedKey);
         return result;
     }
@@ -418,7 +419,7 @@ public final class PathFinder {
             long key = ((long) x << 32) | (z & 0xFFFFFFFFL);
             int v = cache.get(key);
             if(v != 0) {
-                PathDataManager.addPathCounter(PathCounter.PATHFINDER_BIOME_MEMO_HIT, 1);
+                if(Constants.ENABLE_DEBUG_TIMER) PathDataManager.addPathCounter(PathCounter.PATHFINDER_BIOME_MEMO_HIT, 1);
                 return v == 1;
             }
             boolean result = source.test(x, z);

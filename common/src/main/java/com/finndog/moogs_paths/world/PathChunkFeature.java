@@ -124,7 +124,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
 
                 if(!network.bushDecoratorSets().isEmpty()) {
                     RandomSource bushRandom = RandomSource.create(pathSeed ^ BUSH_MIXER);
-                    PathDebugTimer.stamp(PathDebugTimer.Stage.BUSHES);
+                    if(Constants.ENABLE_DEBUG_TIMER) PathDebugTimer.stamp(PathDebugTimer.Stage.BUSHES);
                     BushPlacer.placeInChunk(level, cachedPath.waypoints(), network.bushDecoratorSets(), network.biomes(), chunkX, chunkZ, bushRandom);
                 }
 
@@ -134,7 +134,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
 
         return placed;
         } finally {
-            PathDebugTimer.end();
+            if(Constants.ENABLE_DEBUG_TIMER) PathDebugTimer.end();
         }
     }
 
@@ -174,15 +174,15 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
             ^ PATH_SEED_MIXER;
 
         if(PathDataManager.isRejected(pathSeed)) {
-            PathDataManager.addPathCounter(PathCounter.ORIGIN_REJECTED_BY_CACHE, 1);
+            if(Constants.ENABLE_DEBUG_TIMER) PathDataManager.addPathCounter(PathCounter.ORIGIN_REJECTED_BY_CACHE, 1);
             return Optional.empty();
         }
 
-        PathDebugTimer.stamp(PathDebugTimer.Stage.ORIGIN_BIOME);
+        if(Constants.ENABLE_DEBUG_TIMER) PathDebugTimer.stamp(PathDebugTimer.Stage.ORIGIN_BIOME);
         Optional<PathNetworkType> selected = selectNetworkAt(generator, randomState, originChunkX, originChunkZ, pathSeed, networksInGroup);
         if(selected.isEmpty()) {
             PathDataManager.markRejected(pathSeed);
-            PathDataManager.addPathCounter(PathCounter.ORIGIN_REJECTED_BY_BIOME, 1);
+            if(Constants.ENABLE_DEBUG_TIMER) PathDataManager.addPathCounter(PathCounter.ORIGIN_REJECTED_BY_BIOME, 1);
             return Optional.empty();
         }
         PathNetworkType network = selected.get();
@@ -190,7 +190,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
         Climate.Sampler sampler = randomState.sampler();
 
         PathDataManager.CachedPath fastCached = PathDataManager.peekCachedPath(pathSeed);
-        if(fastCached == null) {
+        if(Constants.ENABLE_DEBUG_TIMER && fastCached == null) {
             PathDataManager.addPathCounter(PathCounter.ORIGIN_ACCEPTED, 1);
         }
 
@@ -199,7 +199,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
             Constants.LOG.error("Missing path type: {}", network.pathType());
             return Optional.empty();
         }
-        PathDebugTimer.stamp(PathDebugTimer.Stage.PATHFIND);
+        if(Constants.ENABLE_DEBUG_TIMER) PathDebugTimer.stamp(PathDebugTimer.Stage.PATHFIND);
         PathType pathType = pathTypeOpt.get();
 
         PathDataManager.CachedPath cachedPath;
@@ -210,12 +210,12 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
             BlockPos originPos = new BlockPos(originBlockX, originSurfaceY, originBlockZ);
             int biomeQuartY = QuartPos.fromBlock(BIOME_FILTER_Y);
             cachedPath = PathDataManager.getOrComputeWaypoints(pathSeed, () -> {
-                PathDataManager.addPathCounter(PathCounter.PATH_ACTUALLY_COMPUTED, 1);
+                if(Constants.ENABLE_DEBUG_TIMER) PathDataManager.addPathCounter(PathCounter.PATH_ACTUALLY_COMPUTED, 1);
                 RandomSource walkRandom = RandomSource.create(pathSeed ^ WALK_MIXER);
                 return PathFinder.findPath(originPos, pathType, walkRandom,
                     (x, z) -> generator.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, serverLevel, randomState),
                     (gx, gz) -> {
-                        PathDataManager.recordBiomeCall(com.finndog.moogs_paths.data.BiomeCallSite.PATHFINDER_GOAL_CHECK);
+                        if(Constants.ENABLE_DEBUG_TIMER) PathDataManager.recordBiomeCall(com.finndog.moogs_paths.data.BiomeCallSite.PATHFINDER_GOAL_CHECK);
                         Holder<Biome> b = biomeSource.getNoiseBiome(QuartPos.fromBlock(gx), biomeQuartY, QuartPos.fromBlock(gz), sampler);
                         return network.biomes().contains(b) && !b.is(HAS_NO_PATHS);
                     });
@@ -225,7 +225,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
         if(cachedPath.waypointCount() < 2) {
             if(fastCached == null) {
                 PathDataManager.markRejected(pathSeed);
-                PathDataManager.addPathCounter(PathCounter.PATH_DROPPED_TOO_SHORT, 1);
+                if(Constants.ENABLE_DEBUG_TIMER) PathDataManager.addPathCounter(PathCounter.PATH_DROPPED_TOO_SHORT, 1);
             }
             return Optional.empty();
         }
@@ -245,7 +245,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
         int sampleChunkZ = cellZ << ORIGIN_BIOME_CELL_SHIFT;
         int sampleBlockX = (sampleChunkX << 4) + 8;
         int sampleBlockZ = (sampleChunkZ << 4) + 8;
-        PathDataManager.recordBiomeCall(com.finndog.moogs_paths.data.BiomeCallSite.ORIGIN_FILTER_MISS);
+        if(Constants.ENABLE_DEBUG_TIMER) PathDataManager.recordBiomeCall(com.finndog.moogs_paths.data.BiomeCallSite.ORIGIN_FILTER_MISS);
         Holder<Biome> fresh = biomeSource.getNoiseBiome(
             QuartPos.fromBlock(sampleBlockX),
             QuartPos.fromBlock(BIOME_FILTER_Y),

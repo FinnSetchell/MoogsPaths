@@ -58,7 +58,7 @@ public final class FeatureScatterer {
         int sy = level.getHeight(Heightmap.Types.WORLD_SURFACE, bx, bz);
         if(sy <= level.getMinBuildHeight()) return;
         BlockPos pos = new BlockPos(bx, sy, bz);
-        PathDataManager.recordBiomeCall(com.finndog.moogs_paths.data.BiomeCallSite.FEATURE_PLACE_CHECK);
+        if(Constants.ENABLE_DEBUG_TIMER) PathDataManager.recordBiomeCall(com.finndog.moogs_paths.data.BiomeCallSite.FEATURE_PLACE_CHECK);
         var biome = level.getBiome(pos);
         if(!biomes.contains(biome) || biome.is(PathChunkFeature.HAS_NO_PATHS)) return;
         feature.place(level, generator, random, pos);

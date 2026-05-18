@@ -1,5 +1,6 @@
 package com.finndog.moogs_paths.world;
 
+import com.finndog.moogs_paths.Constants;
 import com.finndog.moogs_paths.data.BushDecoratorSet;
 import com.finndog.moogs_paths.data.MoogsPathsDatapackRegistries;
 import com.finndog.moogs_paths.data.PathDataManager;
@@ -98,7 +99,7 @@ public final class BushPlacer {
 
                 if(cx + size >= chunkMinX && cx - size <= chunkMaxX && cz + size >= chunkMinZ && cz - size <= chunkMaxZ) {
                     int centerY = level.getHeight(Heightmap.Types.WORLD_SURFACE, cx, cz);
-                    PathDataManager.recordBiomeCall(com.finndog.moogs_paths.data.BiomeCallSite.BUSH_PLACE_CHECK);
+                    if(Constants.ENABLE_DEBUG_TIMER) PathDataManager.recordBiomeCall(com.finndog.moogs_paths.data.BiomeCallSite.BUSH_PLACE_CHECK);
                     var biome = level.getBiome(new BlockPos(cx, centerY, cz));
                     if(!biomes.contains(biome) || biome.is(PathChunkFeature.HAS_NO_PATHS)) return;
                     BlockState block = pick(set.blocks(), totalWeight, segRandom);

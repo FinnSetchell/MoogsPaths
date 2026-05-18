@@ -76,7 +76,9 @@ public final class MoogsPathsDatapackRegistries {
         cachedDerivedViews = null;
     }
 
-    // search radius = max path length * 2 - generous upper bound for any random-angle goal
+    // search radius = max path length * 1.5 - covers A* ellipse (1.35x) + path width + margin
+    private static final double RADIUS_LENGTH_MULTIPLIER = 1.5;
+
     private static DerivedNetworkViews derivedViews(RegistryAccess access) {
         DerivedNetworkViews views = cachedDerivedViews;
         if(views == null) {
@@ -88,7 +90,7 @@ public final class MoogsPathsDatapackRegistries {
                 .collect(Collectors.toUnmodifiableMap(
                     Map.Entry::getKey,
                     e -> e.getValue().stream()
-                        .mapToInt(n -> Optional.ofNullable(pathTypes.get(n.pathType())).map(pt -> pt.length().getMaxValue() * 2).orElse(1000))
+                        .mapToInt(n -> Optional.ofNullable(pathTypes.get(n.pathType())).map(pt -> (int) Math.ceil(pt.length().getMaxValue() * RADIUS_LENGTH_MULTIPLIER)).orElse(1000))
                         .max().orElse(1000)
                 ));
             views = new DerivedNetworkViews(byRegion, maxByRegion);
