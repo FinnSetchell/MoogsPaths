@@ -1,4 +1,8 @@
-## [1.0.0] - Initial Release
+# Changelog
+
+---
+
+## [1.0.0] - 2026-05-18
 
 - paths generate across the overworld with biome-specific surface blocks and edge palettes
 - includes dirt trails, cobblestone roads, brick roads, sandstone highways, mountain roads, mossy jungle paths, red sand trails, and a badlands canyon network
