@@ -46,11 +46,15 @@ jobs:
           " "$VERSION")
           printf "body<<DELIMITER\n%s\nDELIMITER\n" "$BODY" >> "$GITHUB_OUTPUT"
 
-      - name: publish to CurseForge, Modrinth & Discord
+      - name: publish to CurseForge & Modrinth
         run: ./gradlew :fabric:publishMods :forge:publishMods
         env:
           MODRINTH_API_KEY: ${{ secrets.MODRINTH_API_KEY }}
           CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+
+      - name: announce on Discord
+        run: python3 .github/scripts/announce_release.py
+        env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
 
       - name: create GitHub release
