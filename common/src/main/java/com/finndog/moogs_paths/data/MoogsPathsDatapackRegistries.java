@@ -18,19 +18,19 @@ public final class MoogsPathsDatapackRegistries {
     private static volatile DerivedNetworkViews cachedDerivedViews = null;
 
     public static final ResourceKey<Registry<PathType>> PATH_TYPE =
-        ResourceKey.createRegistryKey(new ResourceLocation(Constants.MOD_ID, "path_type"));
+        ResourceKey.createRegistryKey(ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "path_type"));
 
     public static final ResourceKey<Registry<PathNetworkType>> PATH_NETWORK =
-        ResourceKey.createRegistryKey(new ResourceLocation(Constants.MOD_ID, "path_network"));
+        ResourceKey.createRegistryKey(ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "path_network"));
 
     public static final ResourceKey<Registry<StructureSet>> STRUCTURE_SET =
-        ResourceKey.createRegistryKey(new ResourceLocation(Constants.MOD_ID, "structure_set"));
+        ResourceKey.createRegistryKey(ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "structure_set"));
 
     public static final ResourceKey<Registry<FeatureDecoratorSet>> FEATURE_DECORATOR_SET =
-        ResourceKey.createRegistryKey(new ResourceLocation(Constants.MOD_ID, "feature_decorator_set"));
+        ResourceKey.createRegistryKey(ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "feature_decorator_set"));
 
     public static final ResourceKey<Registry<BushDecoratorSet>> BUSH_DECORATOR_SET =
-        ResourceKey.createRegistryKey(new ResourceLocation(Constants.MOD_ID, "bush_decorator_set"));
+        ResourceKey.createRegistryKey(ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "bush_decorator_set"));
 
     public static void register() {
         Services.PLATFORM.registerDatapackRegistry(PATH_TYPE, PathType.CODEC);

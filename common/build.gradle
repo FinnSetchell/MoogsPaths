@@ -1,13 +1,10 @@
 plugins {
     id 'multiloader-common'
-    id 'net.neoforged.moddev.legacyforge'
+    id 'net.neoforged.moddev'
 }
 
-legacyForge {
-    mcpVersion = minecraft_version
-    if (file("src/main/resources/META-INF/accesstransformer.cfg").exists()) {
-        accessTransformers = ["src/main/resources/META-INF/accesstransformer.cfg"]
-    }
+neoForge {
+    version = neoforge_version
     parchment {
         minecraftVersion = parchment_minecraft
         mappingsVersion = parchment_version

@@ -1,0 +1,121 @@
+plugins {
+    id 'multiloader-loader'
+    id 'net.neoforged.moddev'
+    id 'me.modmuss50.mod-publish-plugin'
+}
+
+neoForge {
+    version = neoforge_version
+
+    def at = project(':common').file('src/main/resources/META-INF/accesstransformer.cfg')
+    if (at.exists()) {
+        accessTransformers = [at.absolutePath]
+    }
+    parchment {
+        minecraftVersion = parchment_minecraft
+        mappingsVersion = parchment_version
+    }
+    runs {
+        client {
+            client()
+        }
+        data {
+            data()
+            programArguments.addAll '--mod', project.mod_id, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
+        }
+        server {
+            server()
+        }
+    }
+    mods {
+        "${mod_id}" {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+sourceSets.main.resources.srcDir 'src/generated/resources'
+
+def changelogContent = rootProject.file('CHANGELOG.md').exists() ? rootProject.file('CHANGELOG.md').getText('UTF-8') : ''
+def changelogMatcher = ~/(?s)## \[${version}\][^\n]*\r?\n(.*?)(?=\r?\n---|\r?\n## \[|\z)/
+def changelogMatch = (changelogContent =~ changelogMatcher)
+def changelogLatest = changelogMatch.find() ? changelogMatch.group(1).trim() : ''
+
+publishMods {
+    file = tasks.named('jar').flatMap { it.archiveFile }
+    changelog = changelogLatest
+    version = project.version.toString()
+    type = STABLE
+    displayName = "${mod_name} ${project.version}-${minecraft_version} (NeoForge)"
+    modLoaders.add("neoforge")
+    dryRun = providers.environmentVariable('PUBLISH_DRY_RUN').map { it == 'true' }.orElse(false)
+    maxRetries = 3
+
+    if (providers.environmentVariable('MODRINTH_API_KEY').isPresent() && project.hasProperty('modrinth_project_id') && modrinth_project_id) {
+        modrinth {
+            accessToken = providers.environmentVariable('MODRINTH_API_KEY')
+            projectId = modrinth_project_id
+            minecraftVersionRange {
+                start = publish_mc_start
+                end = publish_mc_end
+            }
+        }
+    }
+
+    if (providers.environmentVariable('CURSEFORGE_API_KEY').isPresent() && project.hasProperty('cf_project_id') && cf_project_id) {
+        curseforge {
+            accessToken = providers.environmentVariable('CURSEFORGE_API_KEY')
+            projectId = cf_project_id
+            minecraftVersionRange {
+                start = publish_mc_start
+                end = publish_mc_end
+            }
+        }
+    }
+
+    discord {
+        webhookUrl = providers.environmentVariable('DISCORD_WEBHOOK')
+        dryRunWebhookUrl = providers.environmentVariable('DISCORD_WEBHOOK_DRY_RUN').orElse('')
+        username = "Moog's Mods"
+        avatarUrl = (project.findProperty('discord_avatar_url') ?: '')
+
+        content = changelog.map { text ->
+            def changelogBody = text.trim()
+            def versionRange = publish_mc_start == publish_mc_end ? publish_mc_start : "${publish_mc_start} - ${publish_mc_end}"
+            """## **${mod_name} ${project.version}** has been released! 🎉
+
+**${mod_name} ${project.version}-${minecraft_version}** | NeoForge & Fabric
+Versions: ${versionRange}
+
+### 📝 **Changelog:**
+${changelogBody}
+
+<:curseforge:1132291568305459250> [CurseForge](${mod_curseforge}) | <:modrinth:1132291566019563550> [Modrinth](${mod_modrinth})"""
+        }
+
+        style {
+            look = "MODERN"
+            link = "EMBED"
+            color = (project.findProperty('discord_embed_color') ?: '#8B6914')
+        }
+    }
+}
+
+tasks.named('announceDiscord').configure {
+    doFirst {
+        def webhookUrl = System.getenv('DISCORD_WEBHOOK')
+        def bannerUrl = project.findProperty('discord_banner_url') as String
+        def avatarUrl = project.findProperty('discord_avatar_url') as String
+        if (!bannerUrl) return
+        if (!webhookUrl) {
+            logger.warn("Discord banner skipped: DISCORD_WEBHOOK is not set")
+            return
+        }
+        def connection = new URL(webhookUrl).openConnection()
+        connection.requestMethod = 'POST'
+        connection.doOutput = true
+        connection.setRequestProperty('Content-Type', 'application/json')
+        connection.outputStream.withWriter { it << """{"username":"Moog's Mods","avatar_url":"${avatarUrl}","content":"<@&${discord_role_id}>\\n${bannerUrl}","allowed_mentions":{"parse":[],"roles":["${discord_role_id}"]}}""" }
+        connection.responseCode
+    }
+}

@@ -1,0 +1,9 @@
+/paths locate
+/tp @s 248 ~ -200
+/paths locate moogs_paths:badlands_canyon
+/paths locate moogs_paths:mushroom_path
+/paths locate moogs_paths:savanna_path
+/paths locate moogs_paths:jungle_path
+/tp @s -3256 ~ 7208
+/tp @s 936 ~ -356
+/tp @s 552 ~ -312

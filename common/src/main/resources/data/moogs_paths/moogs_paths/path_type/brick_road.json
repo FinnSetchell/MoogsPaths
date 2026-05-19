@@ -36,14 +36,12 @@
     "min": 2,
     "max": 3
   },
-  "rigidness": 0.20,
-  "carver": 0.60,
+  "rigidness": 0.2,
+  "carver": 0.6,
   "length": {
     "type": "minecraft:uniform",
-    "value": {
-      "min_inclusive": 150,
-      "max_inclusive": 400
-    }
+    "min_inclusive": 150,
+    "max_inclusive": 400
   },
   "fade": {
     "start_blocks": 5,

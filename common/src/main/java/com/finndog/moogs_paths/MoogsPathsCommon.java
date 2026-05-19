@@ -18,7 +18,7 @@ public class MoogsPathsCommon {
             MoogsPathsDatapackRegistries.invalidateDerivedViews();
             PathDataManager.onServerStart(server.getStructureManager());
             if(Constants.ENABLE_DEBUG_TIMER && DEBUG_INITIALISED.compareAndSet(false, true)) {
-                Path logDir = server.getServerDirectory().toPath().resolve("logs");
+                Path logDir = server.getServerDirectory().resolve("logs");
                 PathDebugTimer.init(logDir);
                 Runtime.getRuntime().addShutdownHook(new Thread(PathDebugTimer::close, "moogs_paths_debug-shutdown"));
             }

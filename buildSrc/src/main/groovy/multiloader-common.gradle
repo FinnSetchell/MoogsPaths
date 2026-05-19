@@ -95,8 +95,13 @@ processResources {
             'mod_id'                       : mod_id,
             'license'                      : license,
             'description'                  : project.description,
-            "forge_version": forge_version,
-            "forge_loader_version_range": forge_loader_version_range,
+            "forge_version"                : forge_version,
+            "forge_loader_version_range"   : forge_loader_version_range,
+            "forge_version_range"          : forge_version_range,
+            "neoforge_version"             : neoforge_version,
+            "neoforge_loader_version_range": neoforge_loader_version_range,
+            "neoforge_version_range"       : neoforge_version_range,
+            "fabric_mc_dependency"         : fabric_mc_dependency,
             'credits'                      : credits,
             'java_version'                 : java_version,
             'mod_issues'                   : mod_issues,
@@ -112,7 +117,7 @@ processResources {
         key, value -> [(key): value instanceof String ? value.replace("\n", "\\\\n") : value]
     }
 
-    filesMatching(['META-INF/mods.toml']) {
+    filesMatching(['META-INF/mods.toml', 'META-INF/neoforge.mods.toml']) {
         expand expandProps
     }
 

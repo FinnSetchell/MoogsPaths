@@ -28,10 +28,8 @@
   "carver": 0.3,
   "length": {
     "type": "minecraft:uniform",
-    "value": {
-      "min_inclusive": 150,
-      "max_inclusive": 400
-    }
+    "min_inclusive": 150,
+    "max_inclusive": 400
   },
   "fade": {
     "start_blocks": 0,

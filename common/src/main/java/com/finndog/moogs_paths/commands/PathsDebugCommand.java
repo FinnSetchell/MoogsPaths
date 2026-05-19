@@ -160,7 +160,7 @@ public final class PathsDebugCommand {
             int dist = (int) Math.sqrt(wpDx * wpDx + wpDz * wpDz);
 
             ResourceLocation networkId = registry.getResourceKey(ev.network())
-                .map(ResourceKey::location).orElse(new ResourceLocation("unknown", "unknown"));
+                .map(ResourceKey::location).orElse(ResourceLocation.fromNamespaceAndPath("unknown", "unknown"));
 
             MutableComponent coord = Component.literal("[" + nearestWp.getX() + ", ~, " + nearestWp.getZ() + "]")
                 .withStyle(style -> style

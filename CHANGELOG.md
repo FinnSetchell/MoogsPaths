@@ -2,12 +2,6 @@
 
 ---
 
-## [1.0.1] - 2026-05-18
-
-- Reformatted all json code
-
----
-
 ## [1.0.0] - 2026-05-18
 
 - paths generate across the overworld with biome-specific surface blocks and edge palettes
@@ -16,4 +10,4 @@
 - oceans, rivers, caves, the void, and the deep dark are excluded from generation by default
 - use the `moogs_paths:has_no_paths` biome tag to exclude additional biomes
 - `/paths locate [network]` finds the nearest path; `/paths debug` shows runtime info
-- supports Fabric and Forge on Minecraft 1.20.1
+- supports Fabric, NeoForge and Forge on Minecraft 1.21-1.21.1

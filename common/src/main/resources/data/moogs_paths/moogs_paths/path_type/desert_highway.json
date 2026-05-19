@@ -21,8 +21,7 @@
       "weight": 2
     }
   ],
-  "edge_blocks": [
-  ],
+  "edge_blocks": [],
   "fill_block": "minecraft:sandstone",
   "width": {
     "min": 3,
@@ -32,10 +31,8 @@
   "carver": 0.7,
   "length": {
     "type": "minecraft:uniform",
-    "value": {
-      "min_inclusive": 300,
-      "max_inclusive": 1000
-    }
+    "min_inclusive": 300,
+    "max_inclusive": 1000
   },
   "fade": {
     "start_blocks": 15,

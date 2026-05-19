@@ -34,7 +34,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
 
-    public static final TagKey<Biome> HAS_NO_PATHS = TagKey.create(Registries.BIOME, new ResourceLocation(Constants.MOD_ID, "has_no_paths"));
+    public static final TagKey<Biome> HAS_NO_PATHS = TagKey.create(Registries.BIOME, ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "has_no_paths"));
 
     // PathsDebugCommand reproduces evaluateOrigin against the same pathSeed inputs; the
     // mixer constants must stay public so the locate command derives matching seeds.
