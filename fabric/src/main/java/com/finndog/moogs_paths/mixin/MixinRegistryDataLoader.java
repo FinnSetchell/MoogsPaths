@@ -20,6 +20,11 @@ public class MixinRegistryDataLoader {
     )
     private static List<RegistryDataLoader.RegistryData<?>> injectCustomRegistries(
             List<RegistryDataLoader.RegistryData<?>> original) {
+        // RegistryDataLoader.load is invoked twice per world load: once with WORLDGEN_REGISTRIES,
+        // once with DIMENSION_REGISTRIES. Appending to both would land each custom registry in
+        // two layers of the resulting LayeredRegistryAccess and trip "Duplicated registry" in
+        // collectRegistries. Only inject into the worldgen pass.
+        if (original != RegistryDataLoader.WORLDGEN_REGISTRIES) return original;
         List<RegistryDataLoader.RegistryData<?>> custom = FabricRegistryStore.getEntries();
         if (custom.isEmpty()) return original;
         List<RegistryDataLoader.RegistryData<?>> combined = new ArrayList<>(original);
