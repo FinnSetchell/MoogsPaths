@@ -108,16 +108,27 @@ tasks.named('announceDiscord').configure {
         def webhookUrl = System.getenv('DISCORD_WEBHOOK')
         def bannerUrl = project.findProperty('discord_banner_url') as String
         def avatarUrl = project.findProperty('discord_avatar_url') as String
+        def roleId = project.findProperty('discord_role_id') as String
+        def pingEnabled = (project.findProperty('discord_ping') as String ?: 'true').toLowerCase() == 'true'
         if (!bannerUrl) return
         if (!webhookUrl) {
             logger.warn("Discord banner skipped: DISCORD_WEBHOOK is not set")
             return
         }
+        def content
+        def allowedMentions
+        if (pingEnabled && roleId) {
+            content = "<@&${roleId}>\\n${bannerUrl}"
+            allowedMentions = "{\"parse\":[],\"roles\":[\"${roleId}\"]}"
+        } else {
+            content = bannerUrl
+            allowedMentions = "{\"parse\":[]}"
+        }
         def connection = new URL(webhookUrl).openConnection()
         connection.requestMethod = 'POST'
         connection.doOutput = true
         connection.setRequestProperty('Content-Type', 'application/json')
-        connection.outputStream.withWriter { it << """{"username":"Moog's Mods","avatar_url":"${avatarUrl}","content":"<@&${discord_role_id}>\\n${bannerUrl}","allowed_mentions":{"parse":[],"roles":["${discord_role_id}"]}}""" }
+        connection.outputStream.withWriter { it << """{"username":"Moog's Mods","avatar_url":"${avatarUrl}","content":"${content}","allowed_mentions":${allowedMentions}}""" }
         connection.responseCode
     }
 }

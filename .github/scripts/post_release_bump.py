@@ -3,7 +3,8 @@
 
 Reads NEW_VERSION and RELEASE_DATE from the environment. Inserts the stub
 right after the first `# Changelog\n---` header. Falls back to prepending
-if that header isn't found.
+if that header isn't found. Also resets `discord_ping=true` in
+gradle.properties so the next release pings the role again.
 
 Called by .github/workflows/release.yml during the post-release bump step.
 """
@@ -39,3 +40,16 @@ else:
 
 p.write_text(new_content, encoding='utf-8')
 print(f'✓ stubbed CHANGELOG.md with ## [{new_v}] - {today}')
+
+gp = Path('gradle.properties')
+if gp.exists():
+    gp_text = gp.read_text(encoding='utf-8')
+    new_gp = re.sub(
+        r'^(discord_ping[ \t]*=[ \t]*).*$',
+        r'\1true',
+        gp_text,
+        flags=re.MULTILINE,
+    )
+    if new_gp != gp_text:
+        gp.write_text(new_gp, encoding='utf-8')
+        print('reset discord_ping to true')
