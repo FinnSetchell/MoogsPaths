@@ -68,6 +68,9 @@ publishMods {
         curseforge {
             accessToken = providers.environmentVariable('CURSEFORGE_API_KEY')
             projectId = cf_project_id
+            if (project.hasProperty('cf_project_slug') && cf_project_slug) {
+                projectSlug = cf_project_slug
+            }
             minecraftVersionRange {
                 start = publish_mc_start
                 end = publish_mc_end
