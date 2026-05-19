@@ -77,61 +77,7 @@ publishMods {
             }
         }
     }
-
-    discord {
-        webhookUrl = providers.environmentVariable('DISCORD_WEBHOOK')
-        dryRunWebhookUrl = providers.environmentVariable('DISCORD_WEBHOOK_DRY_RUN').orElse('')
-        username = "Moog's Mods"
-        avatarUrl = (project.findProperty('discord_avatar_url') ?: '')
-
-        content = changelog.map { text ->
-            def changelogBody = text.trim()
-            def versionRange = publish_mc_start == publish_mc_end ? publish_mc_start : "${publish_mc_start} - ${publish_mc_end}"
-            """## **${mod_name} ${project.version}** has been released! 🎉
-
-**${mod_name} ${project.version}-${minecraft_version}** | Fabric & Forge
-Versions: ${versionRange}
-
-### 📝 **Changelog:**
-${changelogBody}
-
-<:curseforge:1132291568305459250> [CurseForge](${mod_curseforge}) | <:modrinth:1132291566019563550> [Modrinth](${mod_modrinth})"""
-        }
-
-        style {
-            look = "MODERN"
-            link = "EMBED"
-            color = (project.findProperty('discord_embed_color') ?: '#8B6914')
-        }
-    }
 }
 
-tasks.named('announceDiscord').configure {
-    doFirst {
-        def webhookUrl = System.getenv('DISCORD_WEBHOOK')
-        def bannerUrl = project.findProperty('discord_banner_url') as String
-        def avatarUrl = project.findProperty('discord_avatar_url') as String
-        def roleId = project.findProperty('discord_role_id') as String
-        def pingEnabled = (project.findProperty('discord_ping') as String ?: 'true').toLowerCase() == 'true'
-        if (!bannerUrl) return
-        if (!webhookUrl) {
-            logger.warn("Discord banner skipped: DISCORD_WEBHOOK is not set")
-            return
-        }
-        def content
-        def allowedMentions
-        if (pingEnabled && roleId) {
-            content = "<@&${roleId}>\\n${bannerUrl}"
-            allowedMentions = "{\"parse\":[],\"roles\":[\"${roleId}\"]}"
-        } else {
-            content = bannerUrl
-            allowedMentions = "{\"parse\":[]}"
-        }
-        def connection = new URL(webhookUrl).openConnection()
-        connection.requestMethod = 'POST'
-        connection.doOutput = true
-        connection.setRequestProperty('Content-Type', 'application/json')
-        connection.outputStream.withWriter { it << """{"username":"Moog's Mods","avatar_url":"${avatarUrl}","content":"${content}","allowed_mentions":${allowedMentions}}""" }
-        connection.responseCode
-    }
-}
+// Discord announcement is handled by .github/scripts/announce_release.py
+// after all loaders have published. See .github/workflows/release.yml.

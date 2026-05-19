@@ -46,11 +46,15 @@ jobs:
           " "$VERSION")
           printf "body<<DELIMITER\n%s\nDELIMITER\n" "$BODY" >> "$GITHUB_OUTPUT"
 
-      - name: publish to CurseForge, Modrinth & Discord
-        run: ./gradlew :fabric:publishMods :forge:publishMods
+      - name: publish to CurseForge & Modrinth
+        run: ./gradlew :fabric:publishMods :forge:publishMods :neoforge:publishMods
         env:
           MODRINTH_API_KEY: ${{ secrets.MODRINTH_API_KEY }}
           CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
+
+      - name: announce on Discord
+        run: python3 .github/scripts/announce_release.py
+        env:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
 
       - name: create GitHub release
@@ -64,13 +68,16 @@ jobs:
             forge/build/libs/*.jar
             !forge/build/libs/*-sources.jar
             !forge/build/libs/*-slim.jar
+            neoforge/build/libs/*.jar
+            !neoforge/build/libs/*-sources.jar
+            !neoforge/build/libs/*-dev.jar
           fail_on_unmatched_files: false
 
       - name: bump patch version for next release
         if: success()
         shell: bash
         run: |
-          BRANCH=$(grep '^minecraft_version=' gradle.properties | cut -d= -f2)
+          BRANCH="1.21-1.21.1"
           TODAY=$(date -u +%Y-%m-%d)
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
