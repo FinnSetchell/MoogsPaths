@@ -16,6 +16,8 @@ import json
 import os
 import re
 import sys
+import time
+import urllib.error
 import urllib.request
 from pathlib import Path
 
@@ -24,8 +26,8 @@ from pathlib import Path
 LOADERS = "Fabric & Forge"
 
 
-def read_properties(path: Path) -> dict[str, str]:
-    out: dict[str, str] = {}
+def read_properties(path):
+    out = {}
     for line in path.read_text(encoding='utf-8').splitlines():
         s = line.strip()
         if not s or s.startswith('#') or '=' not in s:
@@ -35,7 +37,7 @@ def read_properties(path: Path) -> dict[str, str]:
     return out
 
 
-def extract_changelog(path: Path, version: str) -> str:
+def extract_changelog(path, version):
     if not path.exists():
         return ''
     content = path.read_text(encoding='utf-8')
@@ -48,21 +50,38 @@ def extract_changelog(path: Path, version: str) -> str:
     return m.group(1).strip() if m else ''
 
 
-def post(webhook: str, payload: dict) -> None:
-    data = json.dumps(payload).encode('utf-8')
+def post(webhook, payload, label='message'):
+    """POST a JSON payload to Discord. On HTTP error, print the response body
+    and a payload preview to stderr before re-raising - Discord's 4xx bodies
+    are the only signal we get about what was wrong with the request.
+    """
+    data = json.dumps(payload, ensure_ascii=False).encode('utf-8')
     req = urllib.request.Request(
         webhook,
         data=data,
         method='POST',
-        headers={'Content-Type': 'application/json'},
+        headers={'Content-Type': 'application/json; charset=utf-8'},
     )
-    with urllib.request.urlopen(req) as r:
-        if r.status >= 300:
-            body = r.read().decode('utf-8', errors='replace')
-            raise RuntimeError(f'Discord POST returned {r.status}: {body}')
+    try:
+        with urllib.request.urlopen(req) as r:
+            print(f'  -> {label} accepted (HTTP {r.status})')
+    except urllib.error.HTTPError as e:
+        err_body = ''
+        try:
+            err_body = e.read().decode('utf-8', errors='replace')
+        except Exception:
+            pass
+        sys.stderr.write(f'Discord POST failed: HTTP {e.code} {e.reason}\n')
+        if err_body:
+            sys.stderr.write(f'  response body: {err_body}\n')
+        preview = json.dumps(payload, ensure_ascii=False, indent=2)
+        if len(preview) > 2000:
+            preview = preview[:2000] + '\n  ...(truncated)'
+        sys.stderr.write(f'  request payload ({label}):\n{preview}\n')
+        raise
 
 
-def main() -> int:
+def main():
     webhook = os.environ.get('DISCORD_WEBHOOK', '').strip()
     if not webhook:
         print('DISCORD_WEBHOOK not set - skipping announcement.', file=sys.stderr)
@@ -102,15 +121,21 @@ def main() -> int:
             content = banner_url
             allowed_mentions = {'parse': []}
 
-        post(webhook, {
+        payload = {
             'username': username,
-            'avatar_url': avatar_url,
             'content': content,
             'allowed_mentions': allowed_mentions,
-        })
-        print('posted banner message')
+        }
+        if avatar_url:
+            payload['avatar_url'] = avatar_url
+
+        print('posting banner message')
+        post(webhook, payload, label='banner')
     else:
         print('discord_banner_url not set - skipping banner message.', file=sys.stderr)
+
+    # Small pause: webhooks share a rate-limit bucket; back-to-back posts can 429.
+    time.sleep(0.5)
 
     # --- Message 2: formatted changelog embed ---
     changelog_body = extract_changelog(Path('CHANGELOG.md'), version)
@@ -143,16 +168,19 @@ def main() -> int:
     except ValueError:
         color = 0x8B6914
 
-    post(webhook, {
+    payload = {
         'username': username,
-        'avatar_url': avatar_url,
         'embeds': [{
             'description': description,
             'color': color,
         }],
         'allowed_mentions': {'parse': []},
-    })
-    print('posted changelog message')
+    }
+    if avatar_url:
+        payload['avatar_url'] = avatar_url
+
+    print('posting changelog message')
+    post(webhook, payload, label='changelog')
     return 0
 
 
