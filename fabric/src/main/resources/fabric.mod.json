@@ -19,6 +19,9 @@
     "license": "${license}",
     "icon": "assets/moogs_paths/icon.png",
     "environment": "*",
+    "mixins": [
+        "moogs_paths.fabric.mixins.json"
+    ],
     "entrypoints": {
         "main": [
             "com.finndog.moogs_paths.MoogsPaths"
