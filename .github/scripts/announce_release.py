@@ -60,7 +60,13 @@ def post(webhook, payload, label='message'):
         webhook,
         data=data,
         method='POST',
-        headers={'Content-Type': 'application/json; charset=utf-8'},
+        headers={
+            'Content-Type': 'application/json; charset=utf-8',
+            # Discord rejects requests with the default 'Python-urllib/X.Y'
+            # User-Agent (403 Forbidden). Set a custom UA per their docs:
+            # https://discord.com/developers/docs/reference#user-agent
+            'User-Agent': 'MoogsPathsReleaseBot (https://github.com/FinnSetchell/MoogsPaths, 1.0)',
+        },
     )
     try:
         with urllib.request.urlopen(req) as r:
