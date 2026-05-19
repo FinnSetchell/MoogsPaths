@@ -2,6 +2,12 @@
 
 ---
 
+## [1.0.1] - 2026-05-19
+
+_Pending. Update this header date and replace this line with the actual changes before tagging._
+
+---
+
 ## [1.0.0] - 2026-05-18
 
 - paths generate across the overworld with biome-specific surface blocks and edge palettes
