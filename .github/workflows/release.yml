@@ -24,7 +24,7 @@ jobs:
       - name: setup jdk
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: '25'
           distribution: 'microsoft'
 
       - name: make gradle wrapper executable
@@ -47,7 +47,8 @@ jobs:
           printf "body<<DELIMITER\n%s\nDELIMITER\n" "$BODY" >> "$GITHUB_OUTPUT"
 
       - name: publish to CurseForge & Modrinth
-        run: ./gradlew :fabric:publishMods :forge:publishMods :neoforge:publishMods
+        # Forge excluded for 26.1: ForgeGradle 6 has no Gradle 9 support yet. Re-add :forge:publishMods when it does.
+        run: ./gradlew :fabric:publishMods :neoforge:publishMods
         env:
           MODRINTH_API_KEY: ${{ secrets.MODRINTH_API_KEY }}
           CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
@@ -65,9 +66,6 @@ jobs:
             fabric/build/libs/*.jar
             !fabric/build/libs/*-sources.jar
             !fabric/build/libs/*-dev.jar
-            forge/build/libs/*.jar
-            !forge/build/libs/*-sources.jar
-            !forge/build/libs/*-slim.jar
             neoforge/build/libs/*.jar
             !neoforge/build/libs/*-sources.jar
             !neoforge/build/libs/*-dev.jar
@@ -77,7 +75,7 @@ jobs:
         if: success()
         shell: bash
         run: |
-          BRANCH="1.21-1.21.1"
+          BRANCH="26.1-26.1.2"
           TODAY=$(date -u +%Y-%m-%d)
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
