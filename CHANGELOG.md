@@ -2,6 +2,12 @@
 
 ---
 
+## [1.0.1] - 2026-05-20
+
+_Pending. Update this header date and replace this line with the actual changes before tagging._
+
+---
+
 ## [1.0.0] - 2026-05-20
 
 - ported to Minecraft 26.1-26.1.2 (Java 25, fully unobfuscated Mojang mappings; Parchment dropped)
