@@ -5,30 +5,30 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.core.RegistryCodecs;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.biome.Biome;
 
 import java.util.List;
 
 public record PathNetworkType(
-    ResourceLocation pathType,
+    Identifier pathType,
     HolderSet<Biome> biomes,
     int weight,
     int regionSize,
-    List<ResourceLocation> structureSets,
-    List<ResourceLocation> featureDecoratorSets,
-    List<ResourceLocation> bushDecoratorSets
+    List<Identifier> structureSets,
+    List<Identifier> featureDecoratorSets,
+    List<Identifier> bushDecoratorSets
 ) {
 
     public static final Codec<PathNetworkType> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-        ResourceLocation.CODEC.fieldOf("path_type").forGetter(PathNetworkType::pathType),
+        Identifier.CODEC.fieldOf("path_type").forGetter(PathNetworkType::pathType),
         RegistryCodecs.homogeneousList(Registries.BIOME).fieldOf("biomes").forGetter(PathNetworkType::biomes),
         Codec.intRange(1, Integer.MAX_VALUE).fieldOf("weight").forGetter(PathNetworkType::weight),
         Codec.intRange(1, Integer.MAX_VALUE).fieldOf("region_size").forGetter(PathNetworkType::regionSize),
-        ResourceLocation.CODEC.listOf().optionalFieldOf("structure_sets", List.of()).forGetter(PathNetworkType::structureSets),
-        ResourceLocation.CODEC.listOf().optionalFieldOf("feature_decorator_sets", List.of()).forGetter(PathNetworkType::featureDecoratorSets),
-        ResourceLocation.CODEC.listOf().optionalFieldOf("bush_decorator_sets", List.of()).forGetter(PathNetworkType::bushDecoratorSets)
+        Identifier.CODEC.listOf().optionalFieldOf("structure_sets", List.of()).forGetter(PathNetworkType::structureSets),
+        Identifier.CODEC.listOf().optionalFieldOf("feature_decorator_sets", List.of()).forGetter(PathNetworkType::featureDecoratorSets),
+        Identifier.CODEC.listOf().optionalFieldOf("bush_decorator_sets", List.of()).forGetter(PathNetworkType::bushDecoratorSets)
     ).apply(instance, PathNetworkType::new));
 
     // /locate has to reproduce the exact same weighted pick that worldgen does so the locate

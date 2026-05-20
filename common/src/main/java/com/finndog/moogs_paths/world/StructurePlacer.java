@@ -7,7 +7,7 @@ import com.finndog.moogs_paths.data.StructureSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.Vec3i;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
@@ -34,8 +34,8 @@ public final class StructurePlacer {
     // overlapping path networks from doubling up on the same waypoint.
     private static final int MIN_STRUCTURE_SPACING_SQ = 5 * 5;
 
-    public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<ResourceLocation> structureSetIds, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet placedPositions) {
-        for(ResourceLocation id : structureSetIds) {
+    public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<Identifier> structureSetIds, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet placedPositions) {
+        for(Identifier id : structureSetIds) {
             Optional<StructureSet> set = MoogsPathsDatapackRegistries.getStructureSet(level.registryAccess(), id);
             if(set.isEmpty()) {
                 PathDataManager.warnMissingOnce("Structure set", id);
@@ -197,10 +197,10 @@ public final class StructurePlacer {
                 int naturalY = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, wx, wz) - 1;
 
                 if(naturalY < baseY) {
-                    BlockState topFill = naturalY >= level.getMinBuildHeight()
+                    BlockState topFill = naturalY >= level.getMinY()
                             ? level.getBlockState(mpos.set(wx, naturalY, wz))
                             : Blocks.GRASS_BLOCK.defaultBlockState();
-                    BlockState subFill = naturalY - 1 >= level.getMinBuildHeight()
+                    BlockState subFill = naturalY - 1 >= level.getMinY()
                             ? level.getBlockState(mpos.set(wx, naturalY - 1, wz))
                             : Blocks.DIRT.defaultBlockState();
                     for(int y = naturalY + 1; y < baseY; y++) {
@@ -215,7 +215,7 @@ public final class StructurePlacer {
 
     private static boolean isColumnOverWater(WorldGenLevel level, int x, int z, BlockPos.MutableBlockPos mpos) {
         int sy = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
-        if(sy <= level.getMinBuildHeight()) return false;
+        if(sy <= level.getMinY()) return false;
         for(int depth = 1; depth <= 3; depth++) {
             mpos.set(x, sy - depth, z);
             if(!level.getFluidState(mpos).isEmpty()) return true;

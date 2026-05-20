@@ -3,7 +3,7 @@ package com.finndog.moogs_paths.data;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import java.util.List;
 
@@ -19,9 +19,9 @@ public record BushDecoratorSet(
     int minHeight,
     int maxHeight
 ) {
-    public record WeightedBlock(ResourceLocation block, int weight) {
+    public record WeightedBlock(Identifier block, int weight) {
         public static final Codec<WeightedBlock> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-            ResourceLocation.CODEC.fieldOf("block").forGetter(WeightedBlock::block),
+            Identifier.CODEC.fieldOf("block").forGetter(WeightedBlock::block),
             Codec.intRange(1, Integer.MAX_VALUE).fieldOf("weight").forGetter(WeightedBlock::weight)
         ).apply(instance, WeightedBlock::new));
     }

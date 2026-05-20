@@ -2,7 +2,7 @@ package com.finndog.moogs_paths.data;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.StringRepresentable;
 
 import java.util.*;
@@ -21,11 +21,11 @@ public record FeatureDecoratorSet(
     ).apply(instance, FeatureDecoratorSet::new));
 
     public record FeatureEntry(
-            ResourceLocation feature,
+            Identifier feature,
             int weight
     ) {
         public static final Codec<FeatureEntry> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-                ResourceLocation.CODEC.fieldOf("feature").forGetter(FeatureEntry::feature),
+                Identifier.CODEC.fieldOf("feature").forGetter(FeatureEntry::feature),
                 Codec.intRange(1, Integer.MAX_VALUE).fieldOf("weight").forGetter(FeatureEntry::weight)
         ).apply(instance, FeatureEntry::new));
     }

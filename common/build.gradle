@@ -4,11 +4,8 @@ plugins {
 }
 
 neoForge {
+    // No parchment block: 26.1 ships with Mojang parameter names directly.
     version = neoforge_version
-    parchment {
-        minecraftVersion = parchment_minecraft
-        mappingsVersion = parchment_version
-    }
 }
 
 dependencies {

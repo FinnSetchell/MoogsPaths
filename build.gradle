@@ -1,5 +1,7 @@
 plugins {
-    id 'fabric-loom' version '1.11.8' apply(false)
+    // Loom plugin id changed for 26.1: 'net.fabricmc.fabric-loom' (no remapping; MC is unobfuscated).
+    // See https://fabricmc.net/2026/03/14/261.html and https://docs.fabricmc.net/develop/porting/next#build-script
+    id 'net.fabricmc.fabric-loom' version '1.16.2' apply(false)
     id 'net.neoforged.moddev' version '2.0.141' apply(false)
     id 'net.minecraftforge.gradle' version '[6.0,6.2)' apply(false)
     id 'me.modmuss50.mod-publish-plugin' version '1.1.0' apply(false)

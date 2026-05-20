@@ -5,7 +5,7 @@ import com.finndog.moogs_paths.world.BushPlacer;
 import com.finndog.moogs_paths.world.PathChunkFeature;
 import com.finndog.moogs_paths.world.PathRasteriser;
 import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
 
@@ -54,7 +54,7 @@ public final class PathDataManager {
     // LongOpenHashSet serialised all those reads.
     private static final Set<Long> REJECTED_CACHE = ConcurrentHashMap.newKeySet();
 
-    private static final Map<ResourceLocation, Optional<StructureTemplate>> CACHED_TEMPLATES = new ConcurrentHashMap<>();
+    private static final Map<Identifier, Optional<StructureTemplate>> CACHED_TEMPLATES = new ConcurrentHashMap<>();
 
     private static volatile StructureTemplateManager templateManager;
     private static volatile int cacheVersion = 0;
@@ -97,7 +97,7 @@ public final class PathDataManager {
     // still gets one warning each
     private static final Set<String> WARNED_MISSING = ConcurrentHashMap.newKeySet();
 
-    public static void warnMissingOnce(String category, ResourceLocation id) {
+    public static void warnMissingOnce(String category, Identifier id) {
         if(WARNED_MISSING.add(category + ":" + id)) {
             Constants.LOG.warn("{} not found: {}", category, id);
         }
@@ -105,7 +105,7 @@ public final class PathDataManager {
 
     //////////////////////////////
 
-    public static Optional<StructureTemplate> getCachedTemplate(ResourceLocation id) {
+    public static Optional<StructureTemplate> getCachedTemplate(Identifier id) {
         StructureTemplateManager mgr = templateManager;
         if(mgr == null) return Optional.empty();
         return CACHED_TEMPLATES.computeIfAbsent(id, key -> {
@@ -176,7 +176,7 @@ public final class PathDataManager {
         }
     }
 
-    public static Map<ResourceLocation, Optional<StructureTemplate>> getCachedTemplatesSnapshot() {
+    public static Map<Identifier, Optional<StructureTemplate>> getCachedTemplatesSnapshot() {
         return Collections.unmodifiableMap(CACHED_TEMPLATES);
     }
 

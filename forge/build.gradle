@@ -113,6 +113,9 @@ publishMods {
         curseforge {
             accessToken = providers.environmentVariable('CURSEFORGE_API_KEY')
             projectId = cf_project_id
+            // Server-authoritative worldgen mod: needed on the server, not required on remote clients.
+            clientRequired = false
+            serverRequired = true
             if (project.hasProperty('cf_project_slug') && cf_project_slug) {
                 projectSlug = cf_project_slug
             }

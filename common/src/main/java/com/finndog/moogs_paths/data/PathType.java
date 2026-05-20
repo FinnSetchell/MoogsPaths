@@ -3,7 +3,7 @@ package com.finndog.moogs_paths.data;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.DataResult;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.valueproviders.IntProvider;
 
 import java.util.List;
@@ -12,7 +12,7 @@ import java.util.Optional;
 public record PathType(
     List<WeightedBlock> surfaceBlocks,
     List<WeightedBlock> edgeBlocks,
-    ResourceLocation fillBlock,
+    Identifier fillBlock,
     WidthRange width,
     float rigidness,
     float carver,
@@ -20,9 +20,9 @@ public record PathType(
     FadeSettings fade,
     Optional<WaterSettings> waterSettings
 ) {
-    public record WeightedBlock(ResourceLocation block, int weight) {
+    public record WeightedBlock(Identifier block, int weight) {
         public static final Codec<WeightedBlock> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-            ResourceLocation.CODEC.fieldOf("block").forGetter(WeightedBlock::block),
+            Identifier.CODEC.fieldOf("block").forGetter(WeightedBlock::block),
             Codec.intRange(1, Integer.MAX_VALUE).fieldOf("weight").forGetter(WeightedBlock::weight)
         ).apply(instance, WeightedBlock::new));
     }
@@ -57,11 +57,11 @@ public record PathType(
     public static final Codec<PathType> CODEC = RecordCodecBuilder.create(instance -> instance.group(
         Codec.list(WeightedBlock.CODEC).fieldOf("surface_blocks").forGetter(PathType::surfaceBlocks),
         Codec.list(WeightedBlock.CODEC).optionalFieldOf("edge_blocks", List.of()).forGetter(PathType::edgeBlocks),
-        ResourceLocation.CODEC.fieldOf("fill_block").forGetter(PathType::fillBlock),
+        Identifier.CODEC.fieldOf("fill_block").forGetter(PathType::fillBlock),
         WidthRange.CODEC.fieldOf("width").forGetter(PathType::width),
         Codec.floatRange(0.0f, 1.0f).fieldOf("rigidness").forGetter(PathType::rigidness),
         Codec.floatRange(0.0f, 1.0f).fieldOf("carver").forGetter(PathType::carver),
-        IntProvider.codec(1, 100_000).fieldOf("length").forGetter(PathType::length),
+        net.minecraft.util.valueproviders.IntProviders.codec(1, 100_000).fieldOf("length").forGetter(PathType::length),
         FadeSettings.CODEC.fieldOf("fade").forGetter(PathType::fade),
         WaterSettings.CODEC.optionalFieldOf("water_settings").forGetter(PathType::waterSettings)
     ).apply(instance, PathType::new));

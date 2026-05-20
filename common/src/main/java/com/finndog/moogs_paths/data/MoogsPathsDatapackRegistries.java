@@ -2,10 +2,12 @@ package com.finndog.moogs_paths.data;
 
 import com.finndog.moogs_paths.Constants;
 import com.finndog.moogs_paths.platform.Services;
+import net.minecraft.core.Holder;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 import java.util.Collections;
 import java.util.List;
@@ -18,19 +20,19 @@ public final class MoogsPathsDatapackRegistries {
     private static volatile DerivedNetworkViews cachedDerivedViews = null;
 
     public static final ResourceKey<Registry<PathType>> PATH_TYPE =
-        ResourceKey.createRegistryKey(ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "path_type"));
+        ResourceKey.createRegistryKey(Identifier.fromNamespaceAndPath(Constants.MOD_ID, "path_type"));
 
     public static final ResourceKey<Registry<PathNetworkType>> PATH_NETWORK =
-        ResourceKey.createRegistryKey(ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "path_network"));
+        ResourceKey.createRegistryKey(Identifier.fromNamespaceAndPath(Constants.MOD_ID, "path_network"));
 
     public static final ResourceKey<Registry<StructureSet>> STRUCTURE_SET =
-        ResourceKey.createRegistryKey(ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "structure_set"));
+        ResourceKey.createRegistryKey(Identifier.fromNamespaceAndPath(Constants.MOD_ID, "structure_set"));
 
     public static final ResourceKey<Registry<FeatureDecoratorSet>> FEATURE_DECORATOR_SET =
-        ResourceKey.createRegistryKey(ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "feature_decorator_set"));
+        ResourceKey.createRegistryKey(Identifier.fromNamespaceAndPath(Constants.MOD_ID, "feature_decorator_set"));
 
     public static final ResourceKey<Registry<BushDecoratorSet>> BUSH_DECORATOR_SET =
-        ResourceKey.createRegistryKey(ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "bush_decorator_set"));
+        ResourceKey.createRegistryKey(Identifier.fromNamespaceAndPath(Constants.MOD_ID, "bush_decorator_set"));
 
     public static void register() {
         Services.PLATFORM.registerDatapackRegistry(PATH_TYPE, PathType.CODEC);
@@ -40,28 +42,35 @@ public final class MoogsPathsDatapackRegistries {
         Services.PLATFORM.registerDatapackRegistry(BUSH_DECORATOR_SET, BushDecoratorSet.CODEC);
     }
 
-    public static Optional<PathType> getPathType(RegistryAccess access, ResourceLocation id) {
-        return access.registryOrThrow(PATH_TYPE).getOptional(id);
+    // 26.1: RegistryAccess#registryOrThrow was renamed to lookupOrThrow, and entries are looked up
+    // by ResourceKey via HolderLookup.RegistryLookup#get(ResourceKey).
+    private static <T> Optional<T> getByLocation(RegistryAccess access, ResourceKey<Registry<T>> registry, Identifier id) {
+        HolderLookup.RegistryLookup<T> lookup = access.lookupOrThrow(registry);
+        return lookup.get(ResourceKey.create(registry, id)).map(Holder::value);
     }
 
-    public static Optional<PathNetworkType> getPathNetwork(RegistryAccess access, ResourceLocation id) {
-        return access.registryOrThrow(PATH_NETWORK).getOptional(id);
+    public static Optional<PathType> getPathType(RegistryAccess access, Identifier id) {
+        return getByLocation(access, PATH_TYPE, id);
     }
 
-    public static Optional<StructureSet> getStructureSet(RegistryAccess access, ResourceLocation id) {
-        return access.registryOrThrow(STRUCTURE_SET).getOptional(id);
+    public static Optional<PathNetworkType> getPathNetwork(RegistryAccess access, Identifier id) {
+        return getByLocation(access, PATH_NETWORK, id);
     }
 
-    public static Optional<FeatureDecoratorSet> getFeatureDecoratorSet(RegistryAccess access, ResourceLocation id) {
-        return access.registryOrThrow(FEATURE_DECORATOR_SET).getOptional(id);
+    public static Optional<StructureSet> getStructureSet(RegistryAccess access, Identifier id) {
+        return getByLocation(access, STRUCTURE_SET, id);
     }
 
-    public static Optional<BushDecoratorSet> getBushDecoratorSet(RegistryAccess access, ResourceLocation id) {
-        return access.registryOrThrow(BUSH_DECORATOR_SET).getOptional(id);
+    public static Optional<FeatureDecoratorSet> getFeatureDecoratorSet(RegistryAccess access, Identifier id) {
+        return getByLocation(access, FEATURE_DECORATOR_SET, id);
     }
 
-    public static Registry<PathNetworkType> pathNetworkRegistry(RegistryAccess access) {
-        return access.registryOrThrow(PATH_NETWORK);
+    public static Optional<BushDecoratorSet> getBushDecoratorSet(RegistryAccess access, Identifier id) {
+        return getByLocation(access, BUSH_DECORATOR_SET, id);
+    }
+
+    public static HolderLookup.RegistryLookup<PathNetworkType> pathNetworkRegistry(RegistryAccess access) {
+        return access.lookupOrThrow(PATH_NETWORK);
     }
 
     public static Map<Integer, List<PathNetworkType>> networksByRegionSize(RegistryAccess access) {
@@ -82,15 +91,20 @@ public final class MoogsPathsDatapackRegistries {
     private static DerivedNetworkViews derivedViews(RegistryAccess access) {
         DerivedNetworkViews views = cachedDerivedViews;
         if(views == null) {
-            Registry<PathNetworkType> networks = access.registryOrThrow(PATH_NETWORK);
-            Registry<PathType> pathTypes = access.registryOrThrow(PATH_TYPE);
+            HolderLookup.RegistryLookup<PathNetworkType> networks = access.lookupOrThrow(PATH_NETWORK);
+            HolderLookup.RegistryLookup<PathType> pathTypes = access.lookupOrThrow(PATH_TYPE);
             Map<Integer, List<PathNetworkType>> byRegion = Collections.unmodifiableMap(
-                networks.stream().collect(Collectors.groupingBy(PathNetworkType::regionSize)));
+                networks.listElements()
+                    .map(Holder::value)
+                    .collect(Collectors.groupingBy(PathNetworkType::regionSize)));
             Map<Integer, Integer> maxByRegion = byRegion.entrySet().stream()
                 .collect(Collectors.toUnmodifiableMap(
                     Map.Entry::getKey,
                     e -> e.getValue().stream()
-                        .mapToInt(n -> Optional.ofNullable(pathTypes.get(n.pathType())).map(pt -> (int) Math.ceil(pt.length().getMaxValue() * RADIUS_LENGTH_MULTIPLIER)).orElse(1000))
+                        .mapToInt(n -> pathTypes.get(ResourceKey.create(PATH_TYPE, n.pathType()))
+                            .map(Holder::value)
+                            .map(pt -> (int) Math.ceil(pt.length().maxInclusive() * RADIUS_LENGTH_MULTIPLIER))
+                            .orElse(1000))
                         .max().orElse(1000)
                 ));
             views = new DerivedNetworkViews(byRegion, maxByRegion);

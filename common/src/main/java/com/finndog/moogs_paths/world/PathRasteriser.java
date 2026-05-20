@@ -6,7 +6,7 @@ import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
@@ -28,9 +28,9 @@ public final class PathRasteriser {
     private static final int MAX_CUT = 8;
     private static final int MAX_FILL = 8;
 
-    private static final ConcurrentHashMap<ResourceLocation, Block> RESOLVED_BLOCKS = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Identifier, Block> RESOLVED_BLOCKS = new ConcurrentHashMap<>();
 
-    static Block resolveBlock(ResourceLocation id) {
+    static Block resolveBlock(Identifier id) {
         return RESOLVED_BLOCKS.computeIfAbsent(id, key -> {
             Block block = BuiltInRegistries.BLOCK.getOptional(key).orElse(null);
             if(block == null) {
@@ -156,7 +156,7 @@ public final class PathRasteriser {
                     if((bx >> 4) != chunkX || (bz >> 4) != chunkZ) continue;
 
                     int naturalSy = chunkHeights[(bx - chunkMinX) * 16 + (bz - chunkMinZ)];
-                    if(naturalSy <= level.getMinBuildHeight()) continue;
+                    if(naturalSy <= level.getMinY()) continue;
 
                     long posKey = (long) bx << 32 | (bz & 0xFFFFFFFFL);
                     boolean isWater = waterPositions != null && waterPositions.contains(posKey);

@@ -9,15 +9,16 @@ import com.finndog.moogs_paths.world.PathRegionSelector;
 import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.arguments.ResourceLocationArgument;
+import net.minecraft.commands.arguments.IdentifierArgument;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.Registry;
+import net.minecraft.core.Holder;
+import net.minecraft.core.HolderLookup;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
@@ -36,7 +37,7 @@ public final class PathsDebugCommand {
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(
             literal("paths")
-                .requires(src -> src.hasPermission(2))
+                .requires(src -> src.permissions().hasPermission(net.minecraft.server.permissions.Permissions.COMMANDS_GAMEMASTER))
                 .then(literal("debug")
                     .then(literal("region").executes(ctx -> debugRegion(ctx.getSource())))
                     .then(literal("networks").executes(ctx -> debugNetworks(ctx.getSource())))
@@ -45,13 +46,14 @@ public final class PathsDebugCommand {
                 )
                 .then(literal("locate")
                     .executes(ctx -> locatePath(ctx.getSource(), null))
-                    .then(argument("network", ResourceLocationArgument.id())
+                    .then(argument("network", IdentifierArgument.id())
                         .suggests((ctx, builder) -> {
                             MoogsPathsDatapackRegistries.pathNetworkRegistry(ctx.getSource().registryAccess())
-                                .keySet().forEach(id -> builder.suggest(id.toString()));
+                                .listElementIds()
+                                .forEach(rk -> builder.suggest(rk.identifier().toString()));
                             return builder.buildFuture();
                         })
-                        .executes(ctx -> locatePath(ctx.getSource(), ResourceLocationArgument.getId(ctx, "network")))
+                        .executes(ctx -> locatePath(ctx.getSource(), IdentifierArgument.getId(ctx, "network")))
                     )
                 )
         );
@@ -61,25 +63,25 @@ public final class PathsDebugCommand {
 
     private static final int MAX_LOCATE_VERIFY = 32;
 
-    private static int locatePath(CommandSourceStack src, ResourceLocation networkFilter) {
+    private static int locatePath(CommandSourceStack src, Identifier networkFilter) {
         ServerPlayer player = src.getPlayer();
         if(player == null) {
             src.sendFailure(Component.literal("Must be run by a player"));
             return 0;
         }
 
-        Registry<PathNetworkType> registry = MoogsPathsDatapackRegistries.pathNetworkRegistry(src.registryAccess());
-        if(registry.size() == 0) {
+        HolderLookup.RegistryLookup<PathNetworkType> registry = MoogsPathsDatapackRegistries.pathNetworkRegistry(src.registryAccess());
+        if(registry.listElementIds().findAny().isEmpty()) {
             src.sendFailure(Component.literal("[paths] No networks loaded"));
             return 0;
         }
 
-        if(networkFilter != null && !registry.containsKey(networkFilter)) {
+        if(networkFilter != null && registry.get(ResourceKey.create(MoogsPathsDatapackRegistries.PATH_NETWORK, networkFilter)).isEmpty()) {
             src.sendFailure(Component.literal("[paths] Unknown network: " + networkFilter));
             return 0;
         }
 
-        ServerLevel serverLevel = player.serverLevel();
+        ServerLevel serverLevel = player.level();
         long worldSeed = serverLevel.getSeed();
         int playerBX = (int) player.getX();
         int playerBZ = (int) player.getZ();
@@ -124,7 +126,7 @@ public final class PathsDebugCommand {
                 Optional<PathNetworkType> selected = PathChunkFeature.selectNetworkAt(
                     generator, randomState, candidate.originChunkX(), candidate.originChunkZ(), pathSeed, candidate.networks());
                 if(selected.isEmpty()) continue;
-                ResourceLocation expectedId = registry.getResourceKey(selected.get()).map(ResourceKey::location).orElse(null);
+                Identifier expectedId = findId(registry, selected.get());
                 if(!networkFilter.equals(expectedId)) continue;
             }
 
@@ -142,7 +144,7 @@ public final class PathsDebugCommand {
             PathChunkFeature.EvaluatedOrigin ev = result.get();
 
             if(networkFilter != null) {
-                ResourceLocation id = registry.getResourceKey(ev.network()).map(ResourceKey::location).orElse(null);
+                Identifier id = findId(registry, ev.network());
                 if(!networkFilter.equals(id)) continue;
             }
 
@@ -159,14 +161,14 @@ public final class PathsDebugCommand {
             long wpDz = nearestWp.getZ() - playerBZ;
             int dist = (int) Math.sqrt(wpDx * wpDx + wpDz * wpDz);
 
-            ResourceLocation networkId = registry.getResourceKey(ev.network())
-                .map(ResourceKey::location).orElse(ResourceLocation.fromNamespaceAndPath("unknown", "unknown"));
+            Identifier foundId = findId(registry, ev.network());
+            Identifier networkId = foundId != null ? foundId : Identifier.fromNamespaceAndPath("unknown", "unknown");
 
             MutableComponent coord = Component.literal("[" + nearestWp.getX() + ", ~, " + nearestWp.getZ() + "]")
                 .withStyle(style -> style
                     .withColor(ChatFormatting.GREEN)
-                    .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, "/tp @s " + nearestWp.getX() + " ~ " + nearestWp.getZ()))
-                    .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT, Component.literal("Click to teleport")))
+                    .withClickEvent(new ClickEvent.SuggestCommand("/tp @s " + nearestWp.getX() + " ~ " + nearestWp.getZ()))
+                    .withHoverEvent(new HoverEvent.ShowText(Component.literal("Click to teleport")))
                 );
 
             MutableComponent msg = Component.literal("[paths] Nearest " + networkId + " at ")
@@ -191,19 +193,20 @@ public final class PathsDebugCommand {
             return 0;
         }
 
-        long worldSeed = player.serverLevel().getSeed();
+        long worldSeed = player.level().getSeed();
         int blockX = (int) player.getX();
         int blockZ = (int) player.getZ();
 
-        Registry<PathNetworkType> registry = MoogsPathsDatapackRegistries.pathNetworkRegistry(src.registryAccess());
-        if(registry.size() == 0) {
+        HolderLookup.RegistryLookup<PathNetworkType> registry = MoogsPathsDatapackRegistries.pathNetworkRegistry(src.registryAccess());
+        List<PathNetworkType> networks = registry.listElements().map(Holder::value).toList();
+        if(networks.isEmpty()) {
             src.sendSuccess(() -> Component.literal("[paths] No networks loaded"), false);
             return 1;
         }
 
         src.sendSuccess(() -> Component.literal("[paths] Region info at your position:"), false);
 
-        registry.stream()
+        networks.stream()
             .map(PathNetworkType::regionSize)
             .distinct()
             .sorted()
@@ -216,16 +219,17 @@ public final class PathsDebugCommand {
     }
 
     private static int debugNetworks(CommandSourceStack src) {
-        Registry<PathNetworkType> registry = MoogsPathsDatapackRegistries.pathNetworkRegistry(src.registryAccess());
-        if(registry.size() == 0) {
+        HolderLookup.RegistryLookup<PathNetworkType> registry = MoogsPathsDatapackRegistries.pathNetworkRegistry(src.registryAccess());
+        List<PathNetworkType> networks = registry.listElements().map(Holder::value).toList();
+        if(networks.isEmpty()) {
             src.sendSuccess(() -> Component.literal("[paths] No networks loaded"), false);
             return 1;
         }
 
-        src.sendSuccess(() -> Component.literal("[paths] Loaded networks (" + registry.size() + "):"), false);
-        for(PathNetworkType n : registry) {
+        src.sendSuccess(() -> Component.literal("[paths] Loaded networks (" + networks.size() + "):"), false);
+        for(PathNetworkType n : networks) {
             String lengthStr = MoogsPathsDatapackRegistries.getPathType(src.registryAccess(), n.pathType())
-                .map(pt -> pt.length().getMinValue() + "-" + pt.length().getMaxValue())
+                .map(pt -> pt.length().minInclusive() + "-" + pt.length().maxInclusive())
                 .orElse("?");
             String line = "  pathType=" + n.pathType()
                 + " length=" + lengthStr
@@ -238,8 +242,18 @@ public final class PathsDebugCommand {
         return 1;
     }
 
+    // Reverse lookup: find the Identifier of a network instance by reference equality.
+    // PathChunkFeature returns the same instances that are stored in the registry, so == works.
+    private static Identifier findId(HolderLookup.RegistryLookup<PathNetworkType> registry, PathNetworkType target) {
+        return registry.listElements()
+            .filter(h -> h.value() == target)
+            .findFirst()
+            .map(h -> h.key().identifier())
+            .orElse(null);
+    }
+
     private static int debugStructures(CommandSourceStack src) {
-        Map<ResourceLocation, Optional<StructureTemplate>> snapshot = PathDataManager.getCachedTemplatesSnapshot();
+        Map<Identifier, Optional<StructureTemplate>> snapshot = PathDataManager.getCachedTemplatesSnapshot();
         src.sendSuccess(() -> Component.literal("[paths] Cached structure templates: " + snapshot.size()), false);
 
         snapshot.forEach((id, tmpl) -> {

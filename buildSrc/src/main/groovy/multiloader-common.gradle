@@ -25,18 +25,11 @@ repositories {
         }
         filter { includeGroupAndSubgroups('org.spongepowered') }
     }
-    exclusiveContent {
-        forRepositories(
-                maven {
-                    name = 'ParchmentMC'
-                    url = 'https://maven.parchmentmc.org/'
-                },
-                maven {
-                    name = "NeoForge"
-                    url = 'https://maven.neoforged.net/releases'
-                }
-        )
-        filter { includeGroup('org.parchmentmc.data') }
+    // ParchmentMC repository removed: Minecraft 26.1 is fully unobfuscated with Mojang parameter names,
+    // so Parchment mappings are no longer needed. See https://neoforged.net/news/26.1release/
+    maven {
+        name = "NeoForge"
+        url = 'https://maven.neoforged.net/releases'
     }
     maven {
         name = 'BlameJared'

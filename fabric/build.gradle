@@ -1,16 +1,16 @@
 plugins {
     id 'multiloader-loader'
-    id 'fabric-loom'
+    // Loom plugin id changed for 26.1: 'net.fabricmc.fabric-loom' (no remapping; MC is unobfuscated).
+    // https://fabricmc.net/2026/03/14/261.html
+    id 'net.fabricmc.fabric-loom'
     id 'me.modmuss50.mod-publish-plugin'
 }
 dependencies {
     minecraft "com.mojang:minecraft:${minecraft_version}"
-    mappings loom.layered {
-        officialMojangMappings()
-        parchment("org.parchmentmc.data:parchment-${parchment_minecraft}:${parchment_version}@zip")
-    }
-    modImplementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
-    modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
+    // No `mappings` line: 26.1 is unobfuscated and the new loom plugin does not remap.
+    // modImplementation/modCompileOnly are gone; use plain implementation/compileOnly.
+    implementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
     implementation group: 'com.google.code.findbugs', name: 'jsr305', version: '3.0.1'
     implementation project(":common")
 }
@@ -44,7 +44,8 @@ def changelogMatch = (changelogContent =~ changelogMatcher)
 def changelogLatest = changelogMatch.find() ? changelogMatch.group(1).trim() : ''
 
 publishMods {
-    file = tasks.named('remapJar').flatMap { it.archiveFile }
+    // remapJar no longer exists for 26.1 (nothing to remap on unobfuscated MC); publish the plain jar.
+    file = tasks.named('jar').flatMap { it.archiveFile }
     changelog = changelogLatest
     version = project.version.toString()
     type = STABLE
@@ -68,6 +69,9 @@ publishMods {
         curseforge {
             accessToken = providers.environmentVariable('CURSEFORGE_API_KEY')
             projectId = cf_project_id
+            // Server-authoritative worldgen mod: needed on the server, not required on remote clients.
+            clientRequired = false
+            serverRequired = true
             if (project.hasProperty('cf_project_slug') && cf_project_slug) {
                 projectSlug = cf_project_slug
             }

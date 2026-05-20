@@ -7,7 +7,7 @@ import com.finndog.moogs_paths.data.PathDataManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
@@ -24,9 +24,9 @@ public final class BushPlacer {
 
     private BushPlacer() {}
 
-    private static final ConcurrentHashMap<ResourceLocation, BlockState> RESOLVED_STATES = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<Identifier, BlockState> RESOLVED_STATES = new ConcurrentHashMap<>();
 
-    private static BlockState resolveState(ResourceLocation id) {
+    private static BlockState resolveState(Identifier id) {
         return RESOLVED_STATES.computeIfAbsent(id, key -> {
             Block block = BuiltInRegistries.BLOCK.getOptional(key).orElse(null);
             if(block == null) {
@@ -47,8 +47,8 @@ public final class BushPlacer {
 
     //////////////////////////////
 
-    public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<ResourceLocation> bushSetIds, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random) {
-        for(ResourceLocation id : bushSetIds) {
+    public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<Identifier> bushSetIds, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random) {
+        for(Identifier id : bushSetIds) {
             var set = MoogsPathsDatapackRegistries.getBushDecoratorSet(level.registryAccess(), id);
             if(set.isEmpty()) {
                 PathDataManager.warnMissingOnce("Bush decorator set", id);
@@ -141,7 +141,7 @@ public final class BushPlacer {
                 if(ellipse > 1.0f || (ellipse > 0.7f && random.nextFloat() < 0.35f)) continue;
 
                 int sy = chunkHeights[(px - chunkX * 16) * 16 + (pz - chunkZ * 16)];
-                if(sy <= level.getMinBuildHeight()) continue;
+                if(sy <= level.getMinY()) continue;
 
                 // 3-deep, not 1: water-settings paths rasterise a solid layer on top of water columns
                 if(isColumnOverWater(level, px, pz, sy, mpos)) continue;
