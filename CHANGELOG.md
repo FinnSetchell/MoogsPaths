@@ -5,6 +5,7 @@
 ## [1.0.1] - 2026-05-18
 
 - Reformatted all json code
+- Fixed a crash on startup affecting some users
 
 ---
 
