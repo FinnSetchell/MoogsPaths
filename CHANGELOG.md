@@ -4,7 +4,7 @@
 
 ## [1.0.2] - 2026-05-29
 
-_Pending. Update this header date and replace this line with the actual changes before tagging._
+- Fixed forge release jar not being remapped correctly, causing a crash on startup
 
 ---
 
