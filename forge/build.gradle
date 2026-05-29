@@ -53,7 +53,7 @@ tasks.matching { it.name.startsWith('publishMods') }.configureEach {
 }
 
 publishMods {
-    file = tasks.named('jar').flatMap { it.archiveFile }
+    file = tasks.named('reobfJar').flatMap { layout.buildDirectory.file("libs/" + tasks.named('jar').get().archiveFileName.get()) }
     changelog = changelogLatest
     version = project.version.toString()
     type = STABLE
