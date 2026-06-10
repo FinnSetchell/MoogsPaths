@@ -35,34 +35,38 @@ public final class StructurePlacer {
     private static final int MIN_STRUCTURE_SPACING_SQ = 5 * 5;
 
     public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<ResourceLocation> structureSetIds, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet placedPositions) {
+        placeInChunk(level, waypoints, structureSetIds, biomes, chunkX, chunkZ, random, placedPositions, 3);
+    }
+
+    public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<ResourceLocation> structureSetIds, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet placedPositions, int flags) {
         for(ResourceLocation id : structureSetIds) {
             Optional<StructureSet> set = MoogsPathsDatapackRegistries.getStructureSet(level.registryAccess(), id);
             if(set.isEmpty()) {
                 PathDataManager.warnMissingOnce("Structure set", id);
                 continue;
             }
-            placeSet(level, waypoints, set.get(), biomes, chunkX, chunkZ, random, placedPositions);
+            placeSet(level, waypoints, set.get(), biomes, chunkX, chunkZ, random, placedPositions, flags);
         }
     }
 
     //////////////////////////////
 
-    private static void placeSet(WorldGenLevel level, List<BlockPos> waypoints, StructureSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet placedPositions) {
+    private static void placeSet(WorldGenLevel level, List<BlockPos> waypoints, StructureSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet placedPositions, int flags) {
         if(waypoints.isEmpty()) return;
 
         switch(set.placement()) {
             case ENDPOINT -> {
-                tryPlace(level, sideOffsetWaypoint(waypoints, 0, set.sideOffset(), random), set, biomes, chunkX, chunkZ, random, placedPositions);
+                tryPlace(level, sideOffsetWaypoint(waypoints, 0, set.sideOffset(), random), set, biomes, chunkX, chunkZ, random, placedPositions, flags);
                 if(waypoints.size() > 1) {
                     int last = waypoints.size() - 1;
-                    tryPlace(level, sideOffsetWaypoint(waypoints, last, set.sideOffset(), random), set, biomes, chunkX, chunkZ, random, placedPositions);
+                    tryPlace(level, sideOffsetWaypoint(waypoints, last, set.sideOffset(), random), set, biomes, chunkX, chunkZ, random, placedPositions, flags);
                 }
             }
-            case INTERVAL -> placeInterval(level, waypoints, set, biomes, chunkX, chunkZ, random, placedPositions);
+            case INTERVAL -> placeInterval(level, waypoints, set, biomes, chunkX, chunkZ, random, placedPositions, flags);
         }
     }
 
-    private static void placeInterval(WorldGenLevel level, List<BlockPos> waypoints, StructureSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet placedPositions) {
+    private static void placeInterval(WorldGenLevel level, List<BlockPos> waypoints, StructureSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet placedPositions, int flags) {
         // Waypoints are block-dense after the pathfinder + chaikin pass, so step distance is
         // approximately 1 block. Measure spacing in blocks directly by counting waypoints.
         int distanceSinceLast = 0;
@@ -71,7 +75,7 @@ public final class StructurePlacer {
         for(int i = 0; i < waypoints.size(); i++) {
             distanceSinceLast++;
             if(distanceSinceLast >= nextThreshold) {
-                tryPlace(level, sideOffsetWaypoint(waypoints, i, set.sideOffset(), random), set, biomes, chunkX, chunkZ, random, placedPositions);
+                tryPlace(level, sideOffsetWaypoint(waypoints, i, set.sideOffset(), random), set, biomes, chunkX, chunkZ, random, placedPositions, flags);
                 distanceSinceLast = 0;
                 nextThreshold = nextSpacing(set, random);
             }
@@ -94,7 +98,7 @@ public final class StructurePlacer {
         return waypoints.get(index).offset(perpX, 0, perpZ);
     }
 
-    private static void tryPlace(WorldGenLevel level, BlockPos waypoint, StructureSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet placedPositions) {
+    private static void tryPlace(WorldGenLevel level, BlockPos waypoint, StructureSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet placedPositions, int flags) {
         StructureSet.StructureEntry entry = pickWeighted(set.structures(), random);
 
         // placement_chance gates the slot rather than rerolling, so a rare entry winning
@@ -134,10 +138,10 @@ public final class StructurePlacer {
         if(footprintOverWater(level, template, pos, entry.offset(), rotation)) return;
 
         if(set.terrainAdjustment() == StructureSet.TerrainAdjustmentSetting.BEARD_THIN) {
-            applyBeardThin(level, template, pos, entry.offset(), rotation, random);
+            applyBeardThin(level, template, pos, entry.offset(), rotation, random, flags);
         }
 
-        placeEntry(level, template, pos, entry, rotation);
+        placeEntry(level, template, pos, entry, rotation, flags);
         placedPositions.add(((long) waypoint.getX() << 32) | (waypoint.getZ() & 0xFFFFFFFFL));
     }
 
@@ -175,7 +179,7 @@ public final class StructurePlacer {
         return false;
     }
 
-    private static void applyBeardThin(WorldGenLevel level, StructureTemplate template, BlockPos pos, Vec3i offset, Rotation rotation, RandomSource random) {
+    private static void applyBeardThin(WorldGenLevel level, StructureTemplate template, BlockPos pos, Vec3i offset, Rotation rotation, RandomSource random, int flags) {
         Vec3i rawSize = template.getSize();
         boolean rotated90 = rotation == Rotation.CLOCKWISE_90 || rotation == Rotation.COUNTERCLOCKWISE_90;
         int sizeX = rotated90 ? rawSize.getZ() : rawSize.getX();
@@ -206,7 +210,7 @@ public final class StructurePlacer {
                     for(int y = naturalY + 1; y < baseY; y++) {
                         if(edgeDist == 0 && random.nextFloat() > 0.5f) continue;
                         mpos.set(wx, y, wz);
-                        level.setBlock(mpos, (y == baseY - 1) ? topFill : subFill, 3);
+                        level.setBlock(mpos, (y == baseY - 1) ? topFill : subFill, flags);
                     }
                 }
             }
@@ -223,7 +227,7 @@ public final class StructurePlacer {
         return false;
     }
 
-    private static void placeEntry(WorldGenLevel level, StructureTemplate template, BlockPos pos, StructureSet.StructureEntry entry, Rotation rotation) {
+    private static void placeEntry(WorldGenLevel level, StructureTemplate template, BlockPos pos, StructureSet.StructureEntry entry, Rotation rotation, int flags) {
         StructurePlaceSettings settings = new StructurePlaceSettings()
             .setRotation(rotation)
             .setMirror(Mirror.NONE)
@@ -241,7 +245,7 @@ public final class StructurePlacer {
             pos.getZ() - sizeZ / 2 + offset.getZ()
         );
 
-        template.placeInWorld(level, placementPos, placementPos, settings, level.getRandom(), 3);
+        template.placeInWorld(level, placementPos, placementPos, settings, level.getRandom(), flags);
     }
 
     // 9-sample cross instead of 5x5 grid: catches slopes in all 4 cardinal directions

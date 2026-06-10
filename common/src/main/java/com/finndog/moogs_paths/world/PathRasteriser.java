@@ -48,6 +48,14 @@ public final class PathRasteriser {
     //////////////////////////////
 
     public static void rasteriseInChunk(WorldGenLevel level, List<BlockPos> waypoints, PathType pathType, int chunkX, int chunkZ, RandomSource random) {
+        rasteriseInChunk(level, waypoints, pathType, chunkX, chunkZ, random, 3);
+    }
+
+    // flags is the setBlock flag triplet to use for every placement. Worldgen passes 3
+    // (UPDATE_NEIGHBORS | UPDATE_CLIENTS). Deferred live-chunk placement passes 18
+    // (UPDATE_CLIENTS | UPDATE_KNOWN_SHAPE) to suppress neighbour-update cascades that
+    // would otherwise visibly fire on already-loaded chunks.
+    public static void rasteriseInChunk(WorldGenLevel level, List<BlockPos> waypoints, PathType pathType, int chunkX, int chunkZ, RandomSource random, int flags) {
         if(waypoints.size() < 2) return;
         int halfWidthMin = pathType.width().min() / 2;
         int halfWidthMax = pathType.width().max() / 2;
@@ -75,7 +83,7 @@ public final class PathRasteriser {
             // taper the width with fade so the path narrows to width.min near endpoints; sits
             // alongside the existing density taper that drops blocks probabilistically
             int segHalfWidth = halfWidthMin + Math.round((halfWidthMax - halfWidthMin) * fade);
-            rasteriseSegmentInChunk(level, from, to, pathType, segHalfWidth, fade, chunkX, chunkZ, random, waterPositions, chunkHeights, pathBlocks);
+            rasteriseSegmentInChunk(level, from, to, pathType, segHalfWidth, fade, chunkX, chunkZ, random, waterPositions, chunkHeights, pathBlocks, flags);
         }
     }
 
@@ -112,7 +120,7 @@ public final class PathRasteriser {
 
     //////////////////////////////
 
-    private static void rasteriseSegmentInChunk(WorldGenLevel level, BlockPos from, BlockPos to, PathType pathType, int halfWidth, float fade, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet waterPositions, int[] chunkHeights, Set<Block> pathBlocks) {
+    private static void rasteriseSegmentInChunk(WorldGenLevel level, BlockPos from, BlockPos to, PathType pathType, int halfWidth, float fade, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet waterPositions, int[] chunkHeights, Set<Block> pathBlocks, int flags) {
         int chunkMinX = chunkX * 16;
         int chunkMaxX = chunkMinX + 15;
         int chunkMinZ = chunkZ * 16;
@@ -181,33 +189,33 @@ public final class PathRasteriser {
                         List<PathType.WeightedBlock> waterBlocks = isEdge && !ws.edgeBlocks().isEmpty() ? ws.edgeBlocks() : ws.surfaceBlocks();
                         BlockState picked = pick(waterBlocks, random);
                         if(!picked.isAir()) {
-                            level.setBlock(mpos, picked, 3);
+                            level.setBlock(mpos, picked, flags);
                             didPlace = true;
                         }
                     }
                     else if(isEdge && !pathType.edgeBlocks().isEmpty()) {
                         BlockState edgeState = pick(pathType.edgeBlocks(), random);
                         if(!edgeState.isAir()) {
-                            level.setBlock(mpos, edgeState, 3);
-                            if(!skipFill) fillBelow(level, mpos, bx, placeY - 1, bz, fillState, MAX_FILL, pathBlocks);
+                            level.setBlock(mpos, edgeState, flags);
+                            if(!skipFill) fillBelow(level, mpos, bx, placeY - 1, bz, fillState, MAX_FILL, pathBlocks, flags);
                             didPlace = true;
                         }
                     }
                     else {
                         BlockState placement = pick(pathType.surfaceBlocks(), random);
                         if(!placement.isAir()) {
-                            level.setBlock(mpos, placement, 3);
-                            if(!skipFill) fillBelow(level, mpos, bx, placeY - 1, bz, fillState, MAX_FILL, pathBlocks);
+                            level.setBlock(mpos, placement, flags);
+                            if(!skipFill) fillBelow(level, mpos, bx, placeY - 1, bz, fillState, MAX_FILL, pathBlocks, flags);
                             didPlace = true;
                         }
                     }
 
                     if(didPlace) {
-                        clearVegetationAbove(level, mpos, bx, placeY, bz);
+                        clearVegetationAbove(level, mpos, bx, placeY, bz, flags);
                         mpos.set(bx, placeY - 1, bz);
                         BlockState under = level.getBlockState(mpos);
                         if(under.is(Blocks.GRASS_BLOCK) || under.is(Blocks.MYCELIUM)) {
-                            level.setBlock(mpos, Blocks.DIRT.defaultBlockState(), 3);
+                            level.setBlock(mpos, Blocks.DIRT.defaultBlockState(), flags);
                         }
                     }
                 }
@@ -215,24 +223,24 @@ public final class PathRasteriser {
         }
     }
 
-    private static void clearVegetationAbove(WorldGenLevel level, BlockPos.MutableBlockPos mpos, int bx, int placeY, int bz) {
+    private static void clearVegetationAbove(WorldGenLevel level, BlockPos.MutableBlockPos mpos, int bx, int placeY, int bz, int flags) {
         for(int dy = 1; dy <= 2; dy++) {
             mpos.set(bx, placeY + dy, bz);
             BlockState state = level.getBlockState(mpos);
             if(state.isAir() || state.getPistonPushReaction() != PushReaction.DESTROY) break;
-            level.setBlock(mpos, Blocks.AIR.defaultBlockState(), 3);
+            level.setBlock(mpos, Blocks.AIR.defaultBlockState(), flags);
         }
     }
 
-    private static void fillBelow(WorldGenLevel level, BlockPos.MutableBlockPos mpos, int x, int startY, int z, BlockState fillState, int maxFill, Set<Block> pathBlocks) {
+    private static void fillBelow(WorldGenLevel level, BlockPos.MutableBlockPos mpos, int x, int startY, int z, BlockState fillState, int maxFill, Set<Block> pathBlocks, int flags) {
         for(int depth = 0; depth < maxFill; depth++) {
             mpos.set(x, startY - depth, z);
             BlockState existing = level.getBlockState(mpos);
             if(existing.isAir() || pathBlocks.contains(existing.getBlock())) {
-                level.setBlock(mpos, fillState, 3);
+                level.setBlock(mpos, fillState, flags);
             } else {
                 if(existing.is(Blocks.GRASS_BLOCK) || existing.is(Blocks.MYCELIUM)) {
-                    level.setBlock(mpos, Blocks.DIRT.defaultBlockState(), 3);
+                    level.setBlock(mpos, Blocks.DIRT.defaultBlockState(), flags);
                 }
                 break;
             }
