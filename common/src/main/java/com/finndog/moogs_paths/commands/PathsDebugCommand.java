@@ -6,6 +6,8 @@ import com.finndog.moogs_paths.data.PathNetworkType;
 import com.finndog.moogs_paths.data.PathType;
 import com.finndog.moogs_paths.world.PathChunkFeature;
 import com.finndog.moogs_paths.world.PathRegionSelector;
+import com.finndog.moogs_paths.world.deferred.DeferredPathJob;
+import com.finndog.moogs_paths.world.deferred.PlacementTickPump;
 import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
@@ -146,6 +148,25 @@ public final class PathsDebugCommand {
             if(networkFilter != null) {
                 Identifier id = findId(registry, ev.network());
                 if(!networkFilter.equals(id)) continue;
+            }
+
+            // /locate computed the path synchronously into PathDataManager's cache but never
+            // told the deferred placement system about it. Without this enqueue, the player can
+            // teleport to the reported location and find no blocks placed: chunk-load handlers
+            // check DeferredPathState.pending, see no job for this pathSeed, and skip placement.
+            // Enqueueing here puts the job into pending so chunks loading at the destination
+            // will trigger LiveChunkPlacer. Idempotent: if the job is already pending (from a
+            // prior worldgen pass), DeferredPathState.addPending no-ops.
+            Identifier networkIdForEnqueue = findId(registry, ev.network());
+            if(networkIdForEnqueue != null) {
+                DeferredPathJob job = new DeferredPathJob(
+                    ev.pathSeed(),
+                    candidate.originChunkX(),
+                    candidate.originChunkZ(),
+                    candidate.regionSize(),
+                    networkIdForEnqueue
+                );
+                PlacementTickPump.enqueueFromWorldgen(serverLevel, job);
             }
 
             List<BlockPos> waypoints = ev.cachedPath().waypoints();
