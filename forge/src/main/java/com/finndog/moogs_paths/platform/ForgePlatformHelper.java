@@ -7,14 +7,20 @@ import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
+import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.level.ChunkEvent;
 import net.minecraftforge.event.server.ServerStartingEvent;
+import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.registries.DataPackRegistryEvent;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 public class ForgePlatformHelper implements IPlatformHelper {
@@ -51,5 +57,28 @@ public class ForgePlatformHelper implements IPlatformHelper {
     @Override
     public void registerCommandListener(Consumer<CommandDispatcher<CommandSourceStack>> listener) {
         MinecraftForge.EVENT_BUS.addListener((RegisterCommandsEvent event) -> listener.accept(event.getDispatcher()));
+    }
+
+    @Override
+    public void registerChunkLoadListener(BiConsumer<ServerLevel, LevelChunk> listener) {
+        MinecraftForge.EVENT_BUS.addListener((ChunkEvent.Load event) -> {
+            if(!event.getLevel().isClientSide() && event.getLevel() instanceof ServerLevel sl && event.getChunk() instanceof LevelChunk lc) {
+                listener.accept(sl, lc);
+            }
+        });
+    }
+
+    @Override
+    public void registerServerTickEndListener(Consumer<MinecraftServer> listener) {
+        MinecraftForge.EVENT_BUS.addListener((TickEvent.ServerTickEvent event) -> {
+            if(event.phase == TickEvent.Phase.END) {
+                listener.accept(event.getServer());
+            }
+        });
+    }
+
+    @Override
+    public void registerServerStoppingListener(Consumer<MinecraftServer> listener) {
+        MinecraftForge.EVENT_BUS.addListener((ServerStoppingEvent event) -> listener.accept(event.getServer()));
     }
 }

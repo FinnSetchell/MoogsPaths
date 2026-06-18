@@ -7,6 +7,8 @@ import com.finndog.moogs_paths.data.PathDataManager;
 import com.finndog.moogs_paths.data.PathNetworkType;
 import com.finndog.moogs_paths.data.PathType;
 import com.finndog.moogs_paths.debug.PathDebugTimer;
+import com.finndog.moogs_paths.world.deferred.DeferredPathJob;
+import com.finndog.moogs_paths.world.deferred.PlacementTickPump;
 import com.mojang.serialization.Codec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -93,7 +95,10 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                 int originChunkX = origin[0];
                 int originChunkZ = origin[1];
 
-                Optional<EvaluatedOrigin> evaluated = evaluateOrigin(
+                // Worldgen pass: only consume cache hits. Cache misses get enqueued for
+                // the deferred worker pool and skipped this pass; the live-chunk placer
+                // will paint blocks once the path lands.
+                Optional<EvaluatedOrigin> evaluated = evaluateOriginCachedOnly(
                     serverLevel, generator, randomState, worldSeed, originChunkX, originChunkZ, regionSize, networks);
                 if(evaluated.isEmpty()) continue;
 
@@ -106,29 +111,17 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                 int bboxPad = pathType.width().max();
                 if(!intersectsWithPad(cachedPath, chunkX, chunkZ, bboxPad)) continue;
 
-                RandomSource rasterRandom = RandomSource.create(pathSeed ^ ((long) chunkX * RASTER_CHUNK_X_MULT) ^ ((long) chunkZ * RASTER_CHUNK_Z_MULT));
-                if(Constants.ENABLE_DEBUG_TIMER) PathDebugTimer.stamp(PathDebugTimer.Stage.RASTER);
-                PathRasteriser.rasteriseInChunk(level, cachedPath.waypoints(), pathType, chunkX, chunkZ, rasterRandom);
-
-                if(!network.structureSets().isEmpty()) {
-                    RandomSource structureRandom = RandomSource.create(pathSeed ^ STRUCTURE_MIXER);
-                    if(Constants.ENABLE_DEBUG_TIMER) PathDebugTimer.stamp(PathDebugTimer.Stage.STRUCTURES);
-                    StructurePlacer.placeInChunk(level, cachedPath.waypoints(), network.structureSets(), network.biomes(), chunkX, chunkZ, structureRandom, placedStructurePositions);
-                }
-
+                // Worldgen pass is ONLY responsible for ConfiguredFeature decorations
+                // (FeatureScatterer). The rasteriser, structure placer, and bush placer are
+                // owned by the deferred LiveChunkPlacer path so they go through the per-
+                // chunk dedup in DeferredPathState. Painting raster/structure/bush from here
+                // too would stack on top of the deferred placement.
                 if(!network.featureDecoratorSets().isEmpty()) {
                     RandomSource featureRandom = RandomSource.create(pathSeed ^ FEATURE_MIXER);
                     if(Constants.ENABLE_DEBUG_TIMER) PathDebugTimer.stamp(PathDebugTimer.Stage.FEATURES);
                     FeatureScatterer.scatterInChunk(level, generator, cachedPath.waypoints(), network.featureDecoratorSets(), network.biomes(), chunkX, chunkZ, featureRandom);
+                    placed = true;
                 }
-
-                if(!network.bushDecoratorSets().isEmpty()) {
-                    RandomSource bushRandom = RandomSource.create(pathSeed ^ BUSH_MIXER);
-                    if(Constants.ENABLE_DEBUG_TIMER) PathDebugTimer.stamp(PathDebugTimer.Stage.BUSHES);
-                    BushPlacer.placeInChunk(level, cachedPath.waypoints(), network.bushDecoratorSets(), network.biomes(), chunkX, chunkZ, bushRandom);
-                }
-
-                placed = true;
             }
         }
 
@@ -157,6 +150,59 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
         }
         if(eligible.isEmpty()) return Optional.empty();
         return Optional.of(PathNetworkType.pickWeighted(eligible, RandomSource.create(pathSeed)));
+    }
+
+    /**
+     * Worldgen-fast variant: only returns a hit if the path is already cached. On a
+     * miss, enqueues a {@link DeferredPathJob} so the async worker can compute it
+     * outside the worldgen critical path, and returns empty.
+     *
+     * This is what {@link #place} calls. /locate (which needs the synchronous result)
+     * still calls {@link #evaluateOrigin}.
+     */
+    public static Optional<EvaluatedOrigin> evaluateOriginCachedOnly(
+        ServerLevel serverLevel, ChunkGenerator generator, RandomState randomState,
+        long worldSeed, int originChunkX, int originChunkZ, int regionSize,
+        List<PathNetworkType> networksInGroup
+    ) {
+        long pathSeed = worldSeed
+            ^ ((long) originChunkX * ORIGIN_X_MULT)
+            ^ ((long) originChunkZ * ORIGIN_Z_MULT)
+            ^ ((long) regionSize * ORIGIN_REGION_SIZE_MULT)
+            ^ PATH_SEED_MIXER;
+
+        if(PathDataManager.isRejected(pathSeed)) {
+            if(Constants.ENABLE_DEBUG_TIMER) PathDataManager.addPathCounter(PathCounter.ORIGIN_REJECTED_BY_CACHE, 1);
+            return Optional.empty();
+        }
+
+        PathDataManager.CachedPath fastCached = PathDataManager.peekCachedPath(pathSeed);
+        if(fastCached != null) {
+            Optional<PathNetworkType> selected = selectNetworkAt(generator, randomState, originChunkX, originChunkZ, pathSeed, networksInGroup);
+            if(selected.isEmpty()) return Optional.empty();
+            PathNetworkType network = selected.get();
+            Optional<PathType> pathTypeOpt = MoogsPathsDatapackRegistries.getPathType(serverLevel.registryAccess(), network.pathType());
+            if(pathTypeOpt.isEmpty()) return Optional.empty();
+            if(fastCached.waypointCount() < 2) return Optional.empty();
+            return Optional.of(new EvaluatedOrigin(network, pathTypeOpt.get(), pathSeed, fastCached));
+        }
+
+        if(Constants.ENABLE_DEBUG_TIMER) PathDebugTimer.stamp(PathDebugTimer.Stage.ORIGIN_BIOME);
+        Optional<PathNetworkType> selected = selectNetworkAt(generator, randomState, originChunkX, originChunkZ, pathSeed, networksInGroup);
+        if(selected.isEmpty()) {
+            PathDataManager.markRejected(pathSeed);
+            if(Constants.ENABLE_DEBUG_TIMER) PathDataManager.addPathCounter(PathCounter.ORIGIN_REJECTED_BY_BIOME, 1);
+            return Optional.empty();
+        }
+        PathNetworkType network = selected.get();
+        ResourceLocation networkId = MoogsPathsDatapackRegistries.pathNetworkRegistry(serverLevel.registryAccess()).getKey(network);
+        if(networkId == null) return Optional.empty();
+
+        if(Constants.ENABLE_DEBUG_TIMER) PathDataManager.addPathCounter(PathCounter.ORIGIN_ACCEPTED, 1);
+
+        DeferredPathJob job = new DeferredPathJob(pathSeed, originChunkX, originChunkZ, regionSize, networkId);
+        PlacementTickPump.enqueueFromWorldgen(serverLevel, job);
+        return Optional.empty();
     }
 
     public static Optional<EvaluatedOrigin> evaluateOrigin(

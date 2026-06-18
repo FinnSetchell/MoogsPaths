@@ -48,17 +48,21 @@ public final class BushPlacer {
     //////////////////////////////
 
     public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<ResourceLocation> bushSetIds, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random) {
+        placeInChunk(level, waypoints, bushSetIds, biomes, chunkX, chunkZ, random, Block.UPDATE_CLIENTS);
+    }
+
+    public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<ResourceLocation> bushSetIds, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, int flags) {
         for(ResourceLocation id : bushSetIds) {
             var set = MoogsPathsDatapackRegistries.getBushDecoratorSet(level.registryAccess(), id);
             if(set.isEmpty()) {
                 PathDataManager.warnMissingOnce("Bush decorator set", id);
                 continue;
             }
-            placeSet(level, waypoints, set.get(), biomes, chunkX, chunkZ, random);
+            placeSet(level, waypoints, set.get(), biomes, chunkX, chunkZ, random, flags);
         }
     }
 
-    private static void placeSet(WorldGenLevel level, List<BlockPos> waypoints, BushDecoratorSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random) {
+    private static void placeSet(WorldGenLevel level, List<BlockPos> waypoints, BushDecoratorSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, int flags) {
         if(set.blocks().isEmpty()) return;
 
         int totalWeight = set.blocks().stream().mapToInt(BushDecoratorSet.WeightedBlock::weight).sum();
@@ -103,7 +107,7 @@ public final class BushPlacer {
                     var biome = level.getBiome(new BlockPos(cx, centerY, cz));
                     if(!biomes.contains(biome) || biome.is(PathChunkFeature.HAS_NO_PATHS)) return;
                     BlockState block = pick(set.blocks(), totalWeight, segRandom);
-                    placeBush(level, cx, cz, size, parX, parZ, block, chunkX, chunkZ, segRandom, set.minHeight(), set.maxHeight(), chunkHeights);
+                    placeBush(level, cx, cz, size, parX, parZ, block, chunkX, chunkZ, segRandom, set.minHeight(), set.maxHeight(), chunkHeights, flags);
                 }
             });
     }
@@ -120,7 +124,7 @@ public final class BushPlacer {
         return heights;
     }
 
-    private static void placeBush(WorldGenLevel level, int cx, int cz, int size, float parX, float parZ, BlockState block, int chunkX, int chunkZ, RandomSource random, int minHeight, int maxHeight, int[] chunkHeights) {
+    private static void placeBush(WorldGenLevel level, int cx, int cz, int size, float parX, float parZ, BlockState block, int chunkX, int chunkZ, RandomSource random, int minHeight, int maxHeight, int[] chunkHeights, int flags) {
         float perpX = -parZ;
         float perpZ = parX;
         float longR = size;
@@ -152,7 +156,7 @@ public final class BushPlacer {
                 for(int dy = 0; dy < height; dy++) {
                     mpos.set(px, sy + dy, pz);
                     if(level.getBlockState(mpos).isAir()) {
-                        level.setBlock(mpos, block, Block.UPDATE_CLIENTS);
+                        level.setBlock(mpos, block, flags);
                     }
                 }
             }
