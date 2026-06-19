@@ -2,6 +2,12 @@
 
 ---
 
+## [1.0.5] - 2026-06-19
+
+_Pending. Update this header date and replace this line with the actual changes before tagging._
+
+---
+
 ## [1.0.4] - 2026-06-18
 
 - Considerable performance improvement to world loading. Paths now generate quietly in the background instead of blocking the loading bar, so getting into your world is much faster. The bigger your modpack, the bigger the win. On our machine with Tectonic and Lithostitched, world load dropped from around 130 seconds to around 30. Adding C2ME dropped it further to around 10. Your numbers will vary with hardware and pack composition.
