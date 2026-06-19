@@ -2,6 +2,12 @@
 
 ---
 
+## [1.0.3] - 2026-06-19
+
+_Pending. Update this header date and replace this line with the actual changes before tagging._
+
+---
+
 ## [1.0.2] - 2026-06-19
 
 - Considerable performance improvement to world loading. Paths now generate quietly in the background instead of blocking the loading bar, so getting into your world is much faster. On our machine with a heavy pack (Tectonic, Lithostitched, structure packs, and C2ME), world load was essentially indistinguishable from running without a path mod — under 10 seconds on Fabric and NeoForge. Your numbers will vary with hardware and pack composition.
