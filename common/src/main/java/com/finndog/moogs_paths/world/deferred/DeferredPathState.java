@@ -43,6 +43,30 @@ public class DeferredPathState extends SavedData {
 
     public DeferredPathState() {}
 
+    //////////////////////////////
+    // Codec plumbing
+    //
+    // These declarations MUST come before TYPE because TYPE's initializer calls codec(),
+    // and codec() dereferences JOB_CODEC and PLACED_CODEC at construction time. Java
+    // initializes static fields in source order, so if JOB_CODEC is declared below TYPE
+    // it will still be null when codec() runs, producing an NPE during class init.
+    //////////////////////////////
+
+    private record PlacedEntry(long seed, long[] chunks) {}
+
+    private static final Codec<DeferredPathJob> JOB_CODEC = RecordCodecBuilder.create(inst -> inst.group(
+        Codec.LONG.fieldOf("seed").forGetter(DeferredPathJob::pathSeed),
+        Codec.INT.fieldOf("cx").forGetter(DeferredPathJob::originChunkX),
+        Codec.INT.fieldOf("cz").forGetter(DeferredPathJob::originChunkZ),
+        Codec.INT.fieldOf("rs").forGetter(DeferredPathJob::regionSize),
+        Identifier.CODEC.fieldOf("net").forGetter(DeferredPathJob::networkId)
+    ).apply(inst, DeferredPathJob::new));
+
+    private static final Codec<PlacedEntry> PLACED_CODEC = RecordCodecBuilder.create(inst -> inst.group(
+        Codec.LONG.fieldOf("seed").forGetter(PlacedEntry::seed),
+        Codec.LONG_STREAM.fieldOf("chunks").xmap(s -> s.toArray(), java.util.stream.LongStream::of).forGetter(PlacedEntry::chunks)
+    ).apply(inst, PlacedEntry::new));
+
     // SavedDataType requires a DataFixTypes (no nullable overload on this branch). Use the
     // closest neutral fix type; we never write old-format data so the actual choice is inert.
     public static final SavedDataType<DeferredPathState> TYPE = new SavedDataType<>(
@@ -94,24 +118,6 @@ public class DeferredPathState extends SavedData {
     }
 
     private static long packChunk(int x, int z) { return ((long) x << 32) | (z & 0xFFFFFFFFL); }
-
-    //////////////////////////////
-    // Codec plumbing
-    //////////////////////////////
-
-    private static final Codec<DeferredPathJob> JOB_CODEC = RecordCodecBuilder.create(inst -> inst.group(
-        Codec.LONG.fieldOf("seed").forGetter(DeferredPathJob::pathSeed),
-        Codec.INT.fieldOf("cx").forGetter(DeferredPathJob::originChunkX),
-        Codec.INT.fieldOf("cz").forGetter(DeferredPathJob::originChunkZ),
-        Codec.INT.fieldOf("rs").forGetter(DeferredPathJob::regionSize),
-        Identifier.CODEC.fieldOf("net").forGetter(DeferredPathJob::networkId)
-    ).apply(inst, DeferredPathJob::new));
-
-    private record PlacedEntry(long seed, long[] chunks) {}
-    private static final Codec<PlacedEntry> PLACED_CODEC = RecordCodecBuilder.create(inst -> inst.group(
-        Codec.LONG.fieldOf("seed").forGetter(PlacedEntry::seed),
-        Codec.LONG_STREAM.fieldOf("chunks").xmap(s -> s.toArray(), java.util.stream.LongStream::of).forGetter(PlacedEntry::chunks)
-    ).apply(inst, PlacedEntry::new));
 
     private static Codec<DeferredPathState> codec() {
         return RecordCodecBuilder.create(inst -> inst.group(
