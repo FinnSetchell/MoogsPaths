@@ -2,13 +2,10 @@
 
 ---
 
-## [1.0.2] - 2026-06-18
+## [1.0.2] - 2026-06-19
 
-- Path generation no longer runs during chunk-gen. Each candidate origin is now recorded as a deferred job during chunk-gen and the actual A* and block placement happens off-thread after chunks load, drip-fed at 4 placements per server tick. World load on heavy packs (Tectonic + Lithostitched + structure packs) drops from around 130s to around 20s; on top of c2me it drops to around 11s. Pending jobs are persisted as per-dimension SavedData so a save-and-quit doesn't lose paths in flight.
-- `/locate path_network <id>` now enqueues the deferred job for the resolved path so teleporting to the reported coordinates actually shows the path; previously the path was computed into the cache but never queued for placement.
-- ConfiguredFeature decorations (the vegetation pass) still run during chunk-gen so the deferred path slice gets its trees and bushes painted by neighbouring chunk feature passes; the rasteriser, structure placer, and bush placer are owned exclusively by the deferred placement flow to avoid double-painting.
-- Added chunk-load, server-tick-end, and server-stopping hooks to `IPlatformHelper` (wired on both Fabric and NeoForge).
-- Known trade-off: the very first chunk to encounter a freshly-discovered origin will have sparser vegetation along its path slice because `FeatureScatterer` is intentionally not replayed against live chunks. Subsequent chunks intersecting the same path paint vegetation normally.
+- Considerable performance improvement to world loading. Paths now generate quietly in the background instead of blocking the loading bar, so getting into your world is much faster. On our machine with a heavy pack (Tectonic, Lithostitched, structure packs, and C2ME), world load was essentially indistinguishable from running without a path mod — under 10 seconds on Fabric and NeoForge. Your numbers will vary with hardware and pack composition.
+- After running `/paths locate`, teleporting to the reported location now actually shows the path. Previously the command would find a path and tell you where it was, but the path wouldn't appear when you arrived.
 
 ---
 
