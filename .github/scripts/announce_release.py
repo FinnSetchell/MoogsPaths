@@ -119,19 +119,25 @@ def main():
     username = "Moog's Mods"
 
     # --- Message 1: banner image, with optional role ping ---
+    # Discord auto-embeds an image URL ONLY when it is the entire message content.
+    # When the content also contains a role ping, the URL text stays visible above
+    # the inline preview. Workaround: when pinging, put the URL in an embed.image
+    # so the rendered post stays clean. When not pinging, keep the bare-URL form
+    # so the look is identical to releases without a ping.
     if banner_url:
         if ping_enabled and role_id:
-            content = f'<@&{role_id}>\n{banner_url}'
-            allowed_mentions = {'parse': [], 'roles': [role_id]}
+            payload = {
+                'username': username,
+                'content': f'<@&{role_id}>',
+                'embeds': [{'image': {'url': banner_url}}],
+                'allowed_mentions': {'parse': [], 'roles': [role_id]},
+            }
         else:
-            content = banner_url
-            allowed_mentions = {'parse': []}
-
-        payload = {
-            'username': username,
-            'content': content,
-            'allowed_mentions': allowed_mentions,
-        }
+            payload = {
+                'username': username,
+                'content': banner_url,
+                'allowed_mentions': {'parse': []},
+            }
         if avatar_url:
             payload['avatar_url'] = avatar_url
 
