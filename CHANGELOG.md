@@ -2,13 +2,10 @@
 
 ---
 
-## [1.0.4] - 2026-06-10
+## [1.0.4] - 2026-06-18
 
-- Path generation no longer runs during chunk-gen. Each candidate origin is now recorded as a deferred job during chunk-gen and the actual A* and block placement happens off-thread after chunks load, drip-fed at 4 placements per server tick. World load on heavy packs (Tectonic + Lithostitched + structure packs) drops from around 130s to around 20s; on top of c2me it drops to around 11s. Pending jobs are persisted as per-dimension SavedData so a save-and-quit doesn't lose paths in flight.
-- `/locate path_network <id>` now enqueues the deferred job for the resolved path so teleporting to the reported coordinates actually shows the path; previously the path was computed into the cache but never queued for placement.
-- ConfiguredFeature decorations (the vegetation pass) still run during chunk-gen so the deferred path slice gets its trees and bushes painted by neighbouring chunk feature passes; the rasteriser, structure placer, and bush placer are owned exclusively by the deferred placement flow to avoid double-painting.
-- Added chunk-load, server-tick-end, and server-stopping hooks to `IPlatformHelper` (wired on both Forge and Fabric).
-- Known trade-off: the very first chunk to encounter a freshly-discovered origin will have sparser vegetation along its path slice because `FeatureScatterer` is intentionally not replayed against live chunks. Subsequent chunks intersecting the same path paint vegetation normally.
+- Considerable performance improvement to world loading. Paths now generate quietly in the background instead of blocking the loading bar, so getting into your world is much faster. The bigger your modpack, the bigger the win. On our machine with Tectonic and Lithostitched, world load dropped from around 130 seconds to around 30. Adding C2ME dropped it further to around 10. Your numbers will vary with hardware and pack composition.
+- After running `/paths locate`, teleporting to the reported location now actually shows the path. Previously the command would find a path and tell you where it was, but the path wouldn't appear when you arrived.
 
 ---
 
