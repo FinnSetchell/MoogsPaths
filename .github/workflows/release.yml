@@ -24,7 +24,7 @@ jobs:
       - name: setup jdk
         uses: actions/setup-java@v4
         with:
-          java-version: '25'
+          java-version: '21'
           distribution: 'microsoft'
 
       - name: make gradle wrapper executable
@@ -47,7 +47,7 @@ jobs:
           printf "body<<DELIMITER\n%s\nDELIMITER\n" "$BODY" >> "$GITHUB_OUTPUT"
 
       - name: publish to CurseForge & Modrinth
-        # Forge excluded for 26.1: ForgeGradle 6 has no Gradle 9 support yet. Re-add :forge:publishMods when it does.
+        # Forge excluded for 1.21.11: Forge 61 reworked the event-bus API and the existing forge module needs rewriting.
         run: ./gradlew :fabric:publishMods :neoforge:publishMods
         env:
           MODRINTH_API_KEY: ${{ secrets.MODRINTH_API_KEY }}
@@ -75,7 +75,7 @@ jobs:
         if: success()
         shell: bash
         run: |
-          BRANCH="26.1-26.1.2"
+          BRANCH="1.21.11"
           TODAY=$(date -u +%Y-%m-%d)
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
