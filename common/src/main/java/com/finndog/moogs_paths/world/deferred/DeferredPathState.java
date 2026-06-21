@@ -11,7 +11,6 @@ import net.minecraft.world.level.saveddata.SavedDataType;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,7 +31,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * (job completion). All maps are {@link ConcurrentHashMap}-backed; the SavedData itself
  * is only saved on the IO thread via MC's normal flush cadence.
  *
- * Persistence uses the 26.1 Codec-based {@link SavedDataType} pipeline.
+ * Persistence uses the Codec-based {@link SavedDataType} pipeline introduced in 1.21.5.
  */
 public class DeferredPathState extends SavedData {
 
@@ -67,10 +66,10 @@ public class DeferredPathState extends SavedData {
         Codec.LONG_STREAM.fieldOf("chunks").xmap(s -> s.toArray(), java.util.stream.LongStream::of).forGetter(PlacedEntry::chunks)
     ).apply(inst, PlacedEntry::new));
 
-    // SavedDataType requires a DataFixTypes (no nullable overload on this branch). Use the
-    // closest neutral fix type; we never write old-format data so the actual choice is inert.
+    // 1.21.11 SavedDataType ctor takes a String id (not Identifier), Supplier<T>, Codec<T>,
+    // and a @Nullable DataFixTypes.
     public static final SavedDataType<DeferredPathState> TYPE = new SavedDataType<>(
-        Identifier.fromNamespaceAndPath(Constants.MOD_ID, "deferred_paths"),
+        NAME,
         DeferredPathState::new,
         codec(),
         DataFixTypes.LEVEL
@@ -81,8 +80,6 @@ public class DeferredPathState extends SavedData {
     }
 
     public Map<Long, DeferredPathJob> snapshotPending() {
-        // Used at server-start to re-enqueue jobs. Snapshot so caller can iterate without
-        // worrying about concurrent removals when jobs complete.
         return new HashMap<>(pendingJobs);
     }
 

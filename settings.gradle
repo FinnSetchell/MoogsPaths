@@ -28,8 +28,9 @@ plugins {
 rootProject.name = 'MoogsPaths'
 include("common")
 include("fabric")
-// Forge subproject temporarily excluded for the 26.1 port: ForgeGradle 6.x does not yet support
-// Gradle 9.x which is required for Java 25 / NeoForge 26.1. Re-include once ForgeGradle 7 ships,
-// or drop the Forge target permanently in favour of NeoForge.
+// Forge subproject excluded for the 1.21.11 port: Forge 61 reworked the event-bus API
+// (FMLJavaModLoadingContext.getModEventBus / MinecraftForge.EVENT_BUS.addListener removed),
+// which the existing forge module relied on. Restoring Forge support is a separate piece
+// of work — wire IEventBus through the @Mod constructor and rewrite the event listeners.
 // include("forge")
 include("neoforge")

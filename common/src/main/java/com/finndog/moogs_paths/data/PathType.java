@@ -61,7 +61,7 @@ public record PathType(
         WidthRange.CODEC.fieldOf("width").forGetter(PathType::width),
         Codec.floatRange(0.0f, 1.0f).fieldOf("rigidness").forGetter(PathType::rigidness),
         Codec.floatRange(0.0f, 1.0f).fieldOf("carver").forGetter(PathType::carver),
-        net.minecraft.util.valueproviders.IntProviders.codec(1, 100_000).fieldOf("length").forGetter(PathType::length),
+        net.minecraft.util.valueproviders.IntProvider.codec(1, 100_000).fieldOf("length").forGetter(PathType::length),
         FadeSettings.CODEC.fieldOf("fade").forGetter(PathType::fade),
         WaterSettings.CODEC.optionalFieldOf("water_settings").forGetter(PathType::waterSettings)
     ).apply(instance, PathType::new));

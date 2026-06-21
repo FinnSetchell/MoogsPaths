@@ -103,7 +103,7 @@ public final class MoogsPathsDatapackRegistries {
                     e -> e.getValue().stream()
                         .mapToInt(n -> pathTypes.get(ResourceKey.create(PATH_TYPE, n.pathType()))
                             .map(Holder::value)
-                            .map(pt -> (int) Math.ceil(pt.length().maxInclusive() * RADIUS_LENGTH_MULTIPLIER))
+                            .map(pt -> (int) Math.ceil(pt.length().getMaxValue() * RADIUS_LENGTH_MULTIPLIER))
                             .orElse(1000))
                         .max().orElse(1000)
                 ));

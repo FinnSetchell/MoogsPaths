@@ -11,15 +11,16 @@ neoForge {
     if (at.exists()) {
         accessTransformers = [at.absolutePath]
     }
-    // No parchment block: 26.1 ships with Mojang parameter names directly.
+    parchment {
+        minecraftVersion = parchment_minecraft
+        mappingsVersion = parchment_version
+    }
     runs {
         client {
             client()
         }
-        // 26.1 / ModDevGradle: the combined `data` run type was split into clientData + serverData.
-        // clientData() is the drop-in for the old data() — it has access to both client and server providers.
-        clientData {
-            clientData()
+        data {
+            data()
             programArguments.addAll '--mod', project.mod_id, '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
         }
         server {
