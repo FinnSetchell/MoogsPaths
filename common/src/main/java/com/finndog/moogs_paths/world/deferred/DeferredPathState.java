@@ -35,7 +35,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class DeferredPathState extends SavedData {
 
-    public static final String NAME = Constants.MOD_ID + "_deferred_paths";
+    public static final Identifier NAME = Identifier.fromNamespaceAndPath(Constants.MOD_ID, "deferred_paths");
 
     private final Map<Long, DeferredPathJob> pendingJobs = new ConcurrentHashMap<>();
     private final Map<Long, Set<Long>> placedByPath = new ConcurrentHashMap<>();

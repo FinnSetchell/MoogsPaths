@@ -37,7 +37,7 @@ public class FabricPlatformHelper implements IPlatformHelper {
 
     @Override
     public void registerChunkLoadListener(BiConsumer<ServerLevel, LevelChunk> listener) {
-        ServerChunkEvents.CHUNK_LOAD.register(listener::accept);
+        ServerChunkEvents.CHUNK_LOAD.register((level, chunk, newChunk) -> listener.accept(level, chunk));
     }
 
     @Override

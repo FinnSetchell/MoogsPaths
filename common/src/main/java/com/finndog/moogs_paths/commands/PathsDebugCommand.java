@@ -250,7 +250,7 @@ public final class PathsDebugCommand {
         src.sendSuccess(() -> Component.literal("[paths] Loaded networks (" + networks.size() + "):"), false);
         for(PathNetworkType n : networks) {
             String lengthStr = MoogsPathsDatapackRegistries.getPathType(src.registryAccess(), n.pathType())
-                .map(pt -> pt.length().getMinValue() + "-" + pt.length().getMaxValue())
+                .map(pt -> pt.length().minInclusive() + "-" + pt.length().maxInclusive())
                 .orElse("?");
             String line = "  pathType=" + n.pathType()
                 + " length=" + lengthStr
