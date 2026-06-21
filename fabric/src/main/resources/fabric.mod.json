@@ -25,10 +25,10 @@
         ]
     },
     "depends": {
-        "fabricloader": ">=0.18",
+        "fabricloader": ">=0.19",
         "fabric-api": "*",
         "minecraft": "${fabric_mc_dependency}",
-        "java": ">=21"
+        "java": ">=25"
     },
     "suggests": {
         "modmenu": "*"
