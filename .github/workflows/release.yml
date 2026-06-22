@@ -3,7 +3,7 @@ name: release
 on:
   push:
     tags:
-      - '*.*.*-*.*.*'
+      - '*-26.2'
 
 permissions:
   contents: write
@@ -24,7 +24,7 @@ jobs:
       - name: setup jdk
         uses: actions/setup-java@v4
         with:
-          java-version: '21'
+          java-version: '25'
           distribution: 'microsoft'
 
       - name: make gradle wrapper executable
@@ -37,7 +37,7 @@ jobs:
         id: changelog
         shell: bash
         run: |
-          VERSION="${GITHUB_REF_NAME%%-*}"
+          VERSION=$(grep '^version=' gradle.properties | cut -d= -f2)
           BODY=$(python3 -c "
           import re, sys
           content = open('CHANGELOG.md').read()
@@ -75,7 +75,7 @@ jobs:
         if: success()
         shell: bash
         run: |
-          BRANCH="1.21.11"
+          BRANCH="26.2.0"
           TODAY=$(date -u +%Y-%m-%d)
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
