@@ -2,6 +2,12 @@
 
 ---
 
+## [1.0.4] - 2026-06-22
+
+_Pending. Update this header date and replace this line with the actual changes before tagging._
+
+---
+
 ## [1.0.3] - 2026-06-21
 
 - port to 1.21.11
