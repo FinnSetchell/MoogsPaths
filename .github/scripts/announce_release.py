@@ -118,38 +118,6 @@ def main():
 
     username = "Moog's Mods"
 
-    # --- Message 1: banner image, with optional role ping ---
-    # Discord auto-embeds an image URL ONLY when it is the entire message content.
-    # When the content also contains a role ping, the URL text stays visible above
-    # the inline preview. Workaround: when pinging, put the URL in an embed.image
-    # so the rendered post stays clean. When not pinging, keep the bare-URL form
-    # so the look is identical to releases without a ping.
-    if banner_url:
-        if ping_enabled and role_id:
-            payload = {
-                'username': username,
-                'content': f'<@&{role_id}>',
-                'embeds': [{'image': {'url': banner_url}}],
-                'allowed_mentions': {'parse': [], 'roles': [role_id]},
-            }
-        else:
-            payload = {
-                'username': username,
-                'content': banner_url,
-                'allowed_mentions': {'parse': []},
-            }
-        if avatar_url:
-            payload['avatar_url'] = avatar_url
-
-        print('posting banner message')
-        post(webhook, payload, label='banner')
-    else:
-        print('discord_banner_url not set - skipping banner message.', file=sys.stderr)
-
-    # Small pause: webhooks share a rate-limit bucket; back-to-back posts can 429.
-    time.sleep(0.5)
-
-    # --- Message 2: formatted changelog embed ---
     changelog_body = extract_changelog(Path('CHANGELOG.md'), version)
     if not changelog_body:
         print(f'no CHANGELOG.md section found for version {version!r} - embed will have empty changelog.', file=sys.stderr)
@@ -180,19 +148,39 @@ def main():
     except ValueError:
         color = 0x8B6914
 
-    payload = {
-        'username': username,
-        'embeds': [{
-            'description': description,
-            'color': color,
-        }],
-        'allowed_mentions': {'parse': []},
-    }
+    changelog_embed = {'description': description, 'color': color}
+
+    # Send everything as one message so ordering is guaranteed.
+    # Embeds render in array order: banner image first, changelog second.
+    # When pinging, the role mention goes in content (bare URL there would show
+    # as visible text alongside the ping, so the banner lives in an embed instead).
+    # When not pinging, a bare URL in content auto-embeds above the explicit embeds.
+    if ping_enabled and role_id:
+        embeds = []
+        if banner_url:
+            embeds.append({'image': {'url': banner_url}})
+        embeds.append(changelog_embed)
+        payload = {
+            'username': username,
+            'content': f'<@&{role_id}>',
+            'embeds': embeds,
+            'allowed_mentions': {'parse': [], 'roles': [role_id]},
+        }
+    else:
+        payload = {
+            'username': username,
+            'content': banner_url if banner_url else None,
+            'embeds': [changelog_embed],
+            'allowed_mentions': {'parse': []},
+        }
+        if not banner_url:
+            del payload['content']
+
     if avatar_url:
         payload['avatar_url'] = avatar_url
 
-    print('posting changelog message')
-    post(webhook, payload, label='changelog')
+    print('posting announcement')
+    post(webhook, payload, label='announcement')
     return 0
 
 
