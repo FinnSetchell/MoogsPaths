@@ -10,84 +10,8 @@ permissions:
 
 jobs:
   release:
-    runs-on: ubuntu-24.04
-    steps:
-      - name: checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: validate gradle wrapper
-        uses: gradle/actions/wrapper-validation@v4
-
-      - name: setup jdk
-        uses: actions/setup-java@v4
-        with:
-          java-version: '21'
-          distribution: 'microsoft'
-
-      - name: make gradle wrapper executable
-        run: chmod +x ./gradlew
-
-      - name: disable debug timer for release
-        run: sed -i 's/ENABLE_DEBUG_TIMER = true/ENABLE_DEBUG_TIMER = false/' common/src/main/java/com/finndog/moogs_paths/Constants.java
-
-      - name: extract changelog
-        id: changelog
-        shell: bash
-        run: |
-          VERSION="${GITHUB_REF_NAME%%-*}"
-          BODY=$(python3 -c "
-          import re, sys
-          content = open('CHANGELOG.md').read()
-          m = re.search(r'## \[' + re.escape(sys.argv[1]) + r'\] - \d{4}-\d{2}-\d{2}\r?\n(.*?)(?=\r?\n---|\r?\n## \[|\Z)', content, re.DOTALL)
-          print(m.group(1).strip() if m else '')
-          " "$VERSION")
-          printf "body<<DELIMITER\n%s\nDELIMITER\n" "$BODY" >> "$GITHUB_OUTPUT"
-
-      - name: publish to CurseForge & Modrinth
-        run: ./gradlew :fabric:publishMods :forge:publishMods :neoforge:publishMods
-        env:
-          MODRINTH_API_KEY: ${{ secrets.MODRINTH_API_KEY }}
-          CURSEFORGE_API_KEY: ${{ secrets.CURSEFORGE_API_KEY }}
-
-      - name: announce on Discord
-        run: python3 .github/scripts/announce_release.py
-        env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-
-      - name: create GitHub release
-        uses: softprops/action-gh-release@v2
-        with:
-          body: ${{ steps.changelog.outputs.body }}
-          files: |
-            fabric/build/libs/*.jar
-            !fabric/build/libs/*-sources.jar
-            !fabric/build/libs/*-dev.jar
-            forge/build/libs/*.jar
-            !forge/build/libs/*-sources.jar
-            !forge/build/libs/*-slim.jar
-            neoforge/build/libs/*.jar
-            !neoforge/build/libs/*-sources.jar
-            !neoforge/build/libs/*-dev.jar
-          fail_on_unmatched_files: false
-
-      - name: bump patch version for next release
-        if: success()
-        shell: bash
-        run: |
-          BRANCH="1.21-1.21.1"
-          TODAY=$(date -u +%Y-%m-%d)
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git fetch origin "$BRANCH"
-          git checkout "$BRANCH"
-          OLD=$(grep '^version=' gradle.properties | cut -d= -f2)
-          IFS='.' read -r -a P <<< "$OLD"
-          NEW="${P[0]}.${P[1]}.$((P[2]+1))"
-          sed -i "s|^version=.*$|version=${NEW}|" gradle.properties
-          NEW_VERSION="$NEW" RELEASE_DATE="$TODAY" python3 .github/scripts/post_release_bump.py
-          git add gradle.properties CHANGELOG.md
-          git commit -m "post-release: bump ${OLD} to ${NEW} + stub CHANGELOG section"
-          git push origin "$BRANCH"
+    uses: FinnSetchell/release-actions/.github/workflows/release.yml@v1
+    with:
+      javaVersion: '21'
+    secrets:
+      WORKER_API_KEY: ${{ secrets.WORKER_API_KEY }}
