@@ -1,7 +1,6 @@
 plugins {
     id 'multiloader-loader'
     id 'net.neoforged.moddev.legacyforge'
-    id 'me.modmuss50.mod-publish-plugin'
 }
 
 legacyForge {
@@ -43,52 +42,6 @@ jar {
     finalizedBy('reobfJar')
 }
 
-def changelogContent = rootProject.file('CHANGELOG.md').exists() ? rootProject.file('CHANGELOG.md').getText('UTF-8') : ''
-def changelogMatcher = ~/(?s)## \[${version}\][^\n]*\r?\n(.*?)(?=\r?\n---|\r?\n## \[|\z)/
-def changelogMatch = (changelogContent =~ changelogMatcher)
-def changelogLatest = changelogMatch.find() ? changelogMatch.group(1).trim() : ''
-
 tasks.named('reobfJar').configure {
     destinationDirectory.set(layout.buildDirectory.dir('libs'))
-}
-
-tasks.matching { it.name.startsWith('publishMods') }.configureEach {
-    dependsOn tasks.named('reobfJar')
-}
-
-publishMods {
-    file = tasks.named('reobfJar').flatMap { it.archiveFile }
-    changelog = changelogLatest
-    version = project.version.toString()
-    type = STABLE
-    displayName = "${mod_name} ${project.version}-${minecraft_version} (Forge)"
-    modLoaders.add("forge")
-    dryRun = providers.environmentVariable('PUBLISH_DRY_RUN').map { it == 'true' }.orElse(false)
-    maxRetries = 3
-
-    if (providers.environmentVariable('MODRINTH_API_KEY').isPresent() && project.hasProperty('modrinth_project_id') && modrinth_project_id) {
-        modrinth {
-            accessToken = providers.environmentVariable('MODRINTH_API_KEY')
-            projectId = modrinth_project_id
-            minecraftVersionRange {
-                start = publish_mc_start
-                end = publish_mc_end
-            }
-        }
-    }
-
-    if (providers.environmentVariable('CURSEFORGE_API_KEY').isPresent() && project.hasProperty('cf_project_id') && cf_project_id) {
-        curseforge {
-            accessToken = providers.environmentVariable('CURSEFORGE_API_KEY')
-            projectId = cf_project_id
-            if (project.hasProperty('cf_project_slug') && cf_project_slug) {
-                projectSlug = cf_project_slug
-            }
-            minecraftVersionRange {
-                start = publish_mc_start
-                end = publish_mc_end
-            }
-        }
-    }
-
 }
