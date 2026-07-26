@@ -1,7 +1,6 @@
 plugins {
     id 'multiloader-loader'
     id 'fabric-loom'
-    id 'me.modmuss50.mod-publish-plugin'
 }
 dependencies {
     minecraft "com.mojang:minecraft:${minecraft_version}"
@@ -37,50 +36,3 @@ loom {
         }
     }
 }
-
-def changelogContent = rootProject.file('CHANGELOG.md').exists() ? rootProject.file('CHANGELOG.md').getText('UTF-8') : ''
-def changelogMatcher = ~/(?s)## \[${version}\][^\n]*\r?\n(.*?)(?=\r?\n---|\r?\n## \[|\z)/
-def changelogMatch = (changelogContent =~ changelogMatcher)
-def changelogLatest = changelogMatch.find() ? changelogMatch.group(1).trim() : ''
-
-publishMods {
-    file = tasks.named('remapJar').flatMap { it.archiveFile }
-    changelog = changelogLatest
-    version = project.version.toString()
-    type = STABLE
-    displayName = "${mod_name} ${project.version}-${minecraft_version} (Fabric)"
-    modLoaders.add("fabric")
-    dryRun = providers.environmentVariable('PUBLISH_DRY_RUN').map { it == 'true' }.orElse(false)
-    maxRetries = 3
-
-    if (providers.environmentVariable('MODRINTH_API_KEY').isPresent() && project.hasProperty('modrinth_project_id') && modrinth_project_id) {
-        modrinth {
-            accessToken = providers.environmentVariable('MODRINTH_API_KEY')
-            projectId = modrinth_project_id
-            minecraftVersionRange {
-                start = publish_mc_start
-                end = publish_mc_end
-            }
-        }
-    }
-
-    if (providers.environmentVariable('CURSEFORGE_API_KEY').isPresent() && project.hasProperty('cf_project_id') && cf_project_id) {
-        curseforge {
-            accessToken = providers.environmentVariable('CURSEFORGE_API_KEY')
-            projectId = cf_project_id
-            // Server-authoritative worldgen mod: needed on the server, not required on remote clients.
-            clientRequired = false
-            serverRequired = true
-            if (project.hasProperty('cf_project_slug') && cf_project_slug) {
-                projectSlug = cf_project_slug
-            }
-            minecraftVersionRange {
-                start = publish_mc_start
-                end = publish_mc_end
-            }
-        }
-    }
-}
-
-// Discord announcement is handled by .github/scripts/announce_release.py
-// after all loaders have published. See .github/workflows/release.yml.
