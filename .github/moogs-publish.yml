@@ -1,0 +1,61 @@
+# v2 publish manifest — FinnSetchell/MoogsPaths
+# Lives on the DEFAULT branch (1.20.1) only; every publish branch reads it from here.
+# Contract: FinnSetchell/release-actions docs/v2-contracts.md
+schema: 1
+mod:
+  id: mp
+  displayName: "Moog's Paths"   # live Modrinth title is "MP - Moog's Paths"; the full name is the part after the dash
+  environments: [Server]        # Modrinth client_side=unsupported / server_side=required; live CF files carry "Server"
+  name: MoogsPaths
+  validate: false               # no validator.json on any branch
+platforms:
+  curseforge: { projectId: 1546855, slug: mp-moogs-paths }   # CF /mods API 403 — verified via the public files endpoint
+  modrinth:   { projectId: HDB8pnki, slug: mp-moogs-paths }  # live-verified via api.modrinth.com/v2/project/HDB8pnki
+discord:
+  embedColor: "#8B6914"
+  avatarUrl: "https://media.forgecdn.net/avatars/thumbnails/1814/575/64/64/639147005829648185.png"
+  bannerUrl: "https://pub-24a4e0e7ea8544a5b6f73c3a23512589.r2.dev/images/d5e8c0f59add420ea9e76f95544c256a.png"
+  # no thumbnailUrl was ever configured on any branch
+  pingDefault: true   # 1.20.1 alone carried discord_ping=false — a per-release leftover, not identity
+# No `dependencies`: every live Modrinth version of this mod declares an empty
+# dependency list, and neither fabric.mod.json nor neoforge.mods.toml requires
+# another mod (only loader + minecraft + fabric-api).
+artifacts:
+  - type: mod-jar
+# Loader sets come from each branch's settings.gradle include() lines — forge is
+# COMMENTED OUT on 1.21.11 / 26.1-26.1.2 / 26.2.0 even though forge/build.gradle
+# still exists — and are corroborated by the live Modrinth uploads per MC line.
+targets:
+  - branch: "1.20"
+    mc: { start: "1.20", end: "1.20" }
+    loaders: [fabric, forge]
+    java: 17
+    displaySuffix: "[FABRIC + FORGE]"
+  - branch: "1.20.1"
+    mc: { start: "1.20.1", end: "1.20.1" }
+    loaders: [fabric, forge]
+    java: 17
+    displaySuffix: "[FABRIC + FORGE]"
+  - branch: "1.21-1.21.1"
+    mc: { start: "1.21", end: "1.21.1" }
+    loaders: [fabric, forge, neoforge]
+    java: 21
+    displaySuffix: "[FABRIC + FORGE + NEOFORGE]"
+  - branch: "1.21.11"
+    # forge include commented out (Forge 61 event-bus rework)
+    mc: { start: "1.21.11", end: "1.21.11" }
+    loaders: [fabric, neoforge]
+    java: 21
+    displaySuffix: "[FABRIC + NEOFORGE]"
+  - branch: "26.1-26.1.2"
+    # forge include commented out (ForgeGradle 6.x has no Gradle 9 support)
+    mc: { start: "26.1", end: "26.1.2" }
+    loaders: [fabric, neoforge]
+    java: 25
+    displaySuffix: "[FABRIC + NEOFORGE]"
+  - branch: "26.2.0"
+    # forge include commented out
+    mc: { start: "26.2", end: "26.2" }
+    loaders: [fabric, neoforge]
+    java: 25
+    displaySuffix: "[FABRIC + NEOFORGE]"
