@@ -2,7 +2,7 @@
 
 [![Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/D1D8LKA5N)
 
-[![Discord](https://img.shields.io/discord/869218732650688543?color=F46B10&label=DISCORD&style=for-the-badge)](https://discord.com/invite/S5nffJbuvA)
+[![Discord](https://img.shields.io/discord/869218732650688543?color=F46B10&label=DISCORD&style=for-the-badge)](https://moogsmods.com/discord?r=readme-paths)
 
 [![My projects](https://img.shields.io/badge/CurseForge-projects-F46B10?style=for-the-badge&logo=curseforge)](https://www.curseforge.com/members/finndog_123/projects)
 
@@ -76,7 +76,7 @@ Feel free to include this mod in modpacks. No special permission needed.
 
 The best way to get a reply is to join the Discord server.
 
-*   [Discord](https://discord.gg/S5nffJbuvA)
+*   [Discord](https://moogsmods.com/discord?r=readme-paths)
 *   [GitHub / Issue Tracker](https://github.com/FinnSetchell/MoogsPaths)
 *   [Ko-fi](https://ko-fi.com/finndog)
 
