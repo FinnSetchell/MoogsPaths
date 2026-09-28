@@ -11,13 +11,20 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.level.levelgen.GenerationStep;
+//? if <26.3 {
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
+//?}
 
 public class MoogsPathsFabric implements ModInitializer {
 
     @Override
     public void onInitialize() {
+        // 26.3 registers a feature type as its codec; the feature itself is data (worldgen/feature).
+        //? if >=26.3 {
+        /*Registry.register(BuiltInRegistries.FEATURE_TYPE, MoogsPathsRegistries.PATH_GEN_ID, PathChunkFeature.CODEC);
+        *///?} else {
         Registry.register(BuiltInRegistries.FEATURE, MoogsPathsRegistries.PATH_GEN_ID, new PathChunkFeature(NoneFeatureConfiguration.CODEC));
+        //?}
 
         BiomeModifications.addFeature(
             BiomeSelectors.foundInOverworld(),

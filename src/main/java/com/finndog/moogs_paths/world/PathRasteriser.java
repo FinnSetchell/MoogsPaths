@@ -231,7 +231,11 @@ public final class PathRasteriser {
         for(int dy = 1; dy <= 2; dy++) {
             mpos.set(bx, placeY + dy, bz);
             BlockState state = level.getBlockState(mpos);
+            //? if >=26.3 {
+            /*if(state.isAir() || state.getPistonPushReaction() != PushReaction.POPPED) break;
+            *///?} else {
             if(state.isAir() || state.getPistonPushReaction() != PushReaction.DESTROY) break;
+            //?}
             level.setBlock(mpos, Blocks.AIR.defaultBlockState(), flags);
         }
     }

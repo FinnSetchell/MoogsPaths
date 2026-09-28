@@ -13,7 +13,11 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeSource;
+//? if >=26.3 {
+/*import net.minecraft.world.level.biome.BiomeResolver;
+*///?} else {
 import net.minecraft.world.level.biome.Climate;
+//?}
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.RandomState;
@@ -117,7 +121,12 @@ public final class PathfindWorker {
         ChunkGenerator generator = level.getChunkSource().getGenerator();
         RandomState randomState = level.getChunkSource().randomState();
         BiomeSource biomeSource = generator.getBiomeSource();
+        // 26.3 dropped RandomState#sampler; biomes come from a resolver built off the biome source.
+        //? if >=26.3 {
+        /*BiomeResolver biomes = biomeSource.createUncachedResolver(randomState);
+        *///?} else {
         Climate.Sampler sampler = randomState.sampler();
+        //?}
 
         Optional<PathNetworkType> netOpt = MoogsPathsDatapackRegistries.getPathNetwork(level.registryAccess(), job.networkId());
         if(netOpt.isEmpty()) {
@@ -140,7 +149,11 @@ public final class PathfindWorker {
             return com.finndog.moogs_paths.world.PathFinder.findPath(originPos, pathType, walkRandom,
                 (x, z) -> generator.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, level, randomState),
                 (gx, gz) -> {
+                    //? if >=26.3 {
+                    /*Holder<Biome> b = biomes.getNoiseBiome(QuartPos.fromBlock(gx), biomeQuartY, QuartPos.fromBlock(gz));
+                    *///?} else {
                     Holder<Biome> b = biomeSource.getNoiseBiome(QuartPos.fromBlock(gx), biomeQuartY, QuartPos.fromBlock(gz), sampler);
+                    //?}
                     return network.biomes().contains(b) && !b.is(PathChunkFeature.HAS_NO_PATHS);
                 });
         });

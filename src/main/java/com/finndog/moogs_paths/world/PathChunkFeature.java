@@ -9,7 +9,11 @@ import com.finndog.moogs_paths.data.PathType;
 import com.finndog.moogs_paths.debug.PathDebugTimer;
 import com.finndog.moogs_paths.world.deferred.DeferredPathJob;
 import com.finndog.moogs_paths.world.deferred.PlacementTickPump;
+//? if >=26.3 {
+/*import com.mojang.serialization.MapCodec;
+*///?} else {
 import com.mojang.serialization.Codec;
+//?}
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.QuartPos;
@@ -21,20 +25,31 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeSource;
+//? if >=26.3 {
+/*import net.minecraft.world.level.biome.BiomeResolver;
+*///?} else {
 import net.minecraft.world.level.biome.Climate;
+//?}
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.feature.Feature;
+//? if <26.3 {
 import net.minecraft.world.level.levelgen.feature.FeaturePlaceContext;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
+//?}
 
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
+// 26.3 made features data: one record-like Feature per placement, built from its MapCodec.
+//? if >=26.3 {
+/*public class PathChunkFeature implements Feature {
+*///?} else {
 public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
+//?}
 
     //? if >=1.21.1 {
     public static final TagKey<Biome> HAS_NO_PATHS = TagKey.create(Registries.BIOME, ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "has_no_paths"));
@@ -62,19 +77,35 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
     private static final int ORIGIN_BIOME_CACHE_SOFT_CAP = 131072;
     private static final int ORIGIN_BIOME_CELL_SHIFT = 1;
 
+    //? if >=26.3 {
+    /*public static final MapCodec<PathChunkFeature> CODEC = MapCodec.unit(PathChunkFeature::new);
+
+    @Override
+    public MapCodec<PathChunkFeature> codec() {
+        return CODEC;
+    }
+
+    @Override
+    public boolean place(WorldGenLevel level, ChunkGenerator generator, RandomSource random, BlockPos pos) {
+        return placeInChunk(level, generator, pos);
+    }
+    *///?} else {
     public PathChunkFeature(Codec<NoneFeatureConfiguration> codec) {
         super(codec);
     }
 
     @Override
     public boolean place(FeaturePlaceContext<NoneFeatureConfiguration> ctx) {
+        return placeInChunk(ctx.level(), ctx.chunkGenerator(), ctx.origin());
+    }
+    //?}
+
+    private boolean placeInChunk(WorldGenLevel level, ChunkGenerator generator, BlockPos pos) {
         if(Constants.ENABLE_DEBUG_TIMER) PathDebugTimer.begin();
         try {
-        WorldGenLevel level = ctx.level();
-        ChunkGenerator generator = ctx.chunkGenerator();
         long worldSeed = level.getSeed();
-        int chunkX = ctx.origin().getX() >> 4;
-        int chunkZ = ctx.origin().getZ() >> 4;
+        int chunkX = pos.getX() >> 4;
+        int chunkZ = pos.getZ() >> 4;
 
         Map<Integer, List<PathNetworkType>> byRegionSize = MoogsPathsDatapackRegistries.networksByRegionSize(level.registryAccess());
         if(byRegionSize.isEmpty()) return false;
@@ -146,7 +177,11 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
         int originChunkX, int originChunkZ, long pathSeed,
         List<PathNetworkType> networksInGroup
     ) {
+        //? if >=26.3 {
+        /*Holder<Biome> originBiome = getOriginBiome(generator.getBiomeSource(), randomState, originChunkX, originChunkZ);
+        *///?} else {
         Holder<Biome> originBiome = getOriginBiome(generator.getBiomeSource(), randomState.sampler(), originChunkX, originChunkZ);
+        //?}
         if(originBiome.is(HAS_NO_PATHS)) return Optional.empty();
         List<PathNetworkType> eligible = new ArrayList<>(networksInGroup.size());
         for(PathNetworkType n : networksInGroup) {
@@ -247,7 +282,12 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
         }
         PathNetworkType network = selected.get();
         BiomeSource biomeSource = generator.getBiomeSource();
+        // 26.3 dropped RandomState#sampler; biomes come from a resolver built off the biome source.
+        //? if >=26.3 {
+        /*BiomeResolver biomes = biomeSource.createUncachedResolver(randomState);
+        *///?} else {
         Climate.Sampler sampler = randomState.sampler();
+        //?}
 
         PathDataManager.CachedPath fastCached = PathDataManager.peekCachedPath(pathSeed);
         if(Constants.ENABLE_DEBUG_TIMER && fastCached == null) {
@@ -276,7 +316,11 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                     (x, z) -> generator.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, serverLevel, randomState),
                     (gx, gz) -> {
                         if(Constants.ENABLE_DEBUG_TIMER) PathDataManager.recordBiomeCall(com.finndog.moogs_paths.data.BiomeCallSite.PATHFINDER_GOAL_CHECK);
+                        //? if >=26.3 {
+                        /*Holder<Biome> b = biomes.getNoiseBiome(QuartPos.fromBlock(gx), biomeQuartY, QuartPos.fromBlock(gz));
+                        *///?} else {
                         Holder<Biome> b = biomeSource.getNoiseBiome(QuartPos.fromBlock(gx), biomeQuartY, QuartPos.fromBlock(gz), sampler);
+                        //?}
                         return network.biomes().contains(b) && !b.is(HAS_NO_PATHS);
                     });
             });
@@ -293,7 +337,11 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
         return Optional.of(new EvaluatedOrigin(network, pathType, pathSeed, cachedPath));
     }
 
+    //? if >=26.3 {
+    /*private static Holder<Biome> getOriginBiome(BiomeSource biomeSource, RandomState randomState, int originChunkX, int originChunkZ) {
+    *///?} else {
     private static Holder<Biome> getOriginBiome(BiomeSource biomeSource, Climate.Sampler sampler, int originChunkX, int originChunkZ) {
+    //?}
         ConcurrentHashMap<Long, Holder<Biome>> cache = ORIGIN_BIOME_CACHE.computeIfAbsent(biomeSource, k -> new ConcurrentHashMap<>());
         int cellX = originChunkX >> ORIGIN_BIOME_CELL_SHIFT;
         int cellZ = originChunkZ >> ORIGIN_BIOME_CELL_SHIFT;
@@ -306,11 +354,18 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
         int sampleBlockX = (sampleChunkX << 4) + 8;
         int sampleBlockZ = (sampleChunkZ << 4) + 8;
         if(Constants.ENABLE_DEBUG_TIMER) PathDataManager.recordBiomeCall(com.finndog.moogs_paths.data.BiomeCallSite.ORIGIN_FILTER_MISS);
+        //? if >=26.3 {
+        /*Holder<Biome> fresh = biomeSource.createUncachedResolver(randomState).getNoiseBiome(
+            QuartPos.fromBlock(sampleBlockX),
+            QuartPos.fromBlock(BIOME_FILTER_Y),
+            QuartPos.fromBlock(sampleBlockZ));
+        *///?} else {
         Holder<Biome> fresh = biomeSource.getNoiseBiome(
             QuartPos.fromBlock(sampleBlockX),
             QuartPos.fromBlock(BIOME_FILTER_Y),
             QuartPos.fromBlock(sampleBlockZ),
             sampler);
+        //?}
         cache.put(key, fresh);
         if(cache.size() > ORIGIN_BIOME_CACHE_SOFT_CAP) trimOriginBiomeCache(cache);
         return fresh;

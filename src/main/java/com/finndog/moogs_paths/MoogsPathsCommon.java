@@ -17,7 +17,11 @@ public class MoogsPathsCommon {
         MoogsPathsDatapackRegistries.register();
         Services.PLATFORM.registerServerStartingListener(server -> {
             MoogsPathsDatapackRegistries.invalidateDerivedViews();
+            //? if >=26.3 {
+            /*PathDataManager.onServerStart(server.getStructureTemplateManager());
+            *///?} else {
             PathDataManager.onServerStart(server.getStructureManager());
+            //?}
             PlacementTickPump.onServerStarting(server);
             if(Constants.ENABLE_DEBUG_TIMER && DEBUG_INITIALISED.compareAndSet(false, true)) {
                 //? if >=1.21.1 {

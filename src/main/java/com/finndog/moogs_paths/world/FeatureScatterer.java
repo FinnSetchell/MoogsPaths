@@ -22,10 +22,16 @@ import net.minecraft.world.level.WorldGenLevel;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
+//? if >=26.3 {
+/*import net.minecraft.world.level.levelgen.feature.Feature;
+*///?} else {
 import net.minecraft.world.level.levelgen.feature.ConfiguredFeature;
+//?}
 
 import java.util.*;
 
+// Decorator sets name vanilla configured features. 26.3 folded those into Feature itself, held in
+// the worldgen/feature registry.
 public final class FeatureScatterer {
     private FeatureScatterer() {}
 
@@ -35,9 +41,11 @@ public final class FeatureScatterer {
         // 26.1: RegistryAccess#registryOrThrow -> #lookupOrThrow returning HolderLookup.RegistryLookup
         //? if <1.21.11 {
         Registry<ConfiguredFeature<?, ?>> featureRegistry = level.registryAccess().registryOrThrow(Registries.CONFIGURED_FEATURE);
-        //?} else {
+        //?} elif <26.3 {
         /*HolderLookup.RegistryLookup<ConfiguredFeature<?, ?>> featureRegistry =
             level.registryAccess().lookupOrThrow(Registries.CONFIGURED_FEATURE);
+        *///?} else {
+        /*HolderLookup.RegistryLookup<Feature> featureRegistry = level.registryAccess().lookupOrThrow(Registries.FEATURE);
         *///?}
 
         for(ResourceLocation id : decoratorSetIds) {
@@ -50,14 +58,16 @@ public final class FeatureScatterer {
 
     //? if <1.21.11 {
     private static void scatterSet(WorldGenLevel level, ChunkGenerator generator, Registry<ConfiguredFeature<?, ?>> featureRegistry, List<BlockPos> waypoints, FeatureDecoratorSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random) {
-    //?} else {
+    //?} elif <26.3 {
     /*private static void scatterSet(WorldGenLevel level, ChunkGenerator generator, HolderLookup.RegistryLookup<ConfiguredFeature<?, ?>> featureRegistry, List<BlockPos> waypoints, FeatureDecoratorSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random) {
+    *///?} else {
+    /*private static void scatterSet(WorldGenLevel level, ChunkGenerator generator, HolderLookup.RegistryLookup<Feature> featureRegistry, List<BlockPos> waypoints, FeatureDecoratorSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random) {
     *///?}
         int reach = set.scatterWidth() + 1;
 
         WaypointScatterer.scatter(waypoints, set.density(), reach, chunkX, chunkZ, random,
             (from, d, parX, parZ, perpX, perpZ, segRandom) -> {
-                ConfiguredFeature<?, ?> feature = pickWeighted(set.features(), featureRegistry, segRandom);
+                var feature = pickWeighted(set.features(), featureRegistry, segRandom);
                 if(feature == null) return;
 
                 int side = WaypointScatterer.sideSign(set.side(), segRandom);
@@ -72,7 +82,11 @@ public final class FeatureScatterer {
             });
     }
 
+    //? if >=26.3 {
+    /*private static void tryPlace(WorldGenLevel level, ChunkGenerator generator, Feature feature, int bx, int bz, HolderSet<Biome> biomes, RandomSource random) {
+    *///?} else {
     private static void tryPlace(WorldGenLevel level, ChunkGenerator generator, ConfiguredFeature<?, ?> feature, int bx, int bz, HolderSet<Biome> biomes, RandomSource random) {
+    //?}
         int sy = level.getHeight(Heightmap.Types.WORLD_SURFACE, bx, bz);
         //? if <1.21.11 {
         if(sy <= level.getMinBuildHeight()) return;
@@ -88,8 +102,10 @@ public final class FeatureScatterer {
 
     //? if <1.21.11 {
     private static ConfiguredFeature<?, ?> pickWeighted(List<FeatureDecoratorSet.FeatureEntry> entries, Registry<ConfiguredFeature<?, ?>> registry, RandomSource random) {
-    //?} else {
+    //?} elif <26.3 {
     /*private static ConfiguredFeature<?, ?> pickWeighted(List<FeatureDecoratorSet.FeatureEntry> entries, HolderLookup.RegistryLookup<ConfiguredFeature<?, ?>> registry, RandomSource random) {
+    *///?} else {
+    /*private static Feature pickWeighted(List<FeatureDecoratorSet.FeatureEntry> entries, HolderLookup.RegistryLookup<Feature> registry, RandomSource random) {
     *///?}
         int total = 0;
         for(FeatureDecoratorSet.FeatureEntry e : entries) total += e.weight();
@@ -100,8 +116,11 @@ public final class FeatureScatterer {
             if(roll < cumulative) {
                 //? if <1.21.11 {
                 ConfiguredFeature<?, ?> feature = registry.getOptional(e.feature()).orElse(null);
-                //?} else {
+                //?} elif <26.3 {
                 /*ConfiguredFeature<?, ?> feature = registry.get(ResourceKey.create(Registries.CONFIGURED_FEATURE, e.feature()))
+                    .map(Holder::value).orElse(null);
+                *///?} else {
+                /*Feature feature = registry.get(ResourceKey.create(Registries.FEATURE, e.feature()))
                     .map(Holder::value).orElse(null);
                 *///?}
                 if(feature == null && WARNED_MISSING.add(e.feature())) Constants.LOG.warn("Configured feature not found: {}", e.feature());

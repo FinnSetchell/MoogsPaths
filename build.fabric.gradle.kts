@@ -77,7 +77,7 @@ tasks {
         } else {
             exclude("$modId.fabric.mixins.json")
         }
-        applyOverlays(project, prop("mod.overlays"))
+        applyNodeResources(project, prop("mod.overlays"), prop("mod.resource_excludes"))
     }
 
     jar {

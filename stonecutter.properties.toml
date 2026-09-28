@@ -9,6 +9,8 @@
 # mod.legacy_data rewrites the datapack into its pre-1.21 shape (buildSrc's legacy-data plugin).
 # mod.overlays names the src/overlays/ folders whose files replace shared resources on that node.
 # mod.fabric_mixins ships the Fabric mixin config; only 1.20 has a mixin.
+# mod.resource_excludes drops shared resources a node must not ship (comma-separated patterns).
+# mod.neo_icon_key is the neoforge.mods.toml key for the mod icon; NeoForge 26.3 renamed it.
 
 # Loom for the obfuscated versions, applied by dev.kikugie.loom-back-compat.
 loomx.loom_version = "1.17-SNAPSHOT"
@@ -20,6 +22,7 @@ mod.java = "17"
 mod.pack_formats = '"pack_format": 15'
 mod.legacy_data = "true"
 mod.overlays = ""
+mod.resource_excludes = ""
 
 # Fabric API 0.83 has no dynamic registry API, so 1.20 registers through a mixin that uses
 # MixinExtras, which Fabric Loader bundles from 0.15.
@@ -45,6 +48,7 @@ mod.java = "17"
 mod.pack_formats = '"pack_format": 15'
 mod.legacy_data = "true"
 mod.overlays = ""
+mod.resource_excludes = ""
 
 [fabric."1.20.1"]
 mod.mc_build = "1.20.1"
@@ -67,6 +71,7 @@ mod.java = "21"
 mod.pack_formats = '"pack_format": 48, "min_format": 48, "max_format": 107, "supported_formats": [48, 107]'
 mod.legacy_data = "false"
 mod.overlays = ""
+mod.resource_excludes = ""
 
 [fabric."1.21.1"]
 mod.mc_build = "1.21.1"
@@ -86,6 +91,7 @@ deps.forge_range = "[51, 53)"
 [neoforge."1.21.1"]
 mod.mc_build = "1.21.1"
 mod.mc_compat = "[1.21, 1.22)"
+mod.neo_icon_key = "logoFile"
 deps.neoforge = "21.1.230"
 deps.neoforge_range = "[21.0, 21.2)"
 
@@ -95,6 +101,7 @@ mod.java = "21"
 mod.pack_formats = '"pack_format": 48, "min_format": 48, "max_format": 107, "supported_formats": [48, 107]'
 mod.legacy_data = "false"
 mod.overlays = ""
+mod.resource_excludes = ""
 
 [fabric."1.21.11"]
 mod.mc_build = "1.21.11"
@@ -107,6 +114,7 @@ deps.fabric_api = "0.140.2+1.21.11"
 [neoforge."1.21.11"]
 mod.mc_build = "1.21.11"
 mod.mc_compat = "[1.21.11, 1.22)"
+mod.neo_icon_key = "logoFile"
 deps.neoforge = "21.11.42"
 deps.neoforge_range = "[21.11, 21.12)"
 
@@ -116,6 +124,7 @@ mod.java = "25"
 mod.pack_formats = '"min_format": [101, 1], "max_format": [101, 1]'
 mod.legacy_data = "false"
 mod.overlays = ""
+mod.resource_excludes = ""
 
 [fabric."26.1.2"]
 mod.mc_build = "26.1.2"
@@ -128,6 +137,7 @@ deps.fabric_api = "0.149.1+26.1.2"
 [neoforge."26.1.2"]
 mod.mc_build = "26.1.2"
 mod.mc_compat = "[26.1, 26.2)"
+mod.neo_icon_key = "logoFile"
 deps.neoforge = "26.1.2.59-beta"
 deps.neoforge_range = "[26.1, 26.2)"
 
@@ -138,6 +148,7 @@ mod.java = "25"
 mod.pack_formats = '"pack_format": 48, "min_format": 48, "max_format": 107, "supported_formats": [48, 107]'
 mod.legacy_data = "false"
 mod.overlays = "26.2"
+mod.resource_excludes = ""
 
 [fabric."26.2"]
 mod.mc_build = "26.2"
@@ -150,5 +161,31 @@ deps.fabric_api = "0.152.2+26.2"
 [neoforge."26.2"]
 mod.mc_build = "26.2"
 mod.mc_compat = "[26.2, 26.3)"
+mod.neo_icon_key = "logoFile"
 deps.neoforge = "26.2.0.6-beta"
 deps.neoforge_range = "[26.2, 26.3)"
+
+# ------------------------------------------------------------------ 26.3 (Java 25)
+# 26.3 folded configured features into worldgen/feature, so path_gen's definition moves there
+# (src/overlays/26.3) and the configured_feature copy stays out of the jar.
+["26.3"]
+mod.java = "25"
+mod.pack_formats = '"min_format": [121, 0], "max_format": [121, 0]'
+mod.legacy_data = "false"
+mod.overlays = "26.2,26.3"
+mod.resource_excludes = "data/*/worldgen/configured_feature/**"
+
+[fabric."26.3"]
+mod.mc_build = "26.3"
+mod.mc_compat = ">=26.3 <26.4"
+mod.fabric_loader_dep = ">=0.19.5"
+mod.fabric_mixins = "false"
+deps.fabric_loader = "0.19.5"
+deps.fabric_api = "0.160.6+26.3"
+
+[neoforge."26.3"]
+mod.mc_build = "26.3"
+mod.mc_compat = "[26.3, 26.4)"
+mod.neo_icon_key = "iconFile"
+deps.neoforge = "26.3.0.1-beta"
+deps.neoforge_range = "[26.3, 26.4)"

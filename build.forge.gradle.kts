@@ -60,7 +60,7 @@ tasks {
         )
         props.forEach { (k, v) -> inputs.property(k, v) }
         filesMatching(listOf("META-INF/mods.toml", "pack.mcmeta", "assets/*/lang/en_us.json")) { expand(props) }
-        applyOverlays(project, prop("mod.overlays"))
+        applyNodeResources(project, prop("mod.overlays"), prop("mod.resource_excludes"))
     }
 
     jar {

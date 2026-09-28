@@ -4,7 +4,11 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.HolderSet;
 import net.minecraft.core.registries.Registries;
+//? if >=26.3 {
+/*import net.minecraft.core.registries.codec.RegistryCodecs;
+*///?} else {
 import net.minecraft.core.RegistryCodecs;
+//?}
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.biome.Biome;
@@ -23,7 +27,11 @@ public record PathNetworkType(
 
     public static final Codec<PathNetworkType> CODEC = RecordCodecBuilder.create(instance -> instance.group(
         ResourceLocation.CODEC.fieldOf("path_type").forGetter(PathNetworkType::pathType),
+        //? if >=26.3 {
+        /*RegistryCodecs.holderSet(Registries.BIOME).fieldOf("biomes").forGetter(PathNetworkType::biomes),
+        *///?} else {
         RegistryCodecs.homogeneousList(Registries.BIOME).fieldOf("biomes").forGetter(PathNetworkType::biomes),
+        //?}
         Codec.intRange(1, Integer.MAX_VALUE).fieldOf("weight").forGetter(PathNetworkType::weight),
         Codec.intRange(1, Integer.MAX_VALUE).fieldOf("region_size").forGetter(PathNetworkType::regionSize),
         ResourceLocation.CODEC.listOf().optionalFieldOf("structure_sets", List.of()).forGetter(PathNetworkType::structureSets),
