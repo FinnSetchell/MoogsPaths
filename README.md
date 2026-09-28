@@ -10,7 +10,11 @@
 
 A data-driven path and trail network for Minecraft. Biome-specific paths and roadside decorations bring the overworld to life. Fully configurable through datapacks.
 
-This mod works on Fabric and Forge for Minecraft 1.20.1.
+This mod works on:
+
+*   **Fabric** - Minecraft 1.20, 1.20.1, 1.21-1.21.1, 1.21.11 and 26.1-26.3
+*   **NeoForge** - Minecraft 1.21-1.21.1, 1.21.11 and 26.1-26.3
+*   **Forge** - Minecraft 1.20, 1.20.1 and 1.21-1.21.1
 
 ![overview](https://pub-24a4e0e7ea8544a5b6f73c3a23512589.r2.dev/images/46b98148bc4b4e24b53d6b0d780a7c4a.png)
 
