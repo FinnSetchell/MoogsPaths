@@ -1,0 +1,36 @@
+# Per-node values. Mod metadata that never varies stays in gradle.properties.
+# Tables are picked per node by `properties { tags(version, loader) }` in stonecutter.gradle.kts, so
+# `deps.fabric_api` resolves to whatever the matching [fabric."<version>"] table declares.
+#
+# A node's version (the table name) is what `//? if` conditions compare against. mod.mc_build is the
+# Minecraft version it compiles against. mod.mc_compat is the range the jar declares, in each loader's
+# own syntax. mod.pack_formats is spliced into pack.mcmeta.
+
+# Loom for the obfuscated versions, applied by dev.kikugie.loom-back-compat.
+loomx.loom_version = "1.17-SNAPSHOT"
+deps.neoforge_loader_range = "[4,)"
+
+# ------------------------------------------------------------------ 1.21-1.21.1 (Java 21)
+["1.21.1"]
+mod.java = "21"
+mod.pack_formats = '"pack_format": 48, "min_format": 48, "max_format": 107, "supported_formats": [48, 107]'
+
+[fabric."1.21.1"]
+mod.mc_build = "1.21.1"
+mod.mc_compat = ">=1.21 <1.22"
+mod.fabric_loader_dep = ">=0.14"
+deps.fabric_loader = "0.19.2"
+deps.fabric_api = "0.116.12+1.21.1"
+
+[forge."1.21.1"]
+mod.mc_build = "1.21.1"
+mod.mc_compat = "[1.21, 1.22)"
+deps.forge = "52.1.0"
+deps.forge_loader_range = "[51,)"
+deps.forge_range = "[51, 53)"
+
+[neoforge."1.21.1"]
+mod.mc_build = "1.21.1"
+mod.mc_compat = "[1.21, 1.22)"
+deps.neoforge = "21.1.230"
+deps.neoforge_range = "[21.0, 21.2)"

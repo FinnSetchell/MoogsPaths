@@ -18,10 +18,15 @@ out
 build
 .gradle
 
+# runs
+run/
+runs/
+.loom/
+
+# Stonecutter generates these per-node projects from settings.gradle.kts.
+versions/
+
 # other
 eclipse
-run
-/.idea/scopes/Fabric_sources.xml
-/.idea/scopes/Forge_sources.xml
 /.vscode/launch.json
 /.vscode/settings.json
