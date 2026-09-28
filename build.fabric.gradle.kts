@@ -5,6 +5,9 @@ plugins {
 
 fun prop(key: String): String = sc.properties.get<String>(key)
 
+if (prop("mod.legacy_data").toBoolean()) apply(plugin = "legacy-data")
+
+val modId = property("mod_id").toString()
 val modName = property("mod_name").toString()
 val modAuthor = property("mod_author").toString()
 val requiredJava: JavaVersion = JavaVersion.toVersion(prop("mod.java"))
@@ -64,6 +67,17 @@ tasks {
         )
         props.forEach { (k, v) -> inputs.property(k, v) }
         filesMatching(listOf("fabric.mod.json", "pack.mcmeta", "assets/*/lang/en_us.json")) { expand(props) }
+        // Only 1.20 has a mixin (its registry route); everywhere else the config stays out of the jar.
+        val mixins = prop("mod.fabric_mixins").toBoolean()
+        inputs.property("fabric_mixins", mixins)
+        if (mixins) {
+            filesMatching("fabric.mod.json") {
+                filter { line -> line.replace("\"environment\": \"*\",", "\"environment\": \"*\",\n    \"mixins\": [\"$modId.fabric.mixins.json\"],") }
+            }
+        } else {
+            exclude("$modId.fabric.mixins.json")
+        }
+        applyOverlays(project, prop("mod.overlays"))
     }
 
     jar {

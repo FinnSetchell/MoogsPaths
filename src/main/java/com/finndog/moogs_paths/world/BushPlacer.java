@@ -145,7 +145,11 @@ public final class BushPlacer {
                 if(ellipse > 1.0f || (ellipse > 0.7f && random.nextFloat() < 0.35f)) continue;
 
                 int sy = chunkHeights[(px - chunkX * 16) * 16 + (pz - chunkZ * 16)];
+                //? if <1.21.11 {
                 if(sy <= level.getMinBuildHeight()) continue;
+                //?} else {
+                /*if(sy <= level.getMinY()) continue;
+                *///?}
 
                 // 3-deep, not 1: water-settings paths rasterise a solid layer on top of water columns
                 if(isColumnOverWater(level, px, pz, sy, mpos)) continue;

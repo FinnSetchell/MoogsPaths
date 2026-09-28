@@ -5,20 +5,74 @@
 # A node's version (the table name) is what `//? if` conditions compare against. mod.mc_build is the
 # Minecraft version it compiles against. mod.mc_compat is the range the jar declares, in each loader's
 # own syntax. mod.pack_formats is spliced into pack.mcmeta.
+#
+# mod.legacy_data rewrites the datapack into its pre-1.21 shape (buildSrc's legacy-data plugin).
+# mod.overlays names the src/overlays/ folders whose files replace shared resources on that node.
+# mod.fabric_mixins ships the Fabric mixin config; only 1.20 has a mixin.
 
 # Loom for the obfuscated versions, applied by dev.kikugie.loom-back-compat.
 loomx.loom_version = "1.17-SNAPSHOT"
 deps.neoforge_loader_range = "[4,)"
 
+# ------------------------------------------------------------------ 1.20 (Java 17)
+["1.20"]
+mod.java = "17"
+mod.pack_formats = '"pack_format": 15'
+mod.legacy_data = "true"
+mod.overlays = ""
+
+# Fabric API 0.83 has no dynamic registry API, so 1.20 registers through a mixin that uses
+# MixinExtras, which Fabric Loader bundles from 0.15.
+[fabric."1.20"]
+mod.mc_build = "1.20"
+mod.mc_compat = "1.20"
+mod.fabric_loader_dep = ">=0.15"
+mod.fabric_mixins = "true"
+deps.fabric_loader = "0.16.9"
+deps.fabric_api = "0.83.0+1.20"
+
+# Built by build.forge-legacy.gradle.kts: Forge before 1.20.5 needs a reobfuscated jar.
+[forge."1.20"]
+mod.mc_build = "1.20"
+mod.mc_compat = "[1.20,1.20.1)"
+deps.forge = "46.0.14"
+deps.forge_loader_range = "[46,47)"
+deps.forge_range = "[46.0.14,)"
+
+# ------------------------------------------------------------------ 1.20.1 (Java 17)
+["1.20.1"]
+mod.java = "17"
+mod.pack_formats = '"pack_format": 15'
+mod.legacy_data = "true"
+mod.overlays = ""
+
+[fabric."1.20.1"]
+mod.mc_build = "1.20.1"
+mod.mc_compat = "1.20.1"
+mod.fabric_loader_dep = ">=0.14"
+mod.fabric_mixins = "false"
+deps.fabric_loader = "0.16.9"
+deps.fabric_api = "0.92.1+1.20.1"
+
+[forge."1.20.1"]
+mod.mc_build = "1.20.1"
+mod.mc_compat = "[1.20.1]"
+deps.forge = "47.2.30"
+deps.forge_loader_range = "[47,)"
+deps.forge_range = "[47.2.30,)"
+
 # ------------------------------------------------------------------ 1.21-1.21.1 (Java 21)
 ["1.21.1"]
 mod.java = "21"
 mod.pack_formats = '"pack_format": 48, "min_format": 48, "max_format": 107, "supported_formats": [48, 107]'
+mod.legacy_data = "false"
+mod.overlays = ""
 
 [fabric."1.21.1"]
 mod.mc_build = "1.21.1"
 mod.mc_compat = ">=1.21 <1.22"
 mod.fabric_loader_dep = ">=0.14"
+mod.fabric_mixins = "false"
 deps.fabric_loader = "0.19.2"
 deps.fabric_api = "0.116.12+1.21.1"
 
@@ -34,3 +88,67 @@ mod.mc_build = "1.21.1"
 mod.mc_compat = "[1.21, 1.22)"
 deps.neoforge = "21.1.230"
 deps.neoforge_range = "[21.0, 21.2)"
+
+# ------------------------------------------------------------------ 1.21.11 (Java 21)
+["1.21.11"]
+mod.java = "21"
+mod.pack_formats = '"pack_format": 48, "min_format": 48, "max_format": 107, "supported_formats": [48, 107]'
+mod.legacy_data = "false"
+mod.overlays = ""
+
+[fabric."1.21.11"]
+mod.mc_build = "1.21.11"
+mod.mc_compat = ">=1.21.11 <1.22"
+mod.fabric_loader_dep = ">=0.18"
+mod.fabric_mixins = "false"
+deps.fabric_loader = "0.18.3"
+deps.fabric_api = "0.140.2+1.21.11"
+
+[neoforge."1.21.11"]
+mod.mc_build = "1.21.11"
+mod.mc_compat = "[1.21.11, 1.22)"
+deps.neoforge = "21.11.42"
+deps.neoforge_range = "[21.11, 21.12)"
+
+# ------------------------------------------------------------------ 26.1-26.1.2 (Java 25)
+["26.1.2"]
+mod.java = "25"
+mod.pack_formats = '"min_format": [101, 1], "max_format": [101, 1]'
+mod.legacy_data = "false"
+mod.overlays = ""
+
+[fabric."26.1.2"]
+mod.mc_build = "26.1.2"
+mod.mc_compat = ">=26.1 <26.2"
+mod.fabric_loader_dep = ">=0.18"
+mod.fabric_mixins = "false"
+deps.fabric_loader = "0.18.4"
+deps.fabric_api = "0.149.1+26.1.2"
+
+[neoforge."26.1.2"]
+mod.mc_build = "26.1.2"
+mod.mc_compat = "[26.1, 26.2)"
+deps.neoforge = "26.1.2.59-beta"
+deps.neoforge_range = "[26.1, 26.2)"
+
+# ------------------------------------------------------------------ 26.2 (Java 25)
+# 26.2 removed the patch_tall_grass feature, so the plains decorator in src/overlays/26.2 drops it.
+["26.2"]
+mod.java = "25"
+mod.pack_formats = '"pack_format": 48, "min_format": 48, "max_format": 107, "supported_formats": [48, 107]'
+mod.legacy_data = "false"
+mod.overlays = "26.2"
+
+[fabric."26.2"]
+mod.mc_build = "26.2"
+mod.mc_compat = ">=26.2 <26.3"
+mod.fabric_loader_dep = ">=0.19"
+mod.fabric_mixins = "false"
+deps.fabric_loader = "0.19.3"
+deps.fabric_api = "0.152.2+26.2"
+
+[neoforge."26.2"]
+mod.mc_build = "26.2"
+mod.mc_compat = "[26.2, 26.3)"
+deps.neoforge = "26.2.0.6-beta"
+deps.neoforge_range = "[26.2, 26.3)"

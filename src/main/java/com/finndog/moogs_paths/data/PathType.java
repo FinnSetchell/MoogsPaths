@@ -5,6 +5,9 @@ import com.mojang.serialization.DataResult;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.valueproviders.IntProvider;
+//? if >=26.1.2 {
+/*import net.minecraft.util.valueproviders.IntProviders;
+*///?}
 
 import java.util.List;
 import java.util.Optional;
@@ -61,7 +64,11 @@ public record PathType(
         WidthRange.CODEC.fieldOf("width").forGetter(PathType::width),
         Codec.floatRange(0.0f, 1.0f).fieldOf("rigidness").forGetter(PathType::rigidness),
         Codec.floatRange(0.0f, 1.0f).fieldOf("carver").forGetter(PathType::carver),
+        //? if <26.1.2 {
         IntProvider.codec(1, 100_000).fieldOf("length").forGetter(PathType::length),
+        //?} else {
+        /*IntProviders.codec(1, 100_000).fieldOf("length").forGetter(PathType::length),
+        *///?}
         FadeSettings.CODEC.fieldOf("fade").forGetter(PathType::fade),
         WaterSettings.CODEC.optionalFieldOf("water_settings").forGetter(PathType::waterSettings)
     ).apply(instance, PathType::new));

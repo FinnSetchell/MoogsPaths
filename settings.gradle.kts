@@ -30,7 +30,19 @@ stonecutter {
             }
         }
 
+        // Forge before 1.20.5 needs a reobfuscated jar, which build.forge-legacy.gradle.kts makes.
+        fun legacyForge(mc: String) {
+            version("$mc-forge", mc).buildscript("build.forge-legacy.gradle.kts")
+        }
+
+        match("1.20", "fabric")
+        legacyForge("1.20")
+        match("1.20.1", "fabric")
+        legacyForge("1.20.1")
         match("1.21.1", "fabric", "forge", "neoforge")
+        match("1.21.11", "fabric", "neoforge")
+        match("26.1.2", "fabric", "neoforge")
+        match("26.2", "fabric", "neoforge")
 
         vcsVersion = "1.21.1-fabric"
     }

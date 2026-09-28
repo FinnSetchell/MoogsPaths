@@ -12,6 +12,10 @@ logoFile = "assets/moogs_paths/icon.png"
 credits = "${credits}"
 authors = "${mod_author}"
 description = '''${description}'''
+# Server-side mod: pure worldgen runs on the (logical/integrated) server. A remote client does
+# NOT need it to join a dedicated server running it, so skip the version-match handshake.
+# (It still loads in singleplayer, since singleplayer IS the physical client.)
+displayTest = "IGNORE_ALL_VERSION"
 
 [[dependencies.${mod_id}]]
 modId = "neoforge"

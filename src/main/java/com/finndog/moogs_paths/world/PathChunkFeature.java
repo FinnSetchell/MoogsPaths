@@ -36,7 +36,11 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
 
+    //? if >=1.21.1 {
     public static final TagKey<Biome> HAS_NO_PATHS = TagKey.create(Registries.BIOME, ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "has_no_paths"));
+    //?} else {
+    /*public static final TagKey<Biome> HAS_NO_PATHS = TagKey.create(Registries.BIOME, new ResourceLocation(Constants.MOD_ID, "has_no_paths"));
+    *///?}
 
     // PathsDebugCommand reproduces evaluateOrigin against the same pathSeed inputs; the
     // mixer constants must stay public so the locate command derives matching seeds.
@@ -195,7 +199,17 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
             return Optional.empty();
         }
         PathNetworkType network = selected.get();
+        // 26.1 RegistryLookup pattern: iterate listElements and reverse-look the network by identity.
+        //? if <1.21.11 {
         ResourceLocation networkId = MoogsPathsDatapackRegistries.pathNetworkRegistry(serverLevel.registryAccess()).getKey(network);
+        //?} else {
+        /*ResourceLocation networkId = MoogsPathsDatapackRegistries.pathNetworkRegistry(serverLevel.registryAccess())
+            .listElements()
+            .filter(h -> h.value() == network)
+            .findFirst()
+            .map(h -> h.key().identifier())
+            .orElse(null);
+        *///?}
         if(networkId == null) return Optional.empty();
 
         if(Constants.ENABLE_DEBUG_TIMER) PathDataManager.addPathCounter(PathCounter.ORIGIN_ACCEPTED, 1);

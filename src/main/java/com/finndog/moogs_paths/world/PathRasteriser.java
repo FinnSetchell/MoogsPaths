@@ -164,7 +164,11 @@ public final class PathRasteriser {
                     if((bx >> 4) != chunkX || (bz >> 4) != chunkZ) continue;
 
                     int naturalSy = chunkHeights[(bx - chunkMinX) * 16 + (bz - chunkMinZ)];
+                    //? if <1.21.11 {
                     if(naturalSy <= level.getMinBuildHeight()) continue;
+                    //?} else {
+                    /*if(naturalSy <= level.getMinY()) continue;
+                    *///?}
 
                     long posKey = (long) bx << 32 | (bz & 0xFFFFFFFFL);
                     boolean isWater = waterPositions != null && waterPositions.contains(posKey);

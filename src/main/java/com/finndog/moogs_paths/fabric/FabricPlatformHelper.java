@@ -7,7 +7,9 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+//? if >=1.20.1 {
 import net.fabricmc.fabric.api.event.registry.DynamicRegistries;
+//?}
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
@@ -22,7 +24,11 @@ public class FabricPlatformHelper implements IPlatformHelper {
 
     @Override
     public <T> void registerDatapackRegistry(ResourceKey<Registry<T>> key, Codec<T> codec) {
+        //? if >=1.20.1 {
         DynamicRegistries.register(key, codec);
+        //?} else {
+        /*FabricRegistryStore.add(key, codec);
+        *///?}
     }
 
     @Override
@@ -37,7 +43,12 @@ public class FabricPlatformHelper implements IPlatformHelper {
 
     @Override
     public void registerChunkLoadListener(BiConsumer<ServerLevel, LevelChunk> listener) {
+        // Fabric 26.1 added a third boolean (newChunk?) arg; we don't care which.
+        //? if <26.1.2 {
         ServerChunkEvents.CHUNK_LOAD.register(listener::accept);
+        //?} else {
+        /*ServerChunkEvents.CHUNK_LOAD.register((level, chunk, newChunk) -> listener.accept(level, chunk));
+        *///?}
     }
 
     @Override

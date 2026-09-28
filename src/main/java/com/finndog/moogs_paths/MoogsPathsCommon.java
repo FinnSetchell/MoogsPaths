@@ -20,7 +20,11 @@ public class MoogsPathsCommon {
             PathDataManager.onServerStart(server.getStructureManager());
             PlacementTickPump.onServerStarting(server);
             if(Constants.ENABLE_DEBUG_TIMER && DEBUG_INITIALISED.compareAndSet(false, true)) {
+                //? if >=1.21.1 {
                 Path logDir = server.getServerDirectory().resolve("logs");
+                //?} else {
+                /*Path logDir = server.getServerDirectory().toPath().resolve("logs");
+                *///?}
                 PathDebugTimer.init(logDir);
                 Runtime.getRuntime().addShutdownHook(new Thread(PathDebugTimer::close, "moogs_paths_debug-shutdown"));
             }

@@ -201,10 +201,18 @@ public final class StructurePlacer {
                 int naturalY = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, wx, wz) - 1;
 
                 if(naturalY < baseY) {
+                    //? if <1.21.11 {
                     BlockState topFill = naturalY >= level.getMinBuildHeight()
+                    //?} else {
+                    /*BlockState topFill = naturalY >= level.getMinY()
+                    *///?}
                             ? level.getBlockState(mpos.set(wx, naturalY, wz))
                             : Blocks.GRASS_BLOCK.defaultBlockState();
+                    //? if <1.21.11 {
                     BlockState subFill = naturalY - 1 >= level.getMinBuildHeight()
+                    //?} else {
+                    /*BlockState subFill = naturalY - 1 >= level.getMinY()
+                    *///?}
                             ? level.getBlockState(mpos.set(wx, naturalY - 1, wz))
                             : Blocks.DIRT.defaultBlockState();
                     for(int y = naturalY + 1; y < baseY; y++) {
@@ -219,7 +227,11 @@ public final class StructurePlacer {
 
     private static boolean isColumnOverWater(WorldGenLevel level, int x, int z, BlockPos.MutableBlockPos mpos) {
         int sy = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, x, z);
+        //? if <1.21.11 {
         if(sy <= level.getMinBuildHeight()) return false;
+        //?} else {
+        /*if(sy <= level.getMinY()) return false;
+        *///?}
         for(int depth = 1; depth <= 3; depth++) {
             mpos.set(x, sy - depth, z);
             if(!level.getFluidState(mpos).isEmpty()) return true;

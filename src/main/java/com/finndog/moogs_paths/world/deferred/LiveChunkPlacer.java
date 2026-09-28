@@ -6,7 +6,6 @@ import com.finndog.moogs_paths.data.PathDataManager;
 import com.finndog.moogs_paths.data.PathNetworkType;
 import com.finndog.moogs_paths.data.PathType;
 import com.finndog.moogs_paths.world.BushPlacer;
-import com.finndog.moogs_paths.world.PathChunkFeature;
 import com.finndog.moogs_paths.world.PathRasteriser;
 import com.finndog.moogs_paths.world.StructurePlacer;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;

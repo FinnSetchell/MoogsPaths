@@ -146,7 +146,11 @@ public final class PlacementTickPump {
             queue = PENDING.computeIfAbsent(level.dimension(), k -> new ConcurrentLinkedDeque<>());
         }
         for(DeferredPathJob job : pending.values()) {
+            //? if <26.1.2 {
             if(state.wasPlaced(job.pathSeed(), cp.x, cp.z)) continue;
+            //?} else {
+            /*if(state.wasPlaced(job.pathSeed(), cp.x(), cp.z())) continue;
+            *///?}
             PathDataManager.CachedPath cached = PathDataManager.peekCachedPath(job.pathSeed());
             if(cached == null) {
                 // Path still computing or hasn't been picked up. Resubmit just in case
@@ -156,8 +160,13 @@ public final class PlacementTickPump {
             }
             int minCx = cached.minX() >> 4, maxCx = cached.maxX() >> 4;
             int minCz = cached.minZ() >> 4, maxCz = cached.maxZ() >> 4;
+            //? if <26.1.2 {
             if(cp.x < minCx || cp.x > maxCx || cp.z < minCz || cp.z > maxCz) continue;
             queue.add(new PendingPlacement(job, cached, cp.x, cp.z));
+            //?} else {
+            /*if(cp.x() < minCx || cp.x() > maxCx || cp.z() < minCz || cp.z() > maxCz) continue;
+            queue.add(new PendingPlacement(job, cached, cp.x(), cp.z()));
+            *///?}
         }
     }
 
