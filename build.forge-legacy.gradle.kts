@@ -34,13 +34,16 @@ legacyForge {
 
     runs {
         // Per-node game directory, so worlds are never opened by a different Minecraft version.
+        // Dev runs keep the path timings; released jars leave them off.
         register("client") {
             client()
             gameDirectory = rootProject.file("run/${project.name}")
+            systemProperty("moogs_paths.debug_timer", "true")
         }
         register("server") {
             server()
             gameDirectory = rootProject.file("run/${project.name}")
+            systemProperty("moogs_paths.debug_timer", "true")
         }
     }
 }

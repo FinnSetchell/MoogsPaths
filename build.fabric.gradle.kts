@@ -35,15 +35,18 @@ dependencies {
 loom {
     runs {
         // Per-node game directory, so worlds are never opened by a different Minecraft version.
+        // Dev runs keep the path timings; released jars leave them off.
         named("client") {
             client()
             configName = "Fabric Client"
+            vmArg("-Dmoogs_paths.debug_timer=true")
             ideConfigGenerated(true)
             runDir("../../run/${project.name}")
         }
         named("server") {
             server()
             configName = "Fabric Server"
+            vmArg("-Dmoogs_paths.debug_timer=true")
             ideConfigGenerated(true)
             runDir("../../run/${project.name}")
         }

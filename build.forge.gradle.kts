@@ -26,6 +26,8 @@ minecraft {
         // Per-node game directory, so worlds are never opened by a different Minecraft version.
         configureEach {
             workingDir.set(rootProject.file("run/${project.name}"))
+            // Dev runs keep the path timings; released jars leave them off.
+            systemProperty("moogs_paths.debug_timer", "true")
         }
         register("client")
         register("server") { args("--nogui") }
