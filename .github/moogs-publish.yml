@@ -1,0 +1,61 @@
+# v2 publish manifest - FinnSetchell/MoogsPaths, Stonecutter shape (draft until cutover).
+# Lives only on the default branch. Schema per release-actions docs/v2-contracts.md.
+schema: 1
+mod:
+  id: mp
+  displayName: "Moog's Paths"   # live Modrinth title is "MP - Moog's Paths"; the full name is the part after the dash
+  environments: [Server]        # Modrinth client_side=unsupported / server_side=required; live CF files carry "Server"
+  name: MoogsPaths
+  validate: false               # no validator.json
+platforms:
+  curseforge: { projectId: 1546855, slug: mp-moogs-paths }   # CF /mods API 403 — verified via the public files endpoint
+  modrinth:   { projectId: HDB8pnki, slug: mp-moogs-paths }  # live-verified via api.modrinth.com/v2/project/HDB8pnki
+discord:
+  embedColor: "#8B6914"
+  avatarUrl: "https://media.forgecdn.net/avatars/thumbnails/1814/575/64/64/639147005829648185.png"
+  bannerUrl: "https://pub-24a4e0e7ea8544a5b6f73c3a23512589.r2.dev/images/d5e8c0f59add420ea9e76f95544c256a.png"
+  pingDefault: true
+artifacts:
+  - type: mod-jar
+# One Stonecutter branch builds every MC version for every loader, one node per range
+# (settings.gradle.kts). Each loader is its own target, addressed by its tag label:
+# `1.1.0-fabric`, `1.1.0-forge`, `1.1.0-neoforge`. A build's window is [from, upTo] around the
+# node it builds, matching the range its old release branch published for.
+#
+# builds[].java is the JDK that RUNS Gradle. The whole tree configures in one JVM and needs 25;
+# each node compiles on its own toolchain (17 / 21 / 25), provisioned by the foojay resolver.
+targets:
+  - branch: stonecutter
+    tagLabel: fabric
+    loaders: [fabric]
+    buildCommand: ":{mc}-fabric:build"
+    jarDir: "versions/{mc}-fabric/build/libs"
+    builds:
+      - { mc: "1.20", java: 25 }
+      - { mc: "1.20.1", java: 25 }
+      - { mc: "1.21.1", from: "1.21", java: 25 }
+      - { mc: "1.21.11", java: 25 }
+      - { mc: "26.1.2", from: "26.1", java: 25 }
+      - { mc: "26.2", java: 25 }
+      - { mc: "26.3", java: 25 }
+  - branch: stonecutter
+    tagLabel: forge
+    loaders: [forge]
+    buildCommand: ":{mc}-forge:build"
+    jarDir: "versions/{mc}-forge/build/libs"
+    # Forge was never shipped past 1.21.1.
+    builds:
+      - { mc: "1.20", java: 25 }
+      - { mc: "1.20.1", java: 25 }
+      - { mc: "1.21.1", from: "1.21", java: 25 }
+  - branch: stonecutter
+    tagLabel: neoforge
+    loaders: [neoforge]
+    buildCommand: ":{mc}-neoforge:build"
+    jarDir: "versions/{mc}-neoforge/build/libs"
+    builds:
+      - { mc: "1.21.1", from: "1.21", java: 25 }
+      - { mc: "1.21.11", java: 25 }
+      - { mc: "26.1.2", from: "26.1", java: 25 }
+      - { mc: "26.2", java: 25 }
+      - { mc: "26.3", java: 25 }
