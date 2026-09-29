@@ -187,5 +187,6 @@ deps.fabric_api = "0.160.6+26.3"
 mod.mc_build = "26.3"
 mod.mc_compat = "[26.3, 26.4)"
 mod.neo_icon_key = "iconFile"
-deps.neoforge = "26.3.0.1-beta"
-deps.neoforge_range = "[26.3, 26.4)"
+# 26.3.0.31 replaced DataPackRegistryEvent.NewRegistry, so earlier 26.3 betas cannot load this jar.
+deps.neoforge = "26.3.0.31-beta"
+deps.neoforge_range = "[26.3.0.31-beta,)"

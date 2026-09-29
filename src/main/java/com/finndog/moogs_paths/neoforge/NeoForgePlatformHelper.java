@@ -16,7 +16,12 @@ import net.neoforged.neoforge.event.level.ChunkEvent;
 import net.neoforged.neoforge.event.server.ServerStartingEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
+// NeoForge 26.3.0.31 replaced DataPackRegistryEvent.NewRegistry with NewDatapackRegistryEvent.
+//? if >=26.3 {
+/*import net.neoforged.neoforge.registries.NewDatapackRegistryEvent;
+*///?} else {
 import net.neoforged.neoforge.registries.DataPackRegistryEvent;
+//?}
 
 import java.util.ArrayList;
 import java.util.List;
@@ -39,16 +44,27 @@ public class NeoForgePlatformHelper implements IPlatformHelper {
         }
     }
 
+    //? if >=26.3 {
+    /*private void onNewDatapackRegistry(NewDatapackRegistryEvent event) {
+    *///?} else {
     private void onNewDatapackRegistry(DataPackRegistryEvent.NewRegistry event) {
+    //?}
         for (PendingDatapackRegistry<?> pending : pendingDatapackRegistries) {
             pending.register(event);
         }
     }
 
     private record PendingDatapackRegistry<T>(ResourceKey<Registry<T>> key, Codec<T> codec) {
+        // No network codec: the registries stay on the server, clients never need them.
+        //? if >=26.3 {
+        /*void register(NewDatapackRegistryEvent event) {
+            event.worldRegistry(key, codec);
+        }
+        *///?} else {
         void register(DataPackRegistryEvent.NewRegistry event) {
             event.dataPackRegistry(key, codec, null);
         }
+        //?}
     }
 
     @Override
