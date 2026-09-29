@@ -2,20 +2,23 @@ package com.finndog.moogs_paths.data;
 
 import com.finndog.moogs_paths.Constants;
 import com.finndog.moogs_paths.platform.Services;
+import net.minecraft.core.Holder;
 //? if >=1.21.11 {
-/*import net.minecraft.core.Holder;
-import net.minecraft.core.HolderLookup;
+/*import net.minecraft.core.HolderLookup;
 *///?}
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public final class MoogsPathsDatapackRegistries {
 
@@ -130,6 +133,52 @@ public final class MoogsPathsDatapackRegistries {
         return derivedViews(access).maxRadiusByRegionSize.getOrDefault(regionSize, 1000);
     }
 
+    /** Networks whose paths start at structures. They never take part in region origins. */
+    public static List<AnchoredNetwork> anchoredNetworks(RegistryAccess access) {
+        return derivedViews(access).anchored;
+    }
+
+    /** A structure-anchored network, its id, and how far (in blocks) its paths can reach. */
+    public record AnchoredNetwork(PathNetworkType network, ResourceLocation id, int maxRadius) {}
+
+    /** Every loaded network by id, in id order. */
+    public static Map<ResourceLocation, PathNetworkType> networksById(RegistryAccess access) {
+        Map<ResourceLocation, PathNetworkType> byId = new java.util.TreeMap<>(Comparator.comparing(ResourceLocation::toString));
+        networkHolders(access).forEach(h -> byId.put(keyId(h.key()), h.value()));
+        return byId;
+    }
+
+    /** The id a loaded network instance is registered under. */
+    public static Optional<ResourceLocation> networkId(RegistryAccess access, PathNetworkType network) {
+        return networkHolders(access).filter(h -> h.value() == network).findFirst().map(h -> keyId(h.key()));
+    }
+
+    /** A vanilla or modded structure set (worldgen/structure_set), which carries a structure's placement. */
+    public static Optional<net.minecraft.world.level.levelgen.structure.StructureSet> vanillaStructureSet(RegistryAccess access, ResourceLocation id) {
+        //? if <1.21.11 {
+        return access.registryOrThrow(Registries.STRUCTURE_SET).getOptional(id);
+        //?} else {
+        /*return getByLocation(access, Registries.STRUCTURE_SET, id);
+        *///?}
+    }
+
+    // 1.21.11 renamed ResourceKey#location to identifier.
+    public static ResourceLocation keyId(ResourceKey<?> key) {
+        //? if <1.21.11 {
+        return key.location();
+        //?} else {
+        /*return key.identifier();
+        *///?}
+    }
+
+    private static Stream<Holder.Reference<PathNetworkType>> networkHolders(RegistryAccess access) {
+        //? if <1.21.11 {
+        return access.registryOrThrow(PATH_NETWORK).holders();
+        //?} else {
+        /*return access.lookupOrThrow(PATH_NETWORK).listElements();
+        *///?}
+    }
+
     public static void invalidateDerivedViews() {
         cachedDerivedViews = null;
     }
@@ -137,46 +186,31 @@ public final class MoogsPathsDatapackRegistries {
     // search radius = max path length * 1.5 - covers A* ellipse (1.35x) + path width + margin
     private static final double RADIUS_LENGTH_MULTIPLIER = 1.5;
 
+    private static int maxRadius(RegistryAccess access, PathNetworkType network) {
+        return getPathType(access, network.pathType())
+            .map(pt -> (int) Math.ceil(pt.maxLength() * RADIUS_LENGTH_MULTIPLIER))
+            .orElse(1000);
+    }
+
     private static DerivedNetworkViews derivedViews(RegistryAccess access) {
         DerivedNetworkViews views = cachedDerivedViews;
         if(views == null) {
-            //? if <1.21.11 {
-            Registry<PathNetworkType> networks = access.registryOrThrow(PATH_NETWORK);
-            Registry<PathType> pathTypes = access.registryOrThrow(PATH_TYPE);
-            //?} else {
-            /*HolderLookup.RegistryLookup<PathNetworkType> networks = access.lookupOrThrow(PATH_NETWORK);
-            HolderLookup.RegistryLookup<PathType> pathTypes = access.lookupOrThrow(PATH_TYPE);
-            *///?}
-            Map<Integer, List<PathNetworkType>> byRegion = Collections.unmodifiableMap(
-                //? if <1.21.11 {
-                networks.stream().collect(Collectors.groupingBy(PathNetworkType::regionSize)));
-                //?} else {
-                /*networks.listElements()
-                    .map(Holder::value)
-                    .collect(Collectors.groupingBy(PathNetworkType::regionSize)));
-                *///?}
+            Map<Integer, List<PathNetworkType>> byRegion = Collections.unmodifiableMap(networkHolders(access)
+                .map(Holder::value)
+                .filter(n -> !n.isStructureAnchored())
+                .collect(Collectors.groupingBy(PathNetworkType::regionSize)));
             Map<Integer, Integer> maxByRegion = byRegion.entrySet().stream()
                 .collect(Collectors.toUnmodifiableMap(
                     Map.Entry::getKey,
-                    e -> e.getValue().stream()
-                        //? if <1.21.11 {
-                        .mapToInt(n -> Optional.ofNullable(pathTypes.get(n.pathType())).map(pt -> (int) Math.ceil(pt.length().getMaxValue() * RADIUS_LENGTH_MULTIPLIER)).orElse(1000))
-                        //?} else {
-                        /*.mapToInt(n -> pathTypes.get(ResourceKey.create(PATH_TYPE, n.pathType()))
-                            .map(Holder::value)
-                        *///?}
-                            //? if >=1.21.11 <26.1.2 {
-                            /*.map(pt -> (int) Math.ceil(pt.length().getMaxValue() * RADIUS_LENGTH_MULTIPLIER))
-                            *///?}
-                            //? if >=26.1.2 {
-                            /*.map(pt -> (int) Math.ceil(pt.length().maxInclusive() * RADIUS_LENGTH_MULTIPLIER))
-                            *///?}
-                            //? if >=1.21.11 {
-                            /*.orElse(1000))
-                            *///?}
-                        .max().orElse(1000)
+                    e -> e.getValue().stream().mapToInt(n -> maxRadius(access, n)).max().orElse(1000)
                 ));
-            views = new DerivedNetworkViews(byRegion, maxByRegion);
+            // Sorted by id so every chunk walks the anchored networks in the same order.
+            List<AnchoredNetwork> anchored = networkHolders(access)
+                .filter(h -> h.value().isStructureAnchored())
+                .map(h -> new AnchoredNetwork(h.value(), keyId(h.key()), maxRadius(access, h.value())))
+                .sorted(Comparator.comparing(a -> a.id().toString()))
+                .toList();
+            views = new DerivedNetworkViews(byRegion, maxByRegion, anchored);
             cachedDerivedViews = views;
         }
         return views;
@@ -184,7 +218,8 @@ public final class MoogsPathsDatapackRegistries {
 
     private record DerivedNetworkViews(
         Map<Integer, List<PathNetworkType>> byRegionSize,
-        Map<Integer, Integer> maxRadiusByRegionSize
+        Map<Integer, Integer> maxRadiusByRegionSize,
+        List<AnchoredNetwork> anchored
     ) {}
 
     private MoogsPathsDatapackRegistries() {}

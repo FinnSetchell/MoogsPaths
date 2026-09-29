@@ -6,6 +6,7 @@ import com.finndog.moogs_paths.data.PathCounter;
 import com.finndog.moogs_paths.data.PathDataManager;
 import com.finndog.moogs_paths.data.PathNetworkType;
 import com.finndog.moogs_paths.data.PathType;
+import com.finndog.moogs_paths.data.StructureOrigin;
 import com.finndog.moogs_paths.debug.PathDebugTimer;
 import com.finndog.moogs_paths.world.deferred.DeferredPathJob;
 import com.finndog.moogs_paths.world.deferred.PlacementTickPump;
@@ -108,7 +109,8 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
         int chunkZ = pos.getZ() >> 4;
 
         Map<Integer, List<PathNetworkType>> byRegionSize = MoogsPathsDatapackRegistries.networksByRegionSize(level.registryAccess());
-        if(byRegionSize.isEmpty()) return false;
+        List<MoogsPathsDatapackRegistries.AnchoredNetwork> anchoredNetworks = MoogsPathsDatapackRegistries.anchoredNetworks(level.registryAccess());
+        if(byRegionSize.isEmpty() && anchoredNetworks.isEmpty()) return false;
 
         ServerLevel serverLevel = level.getLevel();
         RandomState randomState = serverLevel.getChunkSource().randomState();
@@ -143,19 +145,33 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                 PathType pathType = ev.pathType();
                 PathDataManager.CachedPath cachedPath = ev.cachedPath();
 
-                int bboxPad = pathType.width().max();
-                if(!intersectsWithPad(cachedPath, chunkX, chunkZ, bboxPad)) continue;
+                if(scatterFeatures(level, generator, network, pathType, pathSeed, cachedPath, chunkX, chunkZ)) placed = true;
+            }
+        }
 
-                // Worldgen pass is ONLY responsible for ConfiguredFeature decorations
-                // (FeatureScatterer). The rasteriser, structure placer, and bush placer are
-                // owned by the deferred LiveChunkPlacer path so they go through the per-
-                // chunk dedup in DeferredPathState. Painting raster/structure/bush from here
-                // too would stack on top of the deferred placement.
-                if(!network.featureDecoratorSets().isEmpty()) {
-                    RandomSource featureRandom = RandomSource.create(pathSeed ^ FEATURE_MIXER);
-                    if(Constants.ENABLE_DEBUG_TIMER) PathDebugTimer.stamp(PathDebugTimer.Stage.FEATURES);
-                    FeatureScatterer.scatterInChunk(level, generator, cachedPath.waypoints(), network.featureDecoratorSets(), network.biomes(), chunkX, chunkZ, featureRandom);
-                    placed = true;
+        // Structure-anchored networks: their paths start at structures instead of region origins.
+        // Only the cheap placement maths runs here; generating the structure and finding the path
+        // happen on the deferred workers, and this pass picks the path up once it is cached.
+        for(MoogsPathsDatapackRegistries.AnchoredNetwork anchored : anchoredNetworks) {
+            PathNetworkType network = anchored.network();
+            StructureOrigin origin = network.origin().orElseThrow();
+            Optional<PathType> pathType = MoogsPathsDatapackRegistries.getPathType(level.registryAccess(), network.pathType());
+            if(pathType.isEmpty()) continue;
+            int reach = anchored.maxRadius() + StructureAnchors.STRUCTURE_REACH;
+            for(StructureAnchors.StructureChunk structure : StructureAnchors.candidatesInRange(serverLevel, origin, chunkX, chunkZ, reach)) {
+                for(int pathIndex = 0; pathIndex < origin.pathCount(); pathIndex++) {
+                    long pathSeed = StructureAnchors.pathSeed(worldSeed, structure.x(), structure.z(), anchored.id(), pathIndex);
+                    if(PathDataManager.isRejected(pathSeed)) continue;
+                    PathDataManager.CachedPath cachedPath = PathDataManager.peekCachedPath(pathSeed);
+                    if(cachedPath == null) {
+                        PlacementTickPump.enqueueFromWorldgen(serverLevel, DeferredPathJob.anchored(pathSeed, structure.x(), structure.z(), pathIndex, anchored.id()));
+                        continue;
+                    }
+                    if(cachedPath.waypointCount() < 2) {
+                        PathDataManager.markRejected(pathSeed);
+                        continue;
+                    }
+                    if(scatterFeatures(level, generator, network, pathType.get(), pathSeed, cachedPath, chunkX, chunkZ)) placed = true;
                 }
             }
         }
@@ -164,6 +180,19 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
         } finally {
             if(Constants.ENABLE_DEBUG_TIMER) PathDebugTimer.end();
         }
+    }
+
+    // Worldgen pass is ONLY responsible for ConfiguredFeature decorations (FeatureScatterer).
+    // The rasteriser, structure placer, and bush placer are owned by the deferred
+    // LiveChunkPlacer path so they go through the per-chunk dedup in DeferredPathState.
+    // Painting raster/structure/bush from here too would stack on top of the deferred placement.
+    private static boolean scatterFeatures(WorldGenLevel level, ChunkGenerator generator, PathNetworkType network, PathType pathType, long pathSeed, PathDataManager.CachedPath cachedPath, int chunkX, int chunkZ) {
+        if(!intersectsWithPad(cachedPath, chunkX, chunkZ, pathType.width().max())) return false;
+        if(network.featureDecoratorSets().isEmpty()) return false;
+        RandomSource featureRandom = RandomSource.create(pathSeed ^ FEATURE_MIXER);
+        if(Constants.ENABLE_DEBUG_TIMER) PathDebugTimer.stamp(PathDebugTimer.Stage.FEATURES);
+        FeatureScatterer.scatterInChunk(level, generator, cachedPath.waypoints(), network.featureDecoratorSets(), network.biomes(), chunkX, chunkZ, featureRandom);
+        return true;
     }
 
     public record EvaluatedOrigin(PathNetworkType network, PathType pathType, long pathSeed, PathDataManager.CachedPath cachedPath) {}

@@ -48,11 +48,6 @@ public final class PathFinder {
     }
 
     public static List<BlockPos> findPath(BlockPos origin, PathType pathType, RandomSource random, HeightSampler rawHeightAt, BiomeAccept biomeAccept) {
-        // A* only needs heights for the slope filter and step cost, both tolerant of coarse
-        // approximations. Snapping to a 16-block grid shares one noise eval across 16 cells.
-        HeightSampler coarseHeightAt = memoiseCoarse(rawHeightAt);
-        // interpolateToBlocks wants per-block heights so the rasteriser sees a smooth Y curve.
-        HeightSampler preciseHeightAt = memoise(rawHeightAt);
         BiomeAccept biome = memoiseBiome(biomeAccept);
 
         int length = pathType.length().sample(random);
@@ -68,6 +63,25 @@ public final class PathFinder {
             goalBlockZ = origin.getZ() + (int) Math.round(Math.sin(angle) * length);
             if(biome == null || biome.test(goalBlockX, goalBlockZ)) break;
         }
+
+        return solve(origin, goalBlockX, goalBlockZ, length, pathType, rawHeightAt, biome);
+    }
+
+    /**
+     * A path from origin towards a goal the caller already chose, e.g. one leading away from a
+     * structure. Cells failing biomeAccept are gated out as in {@link #findPath}; the origin's cell
+     * never is.
+     */
+    public static List<BlockPos> findPathTo(BlockPos origin, int goalBlockX, int goalBlockZ, int length, PathType pathType, HeightSampler rawHeightAt, BiomeAccept biomeAccept) {
+        return solve(origin, goalBlockX, goalBlockZ, length, pathType, rawHeightAt, memoiseBiome(biomeAccept));
+    }
+
+    private static List<BlockPos> solve(BlockPos origin, int goalBlockX, int goalBlockZ, int length, PathType pathType, HeightSampler rawHeightAt, BiomeAccept biome) {
+        // A* only needs heights for the slope filter and step cost, both tolerant of coarse
+        // approximations. Snapping to a 16-block grid shares one noise eval across 16 cells.
+        HeightSampler coarseHeightAt = memoiseCoarse(rawHeightAt);
+        // interpolateToBlocks wants per-block heights so the rasteriser sees a smooth Y curve.
+        HeightSampler preciseHeightAt = memoise(rawHeightAt);
 
         int startCellX = Math.floorDiv(origin.getX(), CELL_SIZE);
         int startCellZ = Math.floorDiv(origin.getZ(), CELL_SIZE);

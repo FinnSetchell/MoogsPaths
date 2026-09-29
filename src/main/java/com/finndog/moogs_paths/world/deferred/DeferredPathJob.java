@@ -16,4 +16,21 @@ public record DeferredPathJob(long pathSeed, int originChunkX, int originChunkZ,
     public long packedOriginChunk() {
         return ((long) originChunkX << 32) | (originChunkZ & 0xFFFFFFFFL);
     }
+
+    /**
+     * A path leading out of the structure at a structure chunk. Region sizes are always positive, so
+     * the path's index around its structure is kept as {@code -index} in regionSize, which leaves the
+     * saved form of a job unchanged.
+     */
+    public static DeferredPathJob anchored(long pathSeed, int structureChunkX, int structureChunkZ, int pathIndex, ResourceLocation networkId) {
+        return new DeferredPathJob(pathSeed, structureChunkX, structureChunkZ, -pathIndex, networkId);
+    }
+
+    public boolean isAnchored() {
+        return regionSize <= 0;
+    }
+
+    public int anchorPathIndex() {
+        return -regionSize;
+    }
 }

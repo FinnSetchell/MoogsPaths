@@ -6,6 +6,7 @@ import com.finndog.moogs_paths.data.PathDataManager;
 import com.finndog.moogs_paths.data.PathNetworkType;
 import com.finndog.moogs_paths.data.PathType;
 import com.finndog.moogs_paths.world.PathChunkFeature;
+import com.finndog.moogs_paths.world.StructureAnchors;
 import net.minecraft.core.Holder;
 import net.minecraft.core.QuartPos;
 import net.minecraft.core.BlockPos;
@@ -22,6 +23,7 @@ import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.RandomState;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -137,6 +139,16 @@ public final class PathfindWorker {
         Optional<PathType> ptOpt = MoogsPathsDatapackRegistries.getPathType(level.registryAccess(), network.pathType());
         if(ptOpt.isEmpty()) return null;
         PathType pathType = ptOpt.get();
+
+        // A datapack change can turn a queued job's network from one kind into the other. Caching an
+        // empty path retires such a job instead of leaving it pending.
+        if(job.isAnchored() != network.isStructureAnchored()) {
+            return PathDataManager.getOrComputeWaypoints(job.pathSeed(), List::of);
+        }
+        if(job.isAnchored()) {
+            return PathDataManager.getOrComputeWaypoints(job.pathSeed(), () -> StructureAnchors.computePath(
+                level, network, job.networkId(), pathType, job.originChunkX(), job.originChunkZ(), job.anchorPathIndex()));
+        }
 
         int originBlockX = job.originChunkX() * 16 + 8;
         int originBlockZ = job.originChunkZ() * 16 + 8;

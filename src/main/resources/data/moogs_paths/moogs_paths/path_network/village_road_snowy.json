@@ -1,0 +1,16 @@
+{
+  "path_type": "moogs_paths:snowy_trail",
+  "biomes": "#minecraft:is_overworld",
+  "structure_sets": [
+    "moogs_paths:snowy_cairns"
+  ],
+  "feature_decorator_sets": [],
+  "bush_decorator_sets": [
+    "moogs_paths:snowy_spruce"
+  ],
+  "origin": {
+    "structure_set": "minecraft:villages",
+    "structure": "minecraft:village_snowy",
+    "path_count": 2
+  }
+}

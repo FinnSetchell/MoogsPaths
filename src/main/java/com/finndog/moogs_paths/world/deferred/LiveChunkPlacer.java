@@ -61,7 +61,8 @@ public final class LiveChunkPlacer {
         PathNetworkType network = netOpt.get();
         Optional<PathType> ptOpt = MoogsPathsDatapackRegistries.getPathType(level.registryAccess(), network.pathType());
         if(ptOpt.isEmpty()) return;
-        PathType pathType = ptOpt.get();
+        // A path leading out of a structure meets it at full width instead of fading in.
+        PathType pathType = job.isAnchored() ? ptOpt.get().withoutStartFade() : ptOpt.get();
 
         int bboxPad = pathType.width().max();
         if(!intersectsWithPad(cachedPath, chunkX, chunkZ, bboxPad)) return;

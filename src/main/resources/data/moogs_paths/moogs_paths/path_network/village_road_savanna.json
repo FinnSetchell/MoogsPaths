@@ -1,0 +1,14 @@
+{
+  "path_type": "moogs_paths:dirt_trail",
+  "biomes": "#minecraft:is_overworld",
+  "structure_sets": [
+    "moogs_paths:savanna_posts"
+  ],
+  "feature_decorator_sets": [],
+  "bush_decorator_sets": [],
+  "origin": {
+    "structure_set": "minecraft:villages",
+    "structure": "minecraft:village_savanna",
+    "path_count": 2
+  }
+}

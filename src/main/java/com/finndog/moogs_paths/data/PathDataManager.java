@@ -4,6 +4,7 @@ import com.finndog.moogs_paths.Constants;
 import com.finndog.moogs_paths.world.BushPlacer;
 import com.finndog.moogs_paths.world.PathChunkFeature;
 import com.finndog.moogs_paths.world.PathRasteriser;
+import com.finndog.moogs_paths.world.StructureAnchors;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
@@ -188,6 +189,7 @@ public final class PathDataManager {
         PathRasteriser.clearBlockCache();
         BushPlacer.clearBlockCache();
         PathChunkFeature.clearOriginBiomeCache();
+        StructureAnchors.clearCache();
     }
 
     public static void onServerStart(StructureTemplateManager manager) {

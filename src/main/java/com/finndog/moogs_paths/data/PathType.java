@@ -23,6 +23,30 @@ public record PathType(
     FadeSettings fade,
     Optional<WaterSettings> waterSettings
 ) {
+
+    /** This type without its fade-in, for a path that leaves a structure at full width. */
+    public PathType withoutStartFade() {
+        if(fade.startBlocks() == 0) return this;
+        return new PathType(surfaceBlocks, edgeBlocks, fillBlock, width, rigidness, carver, length,
+            new FadeSettings(0, fade.endBlocks()), waterSettings);
+    }
+
+    // 26.1 renamed IntProvider#getMinValue/getMaxValue to minInclusive/maxInclusive.
+    public int minLength() {
+        //? if >=26.1.2 {
+        /*return length.minInclusive();
+        *///?} else {
+        return length.getMinValue();
+        //?}
+    }
+
+    public int maxLength() {
+        //? if >=26.1.2 {
+        /*return length.maxInclusive();
+        *///?} else {
+        return length.getMaxValue();
+        //?}
+    }
     public record WeightedBlock(ResourceLocation block, int weight) {
         public static final Codec<WeightedBlock> CODEC = RecordCodecBuilder.create(instance -> instance.group(
             ResourceLocation.CODEC.fieldOf("block").forGetter(WeightedBlock::block),

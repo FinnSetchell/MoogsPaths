@@ -1,0 +1,16 @@
+{
+  "path_type": "moogs_paths:desert_highway",
+  "biomes": "#minecraft:is_overworld",
+  "structure_sets": [
+    "moogs_paths:desert_lamps"
+  ],
+  "feature_decorator_sets": [
+    "moogs_paths:desert_dead_bushes"
+  ],
+  "bush_decorator_sets": [],
+  "origin": {
+    "structure_set": "minecraft:villages",
+    "structure": "minecraft:village_desert",
+    "path_count": 2
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "path_type": "moogs_paths:dirt_road",
+  "biomes": "#minecraft:is_overworld",
+  "structure_sets": [
+    "moogs_paths:overworld_cairns"
+  ],
+  "feature_decorator_sets": [],
+  "bush_decorator_sets": [],
+  "origin": {
+    "structure_set": "minecraft:villages",
+    "structure": "minecraft:village_taiga",
+    "path_count": 2
+  }
+}

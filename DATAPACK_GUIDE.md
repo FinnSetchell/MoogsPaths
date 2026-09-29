@@ -151,11 +151,12 @@ Binds a path_type to biomes and decorations. This is what the worldgen actually 
 |---|---|---|
 | `path_type` | resource location | The path_type to use. |
 | `biomes` | biome holder set | A single biome id, a list of biome ids, or a `#tag:like_this`. Standard vanilla holderset syntax. Tags from any namespace work, including modded ones (`#c:is_overworld`, `#forge:is_overworld`, mod-specific biome tags), so networks can extend cleanly to modded biomes. |
-| `weight` | int | Relative weight when multiple networks compete for the same biome. Higher = more likely to win. |
-| `region_size` | int | Size of the worldgen region (in chunks) within which the network plans a path. Larger = longer, less frequent paths. Typical range 32-64. |
+| `weight` | int (optional, default `1`) | Relative weight when multiple networks compete for the same biome. Higher = more likely to win. |
+| `region_size` | int | Size of the worldgen region (in chunks) within which the network plans a path. Larger = longer, less frequent paths. Typical range 32-64. Not used, and not needed, with `origin`. |
 | `structure_sets` | list of resource locations (optional) | Structure sets to scatter along the path. Each entry runs independently - there is no weighted pick here. |
 | `feature_decorator_sets` | list of resource locations (optional) | Feature decorator sets used for scattered features. |
 | `bush_decorator_sets` | list of resource locations (optional) | Bush decorator sets used for leaf blobs along the path. |
+| `origin` | object (optional) | Start every path at a structure instead of a region. See below. |
 
 Decorator set lists are plain arrays of ids:
 
@@ -165,6 +166,77 @@ Decorator set lists are plain arrays of ids:
   "mypack:rare_milestones"
 ]
 ```
+
+#### Paths from structures (`origin`)
+
+With an `origin` block a network stops scattering its paths across regions. Instead every path starts
+at a structure that really generated there and leads away from it, so villages, huts and temples get
+roads out of them. It works with vanilla and modded structures alike.
+
+```json
+{
+  "path_type": "moogs_paths:dirt_trail",
+  "biomes": "#minecraft:is_overworld",
+  "structure_sets": ["moogs_paths:oak_posts"],
+  "origin": {
+    "structure_set": "minecraft:villages",
+    "structure": "minecraft:village_plains",
+    "path_count": 2
+  }
+}
+```
+
+| field | type | description |
+|---|---|---|
+| `structure_set` | resource location | A structure set (`worldgen/structure_set`), e.g. `minecraft:villages`, `minecraft:swamp_huts` or a modded set. The set, not the structure, because the set holds the placement that says where its structures go. |
+| `structure` | resource location (optional) | Only anchor to this structure of the set (`worldgen/structure`), e.g. `minecraft:village_desert` out of `minecraft:villages`. Without it, any structure of the set counts. |
+| `path_count` | int (optional, default `1`, up to `8`) | How many paths lead out of each structure. They head off in different directions. |
+| `anchor` | object (optional) | Start the paths at a particular spot inside the structure. See below. |
+
+By default a path starts just outside the structure, on the side it heads off towards, and never cuts
+back through the structure's pieces. The path still only runs through the network's `biomes` (and never
+through `moogs_paths:has_no_paths` biomes such as rivers), so keep the list broad: structures often sit
+at the edge of their biome, and a narrow list like `#minecraft:has_structure/village_plains` would stop a
+road at the first forest next to the village.
+
+Structures are found the way vanilla places them, including each set's frequency and exclusion zones,
+so a path only starts where the structure really is. Only `random_spread` placements can be used, which
+covers villages, huts, temples, outposts and most modded structures. Strongholds (`concentric_rings`)
+are not supported and log a warning once.
+
+#### `anchor` - start from a spot inside the structure
+
+```json
+"origin": {
+  "structure_set": "minecraft:villages",
+  "structure": "minecraft:village_plains",
+  "anchor": {
+    "piece": "minecraft:village/plains/houses/plains_butcher_shop_1",
+    "piece_index": 0,
+    "local_pos": [3, 1, 2]
+  }
+}
+```
+
+| field | type | description |
+|---|---|---|
+| `piece` | resource location (optional) | A template pool element's NBT id, the `location` of a `single_pool_element`: a particular village house, or a named piece of a modded jigsaw structure. Without it, the structure's first piece is used. |
+| `piece_index` | int (optional, default `0`) | Which one to use when that piece was placed more than once. |
+| `local_pos` | `[x, y, z]` (optional) | A position inside the piece's `.nbt`, the numbers a structure block shows. It turns with the piece, so it tracks the structure however it generated. Only `x` and `z` matter; the path starts on the surface. Without it, the piece's centre is used. |
+
+With an anchor the path starts exactly there and may cross the structure on its way out. `local_pos`
+needs an NBT piece, so on structures built in code (jungle temples, witch huts) it falls back to the
+piece's centre. A `piece` that never generates falls back to the structure's centre. Both log a warning
+once, which helps catch a mistyped id.
+
+`/paths debug anchors` lists each structure-anchored network's structures near you and how many of
+their paths were built.
+
+The mod ships these as built-in networks, each findable with `/paths locate <network>`:
+
+- `moogs_paths:village_road_plains`, `village_road_desert`, `village_road_savanna`, `village_road_snowy`, `village_road_taiga` - two roads out of every village, in the style of its biome
+- `moogs_paths:witch_hut_trail` - a swamp trail out of every witch hut
+- `moogs_paths:jungle_temple_road` - a jungle path out of every jungle temple
 
 ### structure_set
 
@@ -260,13 +332,16 @@ The mod ships a default `has_no_paths` that excludes oceans, rivers, the void, t
 
 ## Commands
 
-Requires permission level 2 (op).
+Requires permission level 2 (op). They search around wherever they run, so they also work from a command
+block or the console, e.g. `/execute positioned 1000 64 -500 run paths locate`.
 
-`/paths locate [network]` -- teleport-suggest the nearest path origin. With no argument, finds the nearest path of any network. With a network id, finds the nearest path that rolled that network. Click the chat coord to fill `/tp`.
+`/paths locate [network]` -- teleport-suggest the nearest path origin. With no argument, finds the nearest path of any network. With a network id, finds the nearest path that rolled that network, including structure-anchored ones. Click the chat coord to fill `/tp`.
 
 `/paths debug region` -- show which path region your position falls inside, for each loaded `region_size`.
 
-`/paths debug networks` -- list every loaded `path_network` with its `path_type`, length range, region size, weight, and decorator-set counts.
+`/paths debug networks` -- list every loaded `path_network` with its id, `path_type`, length range, region size and weight (or `origin`), and decorator-set counts.
+
+`/paths debug anchors` -- for each structure-anchored network, list the nearest spots its structure set places a structure, which structure generated at each (click to teleport), and how many paths lead out of it.
 
 `/paths debug structures` -- list every cached structure NBT and whether it resolved (`ok`) or is missing.
 
