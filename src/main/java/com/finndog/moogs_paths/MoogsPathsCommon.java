@@ -15,14 +15,14 @@ public class MoogsPathsCommon {
 
     public static void init() {
         MoogsPathsDatapackRegistries.register();
-        Services.PLATFORM.registerServerStartingListener(server -> {
+        Services.PLATFORM.registerServerAboutToStartListener(server -> {
             MoogsPathsDatapackRegistries.invalidateDerivedViews();
             //? if >=26.3 {
             /*PathDataManager.onServerStart(server.getStructureTemplateManager());
             *///?} else {
             PathDataManager.onServerStart(server.getStructureManager());
             //?}
-            PlacementTickPump.onServerStarting(server);
+            PlacementTickPump.onServerAboutToStart(server);
             if(Constants.ENABLE_DEBUG_TIMER && DEBUG_INITIALISED.compareAndSet(false, true)) {
                 //? if >=1.21.1 {
                 Path logDir = server.getServerDirectory().resolve("logs");
@@ -33,6 +33,8 @@ public class MoogsPathsCommon {
                 Runtime.getRuntime().addShutdownHook(new Thread(PathDebugTimer::close, "moogs_paths_debug-shutdown"));
             }
         });
+        Services.PLATFORM.registerLevelLoadListener(PlacementTickPump::onLevelLoad);
+        Services.PLATFORM.registerServerStartedListener(PlacementTickPump::onServerStarted);
         Services.PLATFORM.registerChunkLoadListener(PlacementTickPump::onChunkLoad);
         Services.PLATFORM.registerServerTickEndListener(PlacementTickPump::onServerTickEnd);
         Services.PLATFORM.registerServerStoppingListener(PlacementTickPump::onServerStopping);

@@ -37,8 +37,8 @@ public final class FeatureScatterer {
 
     private static final Set<ResourceLocation> WARNED_MISSING = Collections.synchronizedSet(new HashSet<>());
 
-    public static void scatterInChunk(WorldGenLevel level, ChunkGenerator generator, List<BlockPos> waypoints, List<ResourceLocation> decoratorSetIds, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random) {
-        // 26.1: RegistryAccess#registryOrThrow -> #lookupOrThrow returning HolderLookup.RegistryLookup
+    public static void scatterInChunk(WorldGenLevel level, ChunkGenerator generator, List<BlockPos> waypoints, List<ResourceLocation> decoratorSetIds, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, PlacementGuard guard) {
+        // 1.21.11: RegistryAccess#registryOrThrow -> #lookupOrThrow returning HolderLookup.RegistryLookup
         //? if <1.21.11 {
         Registry<ConfiguredFeature<?, ?>> featureRegistry = level.registryAccess().registryOrThrow(Registries.CONFIGURED_FEATURE);
         //?} elif <26.3 {
@@ -49,19 +49,23 @@ public final class FeatureScatterer {
         *///?}
 
         for(ResourceLocation id : decoratorSetIds) {
-            MoogsPathsDatapackRegistries.getFeatureDecoratorSet(level.registryAccess(), id).ifPresent(set ->
-                scatterSet(level, generator, featureRegistry, waypoints, set, biomes, chunkX, chunkZ, random));
+            var set = MoogsPathsDatapackRegistries.getFeatureDecoratorSet(level.registryAccess(), id);
+            if(set.isEmpty()) {
+                PathDataManager.warnMissingOnce("Feature decorator set", id);
+                continue;
+            }
+            scatterSet(level, generator, featureRegistry, waypoints, set.get(), biomes, chunkX, chunkZ, random, guard);
         }
     }
 
     //////////////////////////////
 
     //? if <1.21.11 {
-    private static void scatterSet(WorldGenLevel level, ChunkGenerator generator, Registry<ConfiguredFeature<?, ?>> featureRegistry, List<BlockPos> waypoints, FeatureDecoratorSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random) {
+    private static void scatterSet(WorldGenLevel level, ChunkGenerator generator, Registry<ConfiguredFeature<?, ?>> featureRegistry, List<BlockPos> waypoints, FeatureDecoratorSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, PlacementGuard guard) {
     //?} elif <26.3 {
-    /*private static void scatterSet(WorldGenLevel level, ChunkGenerator generator, HolderLookup.RegistryLookup<ConfiguredFeature<?, ?>> featureRegistry, List<BlockPos> waypoints, FeatureDecoratorSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random) {
+    /*private static void scatterSet(WorldGenLevel level, ChunkGenerator generator, HolderLookup.RegistryLookup<ConfiguredFeature<?, ?>> featureRegistry, List<BlockPos> waypoints, FeatureDecoratorSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, PlacementGuard guard) {
     *///?} else {
-    /*private static void scatterSet(WorldGenLevel level, ChunkGenerator generator, HolderLookup.RegistryLookup<Feature> featureRegistry, List<BlockPos> waypoints, FeatureDecoratorSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random) {
+    /*private static void scatterSet(WorldGenLevel level, ChunkGenerator generator, HolderLookup.RegistryLookup<Feature> featureRegistry, List<BlockPos> waypoints, FeatureDecoratorSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, PlacementGuard guard) {
     *///?}
         int reach = set.scatterWidth() + 1;
 
@@ -77,15 +81,15 @@ public final class FeatureScatterer {
                 int bz = from.getZ() + Math.round(parZ * d + perpZ * offset * side);
 
                 if((bx >> 4) == chunkX && (bz >> 4) == chunkZ) {
-                    tryPlace(level, generator, feature, bx, bz, biomes, segRandom);
+                    tryPlace(level, generator, feature, bx, bz, biomes, segRandom, guard);
                 }
             });
     }
 
     //? if >=26.3 {
-    /*private static void tryPlace(WorldGenLevel level, ChunkGenerator generator, Feature feature, int bx, int bz, HolderSet<Biome> biomes, RandomSource random) {
+    /*private static void tryPlace(WorldGenLevel level, ChunkGenerator generator, Feature feature, int bx, int bz, HolderSet<Biome> biomes, RandomSource random, PlacementGuard guard) {
     *///?} else {
-    private static void tryPlace(WorldGenLevel level, ChunkGenerator generator, ConfiguredFeature<?, ?> feature, int bx, int bz, HolderSet<Biome> biomes, RandomSource random) {
+    private static void tryPlace(WorldGenLevel level, ChunkGenerator generator, ConfiguredFeature<?, ?> feature, int bx, int bz, HolderSet<Biome> biomes, RandomSource random, PlacementGuard guard) {
     //?}
         int sy = level.getHeight(Heightmap.Types.WORLD_SURFACE, bx, bz);
         //? if <1.21.11 {
@@ -93,6 +97,7 @@ public final class FeatureScatterer {
         //?} else {
         /*if(sy <= level.getMinY()) return;
         *///?}
+        if(guard.insidePiece(bx, sy - 1, sy + 2, bz)) return;
         BlockPos pos = new BlockPos(bx, sy, bz);
         if(Constants.ENABLE_DEBUG_TIMER) PathDataManager.recordBiomeCall(com.finndog.moogs_paths.data.BiomeCallSite.FEATURE_PLACE_CHECK);
         var biome = level.getBiome(pos);

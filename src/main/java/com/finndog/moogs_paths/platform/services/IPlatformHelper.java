@@ -16,11 +16,17 @@ public interface IPlatformHelper {
 
     <T> void registerDatapackRegistry(ResourceKey<Registry<T>> key, Codec<T> codec);
 
-    void registerServerStartingListener(Consumer<MinecraftServer> listener);
+    // Before the server creates its levels, so before the spawn area generates, on every loader.
+    void registerServerAboutToStartListener(Consumer<MinecraftServer> listener);
+
+    // Once the spawn area has generated.
+    void registerServerStartedListener(Consumer<MinecraftServer> listener);
 
     void registerCommandListener(Consumer<CommandDispatcher<CommandSourceStack>> listener);
 
     // Deferred-path-gen hooks.
+    void registerLevelLoadListener(Consumer<ServerLevel> listener);
+
     void registerChunkLoadListener(BiConsumer<ServerLevel, LevelChunk> listener);
 
     void registerServerTickEndListener(Consumer<MinecraftServer> listener);

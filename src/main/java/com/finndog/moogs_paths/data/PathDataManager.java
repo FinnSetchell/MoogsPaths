@@ -46,8 +46,20 @@ public final class PathDataManager {
         }
     }
 
+    // A cached path and when it was last asked for, so trimming drops the least recently used:
+    // a pending path players keep loading chunks along stays, one nobody has reached goes.
+    private static final class Slot {
+        final CachedPath path;
+        volatile long lastUsed;
+
+        Slot(CachedPath path) {
+            this.path = path;
+            this.lastUsed = System.nanoTime();
+        }
+    }
+
     // ConcurrentHashMap so distinct pathSeeds compute in parallel on different worker threads
-    private static final Map<Long, CachedPath> WAYPOINT_CACHE = new ConcurrentHashMap<>();
+    private static final Map<Long, Slot> WAYPOINT_CACHE = new ConcurrentHashMap<>();
 
     // Negative cache for pathSeeds whose origin failed the biome filter. Separate from
     // WAYPOINT_CACHE so a flood of rejects can't evict real computed paths. ConcurrentHashMap
@@ -117,20 +129,25 @@ public final class PathDataManager {
     }
 
     public static CachedPath getOrComputeWaypoints(long pathSeed, Supplier<List<BlockPos>> computer) {
-        CachedPath cached = WAYPOINT_CACHE.get(pathSeed);
+        CachedPath cached = peekCachedPath(pathSeed);
         if(cached != null) return cached;
         // Computed outside the map: computeIfAbsent holds a lock on part of the map for the whole
         // pathfind, so path workers (and /paths locate) whose seeds collide queued behind each other.
         // Two threads may now compute the same seed at once; paths are deterministic, first one wins.
         CachedPath computed = buildCachedPath(computer.get());
-        CachedPath raced = WAYPOINT_CACHE.putIfAbsent(pathSeed, computed);
+        Slot raced = WAYPOINT_CACHE.putIfAbsent(pathSeed, new Slot(computed));
         if(WAYPOINT_CACHE.size() > WAYPOINT_CACHE_MAX_SIZE) trimCache();
-        return raced != null ? raced : computed;
+        return raced != null ? raced.path : computed;
     }
+
+    public static int cachedPathCount() { return WAYPOINT_CACHE.size(); }
 
     // returns a cached path without triggering computation - a hit implies biome filter already passed
     public static CachedPath peekCachedPath(long pathSeed) {
-        return WAYPOINT_CACHE.get(pathSeed);
+        Slot slot = WAYPOINT_CACHE.get(pathSeed);
+        if(slot == null) return null;
+        slot.lastUsed = System.nanoTime();
+        return slot.path;
     }
 
     public static boolean isRejected(long pathSeed) {
@@ -162,14 +179,16 @@ public final class PathDataManager {
         return new CachedPath(xzPacked, ys, minX, maxX, minZ, maxZ);
     }
 
-    private static void trimCache() {
-        // bulk drop half - no LRU bookkeeping under contention, only fires above the cap
-        int target = WAYPOINT_CACHE_MAX_SIZE / 2;
-        Iterator<Map.Entry<Long, CachedPath>> it = WAYPOINT_CACHE.entrySet().iterator();
-        while(it.hasNext() && WAYPOINT_CACHE.size() > target) {
-            it.next();
-            it.remove();
-        }
+    // Drops the least recently used quarter; only fires above the cap.
+    private static synchronized void trimCache() {
+        if(WAYPOINT_CACHE.size() <= WAYPOINT_CACHE_MAX_SIZE) return;
+        // lastUsed keeps changing under other threads, so sort a snapshot of it.
+        record Use(long seed, Slot slot, long lastUsed) {}
+        List<Use> uses = new ArrayList<>(WAYPOINT_CACHE.size());
+        for(Map.Entry<Long, Slot> e : WAYPOINT_CACHE.entrySet()) uses.add(new Use(e.getKey(), e.getValue(), e.getValue().lastUsed));
+        uses.sort(Comparator.comparingLong(Use::lastUsed));
+        int drop = uses.size() - WAYPOINT_CACHE_MAX_SIZE * 3 / 4;
+        for(int i = 0; i < drop; i++) WAYPOINT_CACHE.remove(uses.get(i).seed(), uses.get(i).slot());
     }
 
     private static void trimRejectedCache() {

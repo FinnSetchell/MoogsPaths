@@ -26,6 +26,7 @@ import net.minecraft.world.level.storage.DimensionDataStorage;
 *///?}
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -35,17 +36,20 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Per-dimension SavedData tracking deferred paths.
  *
- * Two pieces of state:
- *  - {@code pendingJobs}: every {@link DeferredPathJob} that has been enqueued by the
- *    worldgen feature pass but has not yet completed. Survives restart. On server start
- *    we re-enqueue everything in here so a save-and-quit mid-pathing doesn't lose work.
- *  - {@code placedByPath}: per-pathSeed set of packed chunk positions that already
- *    received placement. Idempotency gate so a deferred path can't paint the same chunk
- *    twice (e.g. unload + reload while jobs are in flight).
+ * State:
+ *  - {@code pendingJobs}: every {@link DeferredPathJob} enqueued by the worldgen pass (or a
+ *    locate) whose path is not yet fully laid. Survives restart.
+ *  - {@code bounds}: for a pending job whose path has been computed, the chunk range it writes
+ *    to. After a restart the job is only recomputed once a chunk in that range loads.
+ *  - {@code placedByPath}: per-pathSeed set of packed chunk positions that already received
+ *    placement. Idempotency gate so a deferred path can't paint the same chunk twice.
+ *  - {@code completed}: seeds whose path is fully laid (or too short to lay). Their placed
+ *    chunks are dropped, and worldgen never queues them again.
  *
- * Accessed concurrently from the server tick (placement drain) and the pathfind worker
- * (job completion). All maps are {@link ConcurrentHashMap}-backed; the SavedData itself
- * is only saved on the IO thread via MC's normal flush cadence.
+ * Accessed concurrently from worldgen threads (enqueue), the pathfind workers and the server
+ * tick. All collections are {@link ConcurrentHashMap}-backed. One instance per level, created on
+ * the server thread when the level loads: vanilla's data storage map isn't safe to fill from
+ * worldgen threads.
  */
 public class DeferredPathState extends SavedData {
 
@@ -55,8 +59,12 @@ public class DeferredPathState extends SavedData {
     /*public static final ResourceLocation NAME = ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "deferred_paths");
     *///?}
 
+    private static final Map<ServerLevel, DeferredPathState> BY_LEVEL = new ConcurrentHashMap<>();
+
     private final Map<Long, DeferredPathJob> pendingJobs = new ConcurrentHashMap<>();
+    private final Map<Long, int[]> bounds = new ConcurrentHashMap<>();
     private final Map<Long, Set<Long>> placedByPath = new ConcurrentHashMap<>();
+    private final Set<Long> completed = ConcurrentHashMap.newKeySet();
 
     public DeferredPathState() {}
 
@@ -85,16 +93,43 @@ public class DeferredPathState extends SavedData {
         Codec.LONG_STREAM.fieldOf("chunks").xmap(s -> s.toArray(), java.util.stream.LongStream::of).forGetter(PlacedEntry::chunks)
     ).apply(inst, PlacedEntry::new));
 
+    private record BoundsEntry(long seed, int[] bb) {}
+
+    private static final Codec<BoundsEntry> BOUNDS_CODEC = RecordCodecBuilder.create(inst -> inst.group(
+        Codec.LONG.fieldOf("seed").forGetter(BoundsEntry::seed),
+        Codec.INT_STREAM.fieldOf("bb").xmap(s -> s.toArray(), java.util.stream.IntStream::of).forGetter(BoundsEntry::bb)
+    ).apply(inst, BoundsEntry::new));
+
     // The SavedDataType id is a String on 1.21.11 and a ResourceLocation from 26.1; NAME follows.
+    // The fix type must not be null (vanilla calls it unchecked); command storage has no fixers
+    // that could touch our data, where LEVEL's would run level.dat fixes on it after an upgrade.
     public static final SavedDataType<DeferredPathState> TYPE = new SavedDataType<>(
         NAME,
         DeferredPathState::new,
         codec(),
-        DataFixTypes.LEVEL
+        DataFixTypes.SAVED_DATA_COMMAND_STORAGE
     );
 
     *///?}
+    /** Loads or creates the level's state. Server thread, when the level loads. */
+    public static void onLevelLoad(ServerLevel level) {
+        BY_LEVEL.put(level, loadOrCreate(level));
+    }
+
+    public static void clearLoaded() {
+        BY_LEVEL.clear();
+    }
+
     public static DeferredPathState get(ServerLevel level) {
+        DeferredPathState state = BY_LEVEL.get(level);
+        if(state != null) return state;
+        // A level another mod created without a load event.
+        synchronized(BY_LEVEL) {
+            return BY_LEVEL.computeIfAbsent(level, DeferredPathState::loadOrCreate);
+        }
+    }
+
+    private static DeferredPathState loadOrCreate(ServerLevel level) {
         //? if >=1.21.11 {
         /*return level.getDataStorage().computeIfAbsent(TYPE);
         *///?} else {
@@ -110,12 +145,40 @@ public class DeferredPathState extends SavedData {
     }
 
     public Map<Long, DeferredPathJob> snapshotPending() {
-        // Used at server-start to re-enqueue jobs. Snapshot so caller can iterate without
-        // worrying about concurrent removals when jobs complete.
         return new HashMap<>(pendingJobs);
     }
 
+    /** A live view: iteration sees jobs added or removed meanwhile, or not. */
+    public Collection<DeferredPathJob> pendingJobs() {
+        return pendingJobs.values();
+    }
+
+    public int pendingCount() { return pendingJobs.size(); }
+
+    public int boundsCount() { return bounds.size(); }
+
+    public int completedCount() { return completed.size(); }
+
+    public int placedChunkCount() {
+        int n = 0;
+        for(Set<Long> s : placedByPath.values()) n += s.size();
+        return n;
+    }
+
+    public boolean hasPending() {
+        return !pendingJobs.isEmpty();
+    }
+
+    public boolean isPending(long pathSeed) {
+        return pendingJobs.containsKey(pathSeed);
+    }
+
+    public boolean isCompleted(long pathSeed) {
+        return completed.contains(pathSeed);
+    }
+
     public boolean addPending(DeferredPathJob job) {
+        if(completed.contains(job.pathSeed())) return false;
         if(pendingJobs.putIfAbsent(job.pathSeed(), job) == null) {
             setDirty();
             return true;
@@ -123,8 +186,33 @@ public class DeferredPathState extends SavedData {
         return false;
     }
 
-    public void markCompleted(long pathSeed) {
-        if(pendingJobs.remove(pathSeed) != null) setDirty();
+    /** The chunk range {minX, maxX, minZ, maxZ} a computed path writes to, or null before it is computed. */
+    public int[] bounds(long pathSeed) {
+        return bounds.get(pathSeed);
+    }
+
+    public void setBounds(long pathSeed, int[] chunkBounds) {
+        int[] old = bounds.put(pathSeed, chunkBounds);
+        if(old == null || !java.util.Arrays.equals(old, chunkBounds)) setDirty();
+    }
+
+    /** The path is fully laid, or too short to lay: forget its chunks and never queue it again. */
+    public void complete(long pathSeed) {
+        completed.add(pathSeed);
+        forget(pathSeed);
+        setDirty();
+    }
+
+    /** The job can't run (its network or path type is gone, or it keeps failing). Worldgen may queue it again. */
+    public void retire(long pathSeed) {
+        forget(pathSeed);
+        setDirty();
+    }
+
+    private void forget(long pathSeed) {
+        pendingJobs.remove(pathSeed);
+        bounds.remove(pathSeed);
+        placedByPath.remove(pathSeed);
     }
 
     public boolean wasPlaced(long pathSeed, int chunkX, int chunkZ) {
@@ -140,10 +228,6 @@ public class DeferredPathState extends SavedData {
             return true;
         }
         return false;
-    }
-
-    public void forgetPlaced(long pathSeed) {
-        if(placedByPath.remove(pathSeed) != null) setDirty();
     }
 
     private static long packChunk(int x, int z) { return ((long) x << 32) | (z & 0xFFFFFFFFL); }
@@ -178,6 +262,20 @@ public class DeferredPathState extends SavedData {
             placed.add(p);
         }
         tag.put("placed", placed);
+
+        ListTag boundsList = new ListTag();
+        for(Map.Entry<Long, int[]> e : bounds.entrySet()) {
+            CompoundTag b = new CompoundTag();
+            b.putLong("seed", e.getKey());
+            b.putIntArray("bb", e.getValue());
+            boundsList.add(b);
+        }
+        tag.put("bounds", boundsList);
+
+        long[] done = new long[completed.size()];
+        int d = 0;
+        for(long seed : completed) done[d++] = seed;
+        tag.put("done", new LongArrayTag(done));
         return tag;
     }
 
@@ -211,6 +309,13 @@ public class DeferredPathState extends SavedData {
             for(long v : arr) s.add(v);
             state.placedByPath.put(seed, s);
         }
+        ListTag boundsList = tag.getList("bounds", Tag.TAG_COMPOUND);
+        for(int i = 0; i < boundsList.size(); i++) {
+            CompoundTag b = boundsList.getCompound(i);
+            int[] bb = b.getIntArray("bb");
+            if(bb.length == 4) state.bounds.put(b.getLong("seed"), bb);
+        }
+        for(long seed : tag.getLongArray("done")) state.completed.add(seed);
         return state;
     }
     //?} else {
@@ -226,8 +331,15 @@ public class DeferredPathState extends SavedData {
                     out.add(new PlacedEntry(e.getKey(), arr));
                 }
                 return out;
-            })
-        ).apply(inst, (pending, placed) -> {
+            }),
+            BOUNDS_CODEC.listOf().optionalFieldOf("bounds", List.of()).forGetter(s -> {
+                List<BoundsEntry> out = new ArrayList<>();
+                for(Map.Entry<Long, int[]> e : s.bounds.entrySet()) out.add(new BoundsEntry(e.getKey(), e.getValue()));
+                return out;
+            }),
+            Codec.LONG_STREAM.optionalFieldOf("done", java.util.stream.LongStream.empty())
+                .forGetter(s -> s.completed.stream().mapToLong(Long::longValue))
+        ).apply(inst, (pending, placed, boundsList, done) -> {
             DeferredPathState state = new DeferredPathState();
             for(DeferredPathJob job : pending) {
                 try {
@@ -241,6 +353,10 @@ public class DeferredPathState extends SavedData {
                 for(long v : pe.chunks()) s.add(v);
                 state.placedByPath.put(pe.seed(), s);
             }
+            for(BoundsEntry be : boundsList) {
+                if(be.bb().length == 4) state.bounds.put(be.seed(), be.bb());
+            }
+            done.forEach(state.completed::add);
             return state;
         }));
     }

@@ -7,6 +7,11 @@ import net.fabricmc.fabric.api.command.v2.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerChunkEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
+//? if <26.1.2 {
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
+//?} else {
+/*import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLevelEvents;
+*///?}
 //? if >=1.20.1 {
 import net.fabricmc.fabric.api.event.registry.DynamicRegistries;
 //?}
@@ -31,9 +36,24 @@ public class FabricPlatformHelper implements IPlatformHelper {
         *///?}
     }
 
+    // Fabric's SERVER_STARTING fires before any level is created.
     @Override
-    public void registerServerStartingListener(Consumer<MinecraftServer> listener) {
+    public void registerServerAboutToStartListener(Consumer<MinecraftServer> listener) {
         ServerLifecycleEvents.SERVER_STARTING.register(listener::accept);
+    }
+
+    @Override
+    public void registerServerStartedListener(Consumer<MinecraftServer> listener) {
+        ServerLifecycleEvents.SERVER_STARTED.register(listener::accept);
+    }
+
+    @Override
+    public void registerLevelLoadListener(Consumer<ServerLevel> listener) {
+        //? if <26.1.2 {
+        ServerWorldEvents.LOAD.register((server, level) -> listener.accept(level));
+        //?} else {
+        /*ServerLevelEvents.LOAD.register((server, level) -> listener.accept(level));
+        *///?}
     }
 
     @Override

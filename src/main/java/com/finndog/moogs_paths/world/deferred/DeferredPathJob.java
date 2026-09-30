@@ -13,10 +13,6 @@ import net.minecraft.resources.ResourceLocation;
  * up persisted jobs.
  */
 public record DeferredPathJob(long pathSeed, int originChunkX, int originChunkZ, int regionSize, ResourceLocation networkId) {
-    public long packedOriginChunk() {
-        return ((long) originChunkX << 32) | (originChunkZ & 0xFFFFFFFFL);
-    }
-
     /**
      * A path leading out of the structure at a structure chunk. Region sizes are always positive, so
      * the path's index around its structure is kept as {@code -index} in regionSize, which leaves the

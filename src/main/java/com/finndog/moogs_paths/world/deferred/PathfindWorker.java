@@ -7,28 +7,15 @@ import com.finndog.moogs_paths.data.PathNetworkType;
 import com.finndog.moogs_paths.data.PathType;
 import com.finndog.moogs_paths.world.PathChunkFeature;
 import com.finndog.moogs_paths.world.StructureAnchors;
-import net.minecraft.core.Holder;
-import net.minecraft.core.QuartPos;
-import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.RandomSource;
-import net.minecraft.world.level.biome.Biome;
-import net.minecraft.world.level.biome.BiomeSource;
-//? if >=26.3 {
-/*import net.minecraft.world.level.biome.BiomeResolver;
-*///?} else {
-import net.minecraft.world.level.biome.Climate;
-//?}
 import net.minecraft.world.level.chunk.ChunkGenerator;
-import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.RandomState;
 
-import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
@@ -38,28 +25,37 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Owns the {@link ExecutorService} that runs deferred A* off the main thread, plus the
  * "what's currently queued" bookkeeping.
  *
- * Lifecycle is tied to MC server lifetime: {@link #start} from server-starting,
+ * Lifecycle is tied to MC server lifetime: {@link #start} before the levels load,
  * {@link #stop} from server-stopping.
  *
  * Concurrency: jobs are submitted from the worldgen worker pool (during chunk-gen) and
- * from the server thread (chunk-load handler). The {@code inFlight} set dedups so the
+ * from the server thread (chunk-load handler). The {@code IN_FLIGHT} set dedups so the
  * same pathSeed doesn't run twice in parallel.
  */
 public final class PathfindWorker {
     private PathfindWorker() {}
 
+    // A job that throws this many times in one session is retired rather than retried on every chunk load.
+    private static final int MAX_FAILURES = 3;
+
     private static volatile ExecutorService executor;
-    // pathSeed -> Future, so we can tell what's currently running vs already cached.
-    private static final ConcurrentHashMap<Long, Future<?>> IN_FLIGHT = new ConcurrentHashMap<>();
+    private static final Set<Long> IN_FLIGHT = ConcurrentHashMap.newKeySet();
+    private static final ConcurrentHashMap<Long, Integer> FAILURES = new ConcurrentHashMap<>();
     private static volatile JobCompletionHook completionHook;
+    // Bumped on start and stop, so a job still running when its server stops can't report into the next one.
+    private static final AtomicInteger SESSION = new AtomicInteger();
 
     @FunctionalInterface
     public interface JobCompletionHook {
+        /** {@code path} is null when the job can't run and should be retired. */
         void onComplete(ServerLevel level, DeferredPathJob job, PathDataManager.CachedPath path);
     }
 
     public static void start(JobCompletionHook hook) {
         if(executor != null) return;
+        SESSION.incrementAndGet();
+        IN_FLIGHT.clear();
+        FAILURES.clear();
         completionHook = hook;
         int cores = Math.max(2, Math.max(2, Runtime.getRuntime().availableProcessors() / 4));
         AtomicInteger n = new AtomicInteger();
@@ -74,6 +70,8 @@ public final class PathfindWorker {
     }
 
     public static void stop() {
+        SESSION.incrementAndGet();
+        completionHook = null;
         ExecutorService ex = executor;
         executor = null;
         IN_FLIGHT.clear();
@@ -83,91 +81,72 @@ public final class PathfindWorker {
         }
     }
 
-    public static boolean isRunning() { return executor != null; }
+    public static int inFlightCount() { return IN_FLIGHT.size(); }
 
-    /** Submit a job to compute waypoints. No-op if already in flight or already cached. */
+    /** Submit a job to compute waypoints. No-op if already in flight; reports at once if already cached. */
     public static void submit(ServerLevel level, DeferredPathJob job) {
-        if(executor == null) return;
-        if(PathDataManager.peekCachedPath(job.pathSeed()) != null) {
-            // Already computed; treat as immediate completion.
-            PathDataManager.CachedPath cached = PathDataManager.peekCachedPath(job.pathSeed());
+        ExecutorService ex = executor;
+        if(ex == null) return;
+        PathDataManager.CachedPath cached = PathDataManager.peekCachedPath(job.pathSeed());
+        if(cached != null) {
             JobCompletionHook h = completionHook;
             if(h != null) h.onComplete(level, job, cached);
             return;
         }
-        if(IN_FLIGHT.containsKey(job.pathSeed())) return;
+        // Reserved before submitting: checking then adding let two threads both submit, and a job that
+        // finished before the add left a stale entry blocking its seed for the rest of the session.
+        if(!IN_FLIGHT.add(job.pathSeed())) return;
+        int session = SESSION.get();
         try {
-            Future<?> f = executor.submit(() -> runJob(level, job));
-            IN_FLIGHT.put(job.pathSeed(), f);
-        } catch(RejectedExecutionException ex) {
-            // shutting down; drop silently
-        }
-    }
-
-    private static void runJob(ServerLevel level, DeferredPathJob job) {
-        try {
-            PathDataManager.CachedPath path = computeWaypoints(level, job);
-            if(path == null) return;
-            JobCompletionHook h = completionHook;
-            if(h != null) h.onComplete(level, job, path);
-        } catch(Throwable t) {
-            Constants.LOG.error("PathfindWorker job failed for seed {}: {}", job.pathSeed(), t.toString(), t);
-        } finally {
+            ex.submit(() -> runJob(level, job, session));
+        } catch(RejectedExecutionException rejected) {
             IN_FLIGHT.remove(job.pathSeed());
         }
     }
 
+    private static void runJob(ServerLevel level, DeferredPathJob job, int session) {
+        PathDataManager.CachedPath path;
+        try {
+            path = computeWaypoints(level, job);
+        } catch(Throwable t) {
+            int failures = FAILURES.merge(job.pathSeed(), 1, Integer::sum);
+            if(failures == 1) Constants.LOG.error("PathfindWorker job failed for seed {}: {}", job.pathSeed(), t.toString(), t);
+            IN_FLIGHT.remove(job.pathSeed());
+            if(failures < MAX_FAILURES) return;
+            Constants.LOG.warn("Giving up on the path for seed {} after {} failures", job.pathSeed(), failures);
+            path = null;
+        }
+        IN_FLIGHT.remove(job.pathSeed());
+        JobCompletionHook h = completionHook;
+        if(h != null && session == SESSION.get()) h.onComplete(level, job, path);
+    }
+
     private static PathDataManager.CachedPath computeWaypoints(ServerLevel level, DeferredPathJob job) {
-        // Cheap re-derivation of the network/pathType from the live registry. Mirrors what
-        // PathChunkFeature.evaluateOrigin did during the feature pass. Done off-thread.
+        // The network and path type come from the live registry, so a datapack swap between sessions
+        // can't break a saved job. Done off-thread.
         ChunkGenerator generator = level.getChunkSource().getGenerator();
         RandomState randomState = level.getChunkSource().randomState();
-        BiomeSource biomeSource = generator.getBiomeSource();
-        // 26.3 dropped RandomState#sampler; biomes come from a resolver built off the biome source.
-        //? if >=26.3 {
-        /*BiomeResolver biomes = biomeSource.createUncachedResolver(randomState);
-        *///?} else {
-        Climate.Sampler sampler = randomState.sampler();
-        //?}
 
+        // Null retires the job: a network or path type removed by a datapack, or a network that changed kind.
         Optional<PathNetworkType> netOpt = MoogsPathsDatapackRegistries.getPathNetwork(level.registryAccess(), job.networkId());
         if(netOpt.isEmpty()) {
-            Constants.LOG.warn("Deferred job references missing network {}", job.networkId());
+            PathDataManager.warnMissingOnce("Path network for a queued path", job.networkId());
             return null;
         }
         PathNetworkType network = netOpt.get();
         Optional<PathType> ptOpt = MoogsPathsDatapackRegistries.getPathType(level.registryAccess(), network.pathType());
-        if(ptOpt.isEmpty()) return null;
-        PathType pathType = ptOpt.get();
-
-        // A datapack change can turn a queued job's network from one kind into the other. Caching an
-        // empty path retires such a job instead of leaving it pending.
-        if(job.isAnchored() != network.isStructureAnchored()) {
-            return PathDataManager.getOrComputeWaypoints(job.pathSeed(), List::of);
+        if(ptOpt.isEmpty()) {
+            PathDataManager.warnMissingOnce("Path type", network.pathType());
+            return null;
         }
+        PathType pathType = ptOpt.get();
+        if(job.isAnchored() != network.isStructureAnchored()) return null;
         if(job.isAnchored()) {
             return PathDataManager.getOrComputeWaypoints(job.pathSeed(), () -> StructureAnchors.computePath(
                 level, network, job.networkId(), pathType, job.originChunkX(), job.originChunkZ(), job.anchorPathIndex()));
         }
 
-        int originBlockX = job.originChunkX() * 16 + 8;
-        int originBlockZ = job.originChunkZ() * 16 + 8;
-
-        return PathDataManager.getOrComputeWaypoints(job.pathSeed(), () -> {
-            int originSurfaceY = generator.getBaseHeight(originBlockX, originBlockZ, Heightmap.Types.WORLD_SURFACE_WG, level, randomState);
-            BlockPos originPos = new BlockPos(originBlockX, originSurfaceY, originBlockZ);
-            int biomeQuartY = QuartPos.fromBlock(64);
-            RandomSource walkRandom = RandomSource.create(job.pathSeed() ^ 0x1L); // WALK_MIXER
-            return com.finndog.moogs_paths.world.PathFinder.findPath(originPos, pathType, walkRandom,
-                (x, z) -> generator.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, level, randomState),
-                (gx, gz) -> {
-                    //? if >=26.3 {
-                    /*Holder<Biome> b = biomes.getNoiseBiome(QuartPos.fromBlock(gx), biomeQuartY, QuartPos.fromBlock(gz));
-                    *///?} else {
-                    Holder<Biome> b = biomeSource.getNoiseBiome(QuartPos.fromBlock(gx), biomeQuartY, QuartPos.fromBlock(gz), sampler);
-                    //?}
-                    return network.biomes().contains(b) && !b.is(PathChunkFeature.HAS_NO_PATHS);
-                });
-        });
+        return PathDataManager.getOrComputeWaypoints(job.pathSeed(), () -> PathChunkFeature.findRegionPath(
+            level, generator, randomState, job.originChunkX(), job.originChunkZ(), job.pathSeed(), network, pathType));
     }
 }

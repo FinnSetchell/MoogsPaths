@@ -34,40 +34,36 @@ public final class StructurePlacer {
     // overlapping path networks from doubling up on the same waypoint.
     private static final int MIN_STRUCTURE_SPACING_SQ = 5 * 5;
 
-    public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<ResourceLocation> structureSetIds, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet placedPositions) {
-        placeInChunk(level, waypoints, structureSetIds, biomes, chunkX, chunkZ, random, placedPositions, new LongOpenHashSet(), 3);
-    }
-
     // settle collects the blocks each structure now stands on (see PathRasteriser.settleDirtPaths).
-    public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<ResourceLocation> structureSetIds, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet placedPositions, LongOpenHashSet settle, int flags) {
+    public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<ResourceLocation> structureSetIds, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet placedPositions, PlacementGuard guard, LongOpenHashSet settle, int flags) {
         for(ResourceLocation id : structureSetIds) {
             Optional<StructureSet> set = MoogsPathsDatapackRegistries.getStructureSet(level.registryAccess(), id);
             if(set.isEmpty()) {
                 PathDataManager.warnMissingOnce("Structure set", id);
                 continue;
             }
-            placeSet(level, waypoints, set.get(), biomes, chunkX, chunkZ, random, placedPositions, settle, flags);
+            placeSet(level, waypoints, set.get(), biomes, chunkX, chunkZ, random, placedPositions, guard, settle, flags);
         }
     }
 
     //////////////////////////////
 
-    private static void placeSet(WorldGenLevel level, List<BlockPos> waypoints, StructureSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet placedPositions, LongOpenHashSet settle, int flags) {
+    private static void placeSet(WorldGenLevel level, List<BlockPos> waypoints, StructureSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet placedPositions, PlacementGuard guard, LongOpenHashSet settle, int flags) {
         if(waypoints.isEmpty()) return;
 
         switch(set.placement()) {
             case ENDPOINT -> {
-                tryPlace(level, sideOffsetWaypoint(waypoints, 0, set.sideOffset(), random), set, biomes, chunkX, chunkZ, random, placedPositions, settle, flags);
+                tryPlace(level, sideOffsetWaypoint(waypoints, 0, set.sideOffset(), random), set, biomes, chunkX, chunkZ, random, placedPositions, guard, settle, flags);
                 if(waypoints.size() > 1) {
                     int last = waypoints.size() - 1;
-                    tryPlace(level, sideOffsetWaypoint(waypoints, last, set.sideOffset(), random), set, biomes, chunkX, chunkZ, random, placedPositions, settle, flags);
+                    tryPlace(level, sideOffsetWaypoint(waypoints, last, set.sideOffset(), random), set, biomes, chunkX, chunkZ, random, placedPositions, guard, settle, flags);
                 }
             }
-            case INTERVAL -> placeInterval(level, waypoints, set, biomes, chunkX, chunkZ, random, placedPositions, settle, flags);
+            case INTERVAL -> placeInterval(level, waypoints, set, biomes, chunkX, chunkZ, random, placedPositions, guard, settle, flags);
         }
     }
 
-    private static void placeInterval(WorldGenLevel level, List<BlockPos> waypoints, StructureSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet placedPositions, LongOpenHashSet settle, int flags) {
+    private static void placeInterval(WorldGenLevel level, List<BlockPos> waypoints, StructureSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet placedPositions, PlacementGuard guard, LongOpenHashSet settle, int flags) {
         // Waypoints are block-dense after the pathfinder + chaikin pass, so step distance is
         // approximately 1 block. Measure spacing in blocks directly by counting waypoints.
         int distanceSinceLast = 0;
@@ -76,7 +72,7 @@ public final class StructurePlacer {
         for(int i = 0; i < waypoints.size(); i++) {
             distanceSinceLast++;
             if(distanceSinceLast >= nextThreshold) {
-                tryPlace(level, sideOffsetWaypoint(waypoints, i, set.sideOffset(), random), set, biomes, chunkX, chunkZ, random, placedPositions, settle, flags);
+                tryPlace(level, sideOffsetWaypoint(waypoints, i, set.sideOffset(), random), set, biomes, chunkX, chunkZ, random, placedPositions, guard, settle, flags);
                 distanceSinceLast = 0;
                 nextThreshold = nextSpacing(set, random);
             }
@@ -99,7 +95,7 @@ public final class StructurePlacer {
         return waypoints.get(index).offset(perpX, 0, perpZ);
     }
 
-    private static void tryPlace(WorldGenLevel level, BlockPos waypoint, StructureSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet placedPositions, LongOpenHashSet settle, int flags) {
+    private static void tryPlace(WorldGenLevel level, BlockPos waypoint, StructureSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet placedPositions, PlacementGuard guard, LongOpenHashSet settle, int flags) {
         StructureSet.StructureEntry entry = pickWeighted(set.structures(), random);
 
         // placement_chance gates the slot rather than rerolling, so a rare entry winning
@@ -137,6 +133,7 @@ public final class StructurePlacer {
         if(!isFlatEnough(level, pos, set.flatnessTolerance())) return;
 
         if(footprintOverWater(level, template, pos, entry.offset(), rotation)) return;
+        if(footprintBlocked(level, template, pos, entry.offset(), rotation, guard)) return;
 
         if(set.terrainAdjustment() == StructureSet.TerrainAdjustmentSetting.BEARD_THIN) {
             applyBeardThin(level, template, pos, entry.offset(), rotation, random, settle, flags);
@@ -200,6 +197,12 @@ public final class StructurePlacer {
                 int wz = fillMinZ + dz;
                 int edgeDist = Math.min(Math.min(dx, fillSizeX - 1 - dx), Math.min(dz, fillSizeZ - 1 - dz));
                 int naturalY = level.getHeight(Heightmap.Types.MOTION_BLOCKING_NO_LEAVES, wx, wz) - 1;
+                // An unloaded chunk reports the world floor; filling from there would build a column up from bedrock.
+                //? if <1.21.11 {
+                if(naturalY < level.getMinBuildHeight()) continue;
+                //?} else {
+                /*if(naturalY < level.getMinY()) continue;
+                *///?}
 
                 if(naturalY < baseY) {
                     //? if <1.21.11 {
@@ -229,6 +232,28 @@ public final class StructurePlacer {
                 }
             }
         }
+    }
+
+    // A structure piece or a protected block (see PlacementGuard) anywhere in the footprint.
+    private static boolean footprintBlocked(WorldGenLevel level, StructureTemplate template, BlockPos pos, Vec3i offset, Rotation rotation, PlacementGuard guard) {
+        Vec3i rawSize = template.getSize();
+        boolean rotated90 = rotation == Rotation.CLOCKWISE_90 || rotation == Rotation.COUNTERCLOCKWISE_90;
+        int sizeX = rotated90 ? rawSize.getZ() : rawSize.getX();
+        int sizeZ = rotated90 ? rawSize.getX() : rawSize.getZ();
+        int minX = pos.getX() - sizeX / 2 + offset.getX();
+        int minZ = pos.getZ() - sizeZ / 2 + offset.getZ();
+        int minY = pos.getY() + offset.getY();
+        int maxY = minY + rawSize.getY();
+        BlockPos.MutableBlockPos mpos = new BlockPos.MutableBlockPos();
+        for(int x = minX; x < minX + sizeX; x++) {
+            for(int z = minZ; z < minZ + sizeZ; z++) {
+                if(guard.insidePiece(x, minY - 1, maxY, z)) return true;
+                for(int y = minY; y <= maxY; y++) {
+                    if(PlacementGuard.isProtected(level.getBlockState(mpos.set(x, y, z)))) return true;
+                }
+            }
+        }
+        return false;
     }
 
     private static boolean isColumnOverWater(WorldGenLevel level, int x, int z, BlockPos.MutableBlockPos mpos) {

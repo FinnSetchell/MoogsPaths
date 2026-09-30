@@ -17,6 +17,8 @@ import net.minecraft.world.level.block.LeavesBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.Heightmap;
 
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -47,22 +49,19 @@ public final class BushPlacer {
 
     //////////////////////////////
 
-    public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<ResourceLocation> bushSetIds, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random) {
-        placeInChunk(level, waypoints, bushSetIds, biomes, chunkX, chunkZ, random, Block.UPDATE_CLIENTS);
-    }
-
-    public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<ResourceLocation> bushSetIds, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, int flags) {
+    // pathColumns holds the columns (x << 32 | z) the path was just laid on; bushes keep off them.
+    public static void placeInChunk(WorldGenLevel level, List<BlockPos> waypoints, List<ResourceLocation> bushSetIds, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, PlacementGuard guard, LongOpenHashSet pathColumns, int flags) {
         for(ResourceLocation id : bushSetIds) {
             var set = MoogsPathsDatapackRegistries.getBushDecoratorSet(level.registryAccess(), id);
             if(set.isEmpty()) {
                 PathDataManager.warnMissingOnce("Bush decorator set", id);
                 continue;
             }
-            placeSet(level, waypoints, set.get(), biomes, chunkX, chunkZ, random, flags);
+            placeSet(level, waypoints, set.get(), biomes, chunkX, chunkZ, random, guard, pathColumns, flags);
         }
     }
 
-    private static void placeSet(WorldGenLevel level, List<BlockPos> waypoints, BushDecoratorSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, int flags) {
+    private static void placeSet(WorldGenLevel level, List<BlockPos> waypoints, BushDecoratorSet set, HolderSet<Biome> biomes, int chunkX, int chunkZ, RandomSource random, PlacementGuard guard, LongOpenHashSet pathColumns, int flags) {
         if(set.blocks().isEmpty()) return;
 
         int totalWeight = set.blocks().stream().mapToInt(BushDecoratorSet.WeightedBlock::weight).sum();
@@ -107,7 +106,7 @@ public final class BushPlacer {
                     var biome = level.getBiome(new BlockPos(cx, centerY, cz));
                     if(!biomes.contains(biome) || biome.is(PathChunkFeature.HAS_NO_PATHS)) return;
                     BlockState block = pick(set.blocks(), totalWeight, segRandom);
-                    placeBush(level, cx, cz, size, parX, parZ, block, chunkX, chunkZ, segRandom, set.minHeight(), set.maxHeight(), chunkHeights, flags);
+                    placeBush(level, cx, cz, size, parX, parZ, block, chunkX, chunkZ, segRandom, set.minHeight(), set.maxHeight(), chunkHeights, guard, pathColumns, flags);
                 }
             });
     }
@@ -124,7 +123,7 @@ public final class BushPlacer {
         return heights;
     }
 
-    private static void placeBush(WorldGenLevel level, int cx, int cz, int size, float parX, float parZ, BlockState block, int chunkX, int chunkZ, RandomSource random, int minHeight, int maxHeight, int[] chunkHeights, int flags) {
+    private static void placeBush(WorldGenLevel level, int cx, int cz, int size, float parX, float parZ, BlockState block, int chunkX, int chunkZ, RandomSource random, int minHeight, int maxHeight, int[] chunkHeights, PlacementGuard guard, LongOpenHashSet pathColumns, int flags) {
         float perpX = -parZ;
         float perpZ = parX;
         float longR = size;
@@ -156,6 +155,9 @@ public final class BushPlacer {
 
                 int heightRange = maxHeight - minHeight;
                 int height = minHeight + (heightRange > 0 ? random.nextInt(heightRange + 1) : 0);
+                // After the random draws, so skipping a column leaves the rest of the bush as it was.
+                if(pathColumns.contains(((long) px << 32) | (pz & 0xFFFFFFFFL))) continue;
+                if(guard.insidePiece(px, sy - 1, sy + height, pz)) continue;
 
                 for(int dy = 0; dy < height; dy++) {
                     mpos.set(px, sy + dy, pz);

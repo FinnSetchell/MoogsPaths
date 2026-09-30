@@ -8,6 +8,9 @@ import com.finndog.moogs_paths.data.PathNetworkType;
 import com.finndog.moogs_paths.data.StructureOrigin;
 import com.finndog.moogs_paths.world.PathRegionSelector;
 import com.finndog.moogs_paths.world.StructureAnchors;
+import com.finndog.moogs_paths.world.deferred.DeferredPathState;
+import com.finndog.moogs_paths.world.deferred.PathfindWorker;
+import com.finndog.moogs_paths.world.deferred.PlacementTickPump;
 import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
@@ -46,6 +49,7 @@ public final class PathsDebugCommand {
                     .then(literal("anchors").executes(ctx -> debugAnchors(ctx.getSource())))
                     .then(literal("structures").executes(ctx -> debugStructures(ctx.getSource())))
                     .then(literal("reload").executes(ctx -> debugReload(ctx.getSource())))
+                    .then(literal("jobs").executes(ctx -> debugJobs(ctx.getSource())))
                 )
                 .then(literal("locate")
                     .executes(ctx -> locatePath(ctx.getSource(), null))
@@ -94,14 +98,15 @@ public final class PathsDebugCommand {
 
         LocatedPath best = found.get();
         MutableComponent msg = Component.literal("[paths] Nearest " + best.network() + " at ")
-            .append(teleportLink(best.landing()))
+            .append(teleportLink(best.landing(), true))
             .append(Component.literal(" (~" + best.distance() + " blocks)"));
         src.sendSuccess(() -> msg, false);
         return 1;
     }
 
-    private static MutableComponent teleportLink(BlockPos pos) {
-        String tp = "/tp @s " + pos.getX() + " ~ " + pos.getZ();
+    // atY: the position's Y is where to stand (a path's planned height), rather than a placeholder.
+    private static MutableComponent teleportLink(BlockPos pos, boolean atY) {
+        String tp = "/tp @s " + pos.getX() + " " + (atY ? String.valueOf(pos.getY()) : "~") + " " + pos.getZ();
         return Component.literal("[" + pos.getX() + ", ~, " + pos.getZ() + "]")
             .withStyle(style -> style
                 .withColor(ChatFormatting.GREEN)
@@ -192,12 +197,23 @@ public final class PathsDebugCommand {
                         : s.structure() + " (not " + origin.structure().orElseThrow() + ")")
                     .orElse("no structure generates here");
                 MutableComponent line = Component.literal("    - ")
-                    .append(teleportLink(at))
+                    .append(teleportLink(at, false))
                     .append(Component.literal(" " + what)
                         .withStyle(paths > 0 ? ChatFormatting.GRAY : ChatFormatting.DARK_GRAY));
                 src.sendSuccess(() -> line, false);
             }
         }
+        return 1;
+    }
+
+    // Deferred path jobs in this level: how many wait, how far along, and what is cached.
+    private static int debugJobs(CommandSourceStack src) {
+        DeferredPathState state = DeferredPathState.get(src.getLevel());
+        src.sendSuccess(() -> Component.literal("[paths] Jobs: " + state.pendingCount() + " pending (" + state.boundsCount() + " computed before), "
+            + state.placedChunkCount() + " chunks placed for them, " + state.completedCount() + " completed"), false);
+        src.sendSuccess(() -> Component.literal("  " + PlacementTickPump.landedPathCount() + " paths landed this session, "
+            + PlacementTickPump.queuedPlacementCount(src.getLevel()) + " placements queued, "
+            + PathfindWorker.inFlightCount() + " computing, " + PathDataManager.cachedPathCount() + " paths cached"), false);
         return 1;
     }
 
@@ -221,7 +237,7 @@ public final class PathsDebugCommand {
             .thenRun(() -> {
                 PathDataManager.clearCaches();
                 MoogsPathsDatapackRegistries.invalidateDerivedViews();
-                src.sendSuccess(() -> Component.literal("[paths] Reload complete (note: path_type/path_network/structure_set/feature_decorator_set/bush_decorator_set are datapack registries and require a world restart on 1.20.1)"), false);
+                src.sendSuccess(() -> Component.literal("[paths] Reload complete (note: path_type/path_network/structure_set/feature_decorator_set/bush_decorator_set are datapack registries and require a world restart)"), false);
             });
         return 1;
     }

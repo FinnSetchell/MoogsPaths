@@ -13,7 +13,9 @@ import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.RegisterCommandsEvent;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.level.ChunkEvent;
-import net.minecraftforge.event.server.ServerStartingEvent;
+import net.minecraftforge.event.level.LevelEvent;
+import net.minecraftforge.event.server.ServerAboutToStartEvent;
+import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.registries.DataPackRegistryEvent;
@@ -50,8 +52,20 @@ public class ForgePlatformHelper implements IPlatformHelper {
     }
 
     @Override
-    public void registerServerStartingListener(Consumer<MinecraftServer> listener) {
-        MinecraftForge.EVENT_BUS.addListener((ServerStartingEvent event) -> listener.accept(event.getServer()));
+    public void registerServerAboutToStartListener(Consumer<MinecraftServer> listener) {
+        MinecraftForge.EVENT_BUS.addListener((ServerAboutToStartEvent event) -> listener.accept(event.getServer()));
+    }
+
+    @Override
+    public void registerServerStartedListener(Consumer<MinecraftServer> listener) {
+        MinecraftForge.EVENT_BUS.addListener((ServerStartedEvent event) -> listener.accept(event.getServer()));
+    }
+
+    @Override
+    public void registerLevelLoadListener(Consumer<ServerLevel> listener) {
+        MinecraftForge.EVENT_BUS.addListener((LevelEvent.Load event) -> {
+            if(event.getLevel() instanceof ServerLevel level) listener.accept(level);
+        });
     }
 
     @Override

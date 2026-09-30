@@ -13,7 +13,9 @@ import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.level.ChunkEvent;
-import net.neoforged.neoforge.event.server.ServerStartingEvent;
+import net.neoforged.neoforge.event.level.LevelEvent;
+import net.neoforged.neoforge.event.server.ServerAboutToStartEvent;
+import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
 // NeoForge 26.3.0.31 replaced DataPackRegistryEvent.NewRegistry with NewDatapackRegistryEvent.
@@ -68,8 +70,20 @@ public class NeoForgePlatformHelper implements IPlatformHelper {
     }
 
     @Override
-    public void registerServerStartingListener(Consumer<MinecraftServer> listener) {
-        NeoForge.EVENT_BUS.addListener((ServerStartingEvent event) -> listener.accept(event.getServer()));
+    public void registerServerAboutToStartListener(Consumer<MinecraftServer> listener) {
+        NeoForge.EVENT_BUS.addListener((ServerAboutToStartEvent event) -> listener.accept(event.getServer()));
+    }
+
+    @Override
+    public void registerServerStartedListener(Consumer<MinecraftServer> listener) {
+        NeoForge.EVENT_BUS.addListener((ServerStartedEvent event) -> listener.accept(event.getServer()));
+    }
+
+    @Override
+    public void registerLevelLoadListener(Consumer<ServerLevel> listener) {
+        NeoForge.EVENT_BUS.addListener((LevelEvent.Load event) -> {
+            if(event.getLevel() instanceof ServerLevel level) listener.accept(level);
+        });
     }
 
     @Override
