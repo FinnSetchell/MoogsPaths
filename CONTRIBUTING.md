@@ -38,9 +38,31 @@ The first builds one node, the second every node. Jars land in `build/libs/<mod 
   it takes in `mod.overlays`.
 - `buildSrc/src/main/kotlin/legacy-data.gradle.kts` - rewrites the datapack into its pre-1.21 shape for
   the 1.20 nodes (`structures/` folder, boxed int providers), so the data only exists once.
+- `src/upgraded-structures/<version>` - the structure templates re-saved for each version from 1.21 on
+  (see below). Generated; never edit them by hand.
 - `stonecutter.properties.toml` - per-node versions, ranges, pack formats and the switches above.
 - `build.<loader>.gradle.kts` - one build script per loader; `build.forge-legacy.gradle.kts` builds
   Forge before 1.20.5.
+
+## Structure templates
+
+The `.nbt` templates in `src/main/resources/data/moogs_paths/structure` are the only ones to edit. They
+are saved at 1.20.1's data version, so 1.20 and 1.20.1 ship them as they are.
+
+Newer versions would pass each template through Minecraft's data fixer when it first loads, and the
+data fixer keeps what it builds for that in memory for the rest of the session (about 20 MB on 1.21.1
+and 70 MB on 26.3). So every node from 1.21 on ships copies already saved at its own data version, from
+`src/upgraded-structures/<version>`. They are made by running each version's own data fixer over the
+source templates, the same step the game would take when loading them:
+
+```bash
+./gradlew upgradeStructures
+```
+
+This runs on the Fabric node of each version from 1.21.1 up (`./gradlew :26.3-fabric:upgradeStructures`
+does one version). Commit the results with the template change. `sources.sha256` beside the copies
+records which source templates they were made from, and the build fails if a source template has
+changed since, or when a new version has no copies yet.
 
 ## Version-specific code
 

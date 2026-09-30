@@ -81,6 +81,7 @@ tasks {
             exclude("$modId.fabric.mixins.json")
         }
         applyNodeResources(project, prop("mod.overlays"), prop("mod.resource_excludes"))
+        applyUpgradedStructures(project, mcBuild, prop("mod.legacy_data").toBoolean())
     }
 
     jar {
@@ -103,6 +104,34 @@ tasks {
         description = "Builds the mod jar and copies it to build/libs/{mod version}/"
         from(loomx.modJar.flatMap { it.archiveFile })
         into(rootProject.layout.buildDirectory.dir("libs/$version"))
+    }
+}
+
+// Re-saves the structure templates at this node's data version with this node's Minecraft, into
+// src/upgraded-structures/<version>, which every loader's jar for the version ships (see UpgradedStructures.kt).
+// Only the Fabric nodes run it: the data version depends on the Minecraft version, not the loader.
+if (!prop("mod.legacy_data").toBoolean()) {
+    // Minecraft and its libraries, without the mod itself (whose resources hold the templates this makes).
+    val structureTools = sourceSets.create("structureTools") {
+        java.srcDir(rootProject.file("src/tools/java"))
+        compileClasspath += configurations.compileClasspath.get()
+        runtimeClasspath += output + configurations.runtimeClasspath.get()
+    }
+    tasks.register<JavaExec>("upgradeStructures") {
+        group = "moogs"
+        description = "Re-saves the structure templates at Minecraft $mcBuild's data version into src/upgraded-structures/$mcBuild"
+        val source = rootProject.file(STRUCTURE_SOURCE)
+        val target = upgradedStructuresDir(mcBuild)
+        classpath = structureTools.runtimeClasspath
+        mainClass = "com.finndog.moogs_paths.tools.StructureUpgrader"
+        args(source.absolutePath, target.absolutePath)
+        maxHeapSize = "1G"
+        workingDir = layout.buildDirectory.dir("upgradeStructures").get().asFile
+        doFirst {
+            target.deleteRecursively()
+            workingDir.mkdirs()
+        }
+        doLast { writeStructureManifest(source, target) }
     }
 }
 

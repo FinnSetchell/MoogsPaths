@@ -62,6 +62,7 @@ tasks {
         props.forEach { (k, v) -> inputs.property(k, v) }
         filesMatching(listOf("META-INF/neoforge.mods.toml", "pack.mcmeta", "assets/*/lang/en_us.json")) { expand(props) }
         applyNodeResources(project, prop("mod.overlays"), prop("mod.resource_excludes"))
+        applyUpgradedStructures(project, mcBuild, prop("mod.legacy_data").toBoolean())
     }
 
     jar {
