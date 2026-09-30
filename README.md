@@ -16,6 +16,8 @@ This mod works on:
 *   **NeoForge** - Minecraft 1.21-1.21.1, 1.21.11 and 26.1-26.3
 *   **Forge** - Minecraft 1.20, 1.20.1 and 1.21-1.21.1
 
+It only needs to be installed on the server. Players can join without it.
+
 ![overview](https://pub-24a4e0e7ea8544a5b6f73c3a23512589.r2.dev/images/46b98148bc4b4e24b53d6b0d780a7c4a.png)
 
 Moog's Paths generates a network of paths, trails and roads across the overworld. Each biome gets its own style of path built from blocks that belong there, lined with decorations that fit the landscape. Paths carve through hills, follow terrain, bridge over water, and fade naturally into the ground at their endpoints.
@@ -24,7 +26,7 @@ Everything is defined in JSON. No new items, no crafting recipes. The mod ships 
 
 ![paths](https://pub-24a4e0e7ea8544a5b6f73c3a23512589.r2.dev/images/a3ebaaa8a9f74f1684efcfc8a8b118d4.png)
 
-**15 path networks** across every major overworld biome:
+**22 path networks**. Fifteen run across every major overworld biome, including the matching biomes of biome mods like Terralith, Biomes O' Plenty and Regions Unexplored:
 
 *   **Plains Trail** - dirt path through plains and meadows with grass and wildflower scatter, oak and azalea bush clusters alongside
 *   **Dirt Road** - wide coarse dirt, podzol and rooted dirt road through taiga and dark forest with cairns along the route
@@ -32,7 +34,7 @@ Everything is defined in JSON. No new items, no crafting recipes. The mod ships 
 *   **Brick Road** - bricks and polished granite across the general overworld with brick lanterns and oak signposts at intervals
 *   **Mountain Road** - cobblestone, andesite and stone brick path through all mountain biomes with andesite lamps
 *   **Desert Highway** - wide smooth and cut sandstone road across deserts with lamps and birch posts, dead bushes scattered alongside
-*   **Jungle Path** - mossy stone bricks winding under the canopy with branch shrines and leaf overgrowth
+*   **Jungle Path** - mossy stone bricks and cobblestone winding under the canopy, with patchy moss edges and branch shrines
 *   **Badlands Canyon Trail** - red sand and terracotta through mesas and eroded badlands with weathered markers
 *   **Snowy Trail** - packed snow, ice and gravel through snowy biomes with cairns and spruce bush clusters
 *   **Swamp Path** - mud bricks and packed mud through swamps and mangrove swamps, switching to oak and spruce planks over water, with wooden posts and swamp grass
@@ -41,6 +43,12 @@ Everything is defined in JSON. No new items, no crafting recipes. The mod ships 
 *   **Savanna Path** - dirt trail through savanna biomes with wooden posts
 *   **Windswept Trail** - rugged gravel and cobblestone across exposed windswept terrain with andesite lamps
 *   **Wildlands Trail** - a rare fallback dirt trail with andesite lamps that can appear in any overworld biome
+
+Seven more lead out of structures, so villages, witch huts and jungle temples have roads to them:
+
+*   **Village Roads** - two roads out of every village in the style of its biome: a dirt trail with oak posts from plains villages, a sandstone highway with lamps from desert villages, a dirt trail with wooden posts from savanna villages, a snowy trail with cairns from snowy villages, and a dirt road with cairns from taiga villages
+*   **Witch Hut Trail** - a swamp path with wooden posts out of every witch hut
+*   **Jungle Temple Road** - a mossy jungle path with branch shrines out of every jungle temple
 
 Each path is decorated with a combination of:
 
@@ -68,7 +76,7 @@ Moog's Paths is built around five custom datapack registries:
 *   **feature_decorator_set** - vanilla configured features scattered alongside paths
 *   **bush_decorator_set** - leaf-blob bushes generated beside paths
 
-Add your own paths by dropping JSON files into `data/<namespace>/moogs_paths/`. Override built-in paths by using the `moogs_paths` namespace. Block biomes from generating paths with the `moogs_paths:has_no_paths` biome tag.
+Add your own paths by dropping JSON files into `data/<namespace>/moogs_paths/`. Override built-in paths by using the `moogs_paths` namespace. Block biomes from generating paths with the `moogs_paths:has_no_paths` biome tag, or add biomes to a built-in path through its `moogs_paths:has_path/<network>` tag.
 
 Full datapack documentation: [DATAPACK_GUIDE.md](DATAPACK_GUIDE.md)
 

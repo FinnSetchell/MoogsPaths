@@ -2,6 +2,8 @@
 
 Paths are defined entirely in datapack JSON, so creating new ones (or replacing the built-in set) does not require any Java code.
 
+Moog's Paths runs only on the server. Players joining a server that has it do not need it installed, and in singleplayer it runs in the game's built-in server. A datapack for it goes in the world's `datapacks` folder like any other.
+
 ## Concepts
 
 A generated path is built from several layered configs. Understanding which file does what makes the rest of this guide easier.
@@ -16,11 +18,20 @@ A network references the path_type and the decorator sets by id, so the same pat
 
 The `moogs_paths:has_no_paths` biome tag is a hard blocklist. Any biome in this tag never generates paths, regardless of network bindings.
 
-Every numeric field has codec-level bounds checking. Weights must be `>= 1`,
+Every numeric field is bounds-checked when the datapack loads. Weights must be `>= 1`,
 densities must be in `[0, 1]`, `width.min <= width.max`, `region_size >= 1`,
-and so on. Invalid values fail at server start with a clear DataResult error
-naming the bad field and the configured value, so misconfigured datapacks
-never silently produce broken paths.
+and so on. A value out of range, or a missing required field, stops the world from
+loading, with an error in the log naming the file and what is wrong with it.
+
+Ids that point at something else are only looked up while paths generate, so a mistyped
+one does not stop the world loading. Check the log for a `not found` warning:
+
+- an unknown block in a path (`surface_blocks`, `edge_blocks`, `fill_block`, water blocks) is placed as dirt, and an unknown bush block as oak leaves, with a warning logged once;
+- an unknown configured feature, structure template (`nbt`), `structure_set` or `bush_decorator_set` is skipped, with a warning logged once;
+- an unknown `feature_decorator_set` is skipped without a warning;
+- a network whose `path_type` does not exist generates nothing.
+
+`/paths debug structures` lists every structure template the mod has tried to load and whether it was found.
 
 ## Tutorial: adding a new path
 
@@ -42,18 +53,23 @@ All files live under `data/<your_namespace>/moogs_paths/`. For this tutorial ass
     { "block": "minecraft:gravel", "weight": 1 }
   ],
   "fill_block": "minecraft:dirt",
-  "width": { "min": 2, "max": 3 },
+  "width": { "min": 1, "max": 3 },
   "rigidness": 0.6,
   "carver": 0.7,
   "length": {
     "type": "minecraft:uniform",
-    "value": { "min_inclusive": 200, "max_inclusive": 500 }
+    "min_inclusive": 200,
+    "max_inclusive": 500
   },
   "fade": { "start_blocks": 8, "end_blocks": 8 }
 }
 ```
 
-This produces a 2-3 wide cobblestone path with gravel along the edges and a dirt foundation underneath.
+This produces a 3 wide cobblestone path, narrowing to 1 at its ends, with gravel along the edges and a dirt foundation underneath.
+
+On Minecraft 1.20 and 1.20.1 a `uniform` length keeps its bounds in a `value` object instead:
+`"length": { "type": "minecraft:uniform", "value": { "min_inclusive": 200, "max_inclusive": 500 } }`.
+Each form only loads on its own versions.
 
 ### 2. (Optional) Define a structure_set
 
@@ -71,7 +87,7 @@ This produces a 2-3 wide cobblestone path with gravel along the edges and a dirt
 }
 ```
 
-You will also need to put `stone_signpost.nbt` at `data/mypack/structures/stone_signpost.nbt`.
+You will also need to put `stone_signpost.nbt` at `data/mypack/structure/stone_signpost.nbt` (`data/mypack/structures/stone_signpost.nbt` on 1.20 and 1.20.1).
 
 ### 3. Define the path_network
 
@@ -107,9 +123,9 @@ The visual and structural definition of a path.
 | `surface_blocks` | weighted block list | The top layer of the path. One entry is rolled per tile. |
 | `edge_blocks` | weighted block list (optional, default `[]`) | Used for the outermost ring of tiles when defined. If empty, surface_blocks is used everywhere. |
 | `fill_block` | block id | Block placed beneath the surface to fill any gaps below the path tile (so paths sit cleanly on uneven terrain). |
-| `width` | `{ "min": int, "max": int }` | Total path width in blocks. The rasteriser tapers the width along the fade region from `min` near the endpoints to `max` along the middle of the path. Set `min == max` for a constant-width path. Both clamped to `[0, 32]` and `min <= max` is enforced at load. |
-| `rigidness` | float `0.0`-`1.0` | How strictly the path holds its target Y. Higher values make straighter, flatter paths that cut/fill terrain more aggressively. |
-| `carver` | float `0.0`-`1.0` | How willing the path is to dig through obstacles vs route around them. Higher values cut through hills; lower values snake around them. |
+| `width` | `{ "min": int, "max": int }` | Path width in blocks. The width tapers along the fade region from `min` near the endpoints to `max` along the middle of the path. Set `min == max` for a constant-width path. Both must be in `[0, 32]`, with `min <= max`. See the note on widths below. |
+| `rigidness` | float `0.0`-`1.0` | How little the route cares about slopes. The pathfinder charges extra for every step that climbs or drops, growing with the square of the height change and scaled by `1 - rigidness`. Low values make the path wind around hills and along valleys; `1.0` ignores slopes and heads straight for its goal over whatever is in the way. |
+| `carver` | float `0.0`-`1.0` | How level the path is kept once the route is chosen. It limits how much the height may change from one point of the path to the next: `0.0` follows the ground (up to 64 blocks per step), `1.0` allows 1 block per step. It never changes where the path goes; that is `rigidness`. |
 | `length` | IntProvider | Total path length in blocks. Use vanilla IntProvider syntax (`uniform`, `constant`, etc). Bounded `[1, 100000]`. |
 | `fade` | `{ "start_blocks": int, "end_blocks": int }` | Number of blocks at the start/end of the path where placement probability ramps from 0 to full. `0` disables fade on that end. |
 | `water_settings` | object (optional) | If present, paths will bridge water instead of skipping it. See below. |
@@ -137,10 +153,15 @@ The visual and structural definition of a path.
 
 Identical schema to the top-level surface/edge blocks but only used over water tiles. `edge_blocks` here is optional too.
 
+#### Widths
+
+Each tile of a path is a small diamond around the centre line, so a path is `2 * floor(width / 2) + 1` blocks across: `0` and `1` both give 1 block, `2` and `3` give 3, `4` and `5` give 5. Only odd widths change anything, and a taper moves in those steps too, so `{ "min": 2, "max": 3 }` stays 3 wide from end to end.
+
 #### Practical tuning notes
 
-- `rigidness` and `carver` interact. A high-rigidness, low-carver path will look unnatural in mountainous terrain because it wants to be flat but refuses to dig. A balanced setting is `0.6 / 0.7`.
-- For dense paved roads, set `width.max` to 3 or 4. For thin trails, 1 or 2.
+- `rigidness` picks the route, `carver` then evens out its height. A low-rigidness, high-carver path winds around hills and stays nearly level; a high-rigidness, low-carver path runs straight and rides up and down over the terrain. A balanced setting is `0.6 / 0.7`.
+- A levelled path does not dig. Where the ground rises above it, its tiles are laid under the surface and don't show; where the ground drops away it is built up on `fill_block`; more than 8 blocks off the ground either way, tiles are left out. So a high `carver` on steep ground leaves gaps.
+- For wide paved roads, set `width.max` to 5. For ordinary paths, 3. For thin trails, 1.
 - `fade` of `8` on each end blends the path edges into the terrain so they do not visually start/stop in midair.
 
 ### path_network
@@ -150,7 +171,7 @@ Binds a path_type to biomes and decorations. This is what the worldgen actually 
 | field | type | description |
 |---|---|---|
 | `path_type` | resource location | The path_type to use. |
-| `biomes` | biome holder set | A single biome id, a list of biome ids, or a `#tag:like_this`. Standard vanilla holderset syntax. Tags from any namespace work, including modded ones (`#c:is_overworld`, `#forge:is_overworld`, mod-specific biome tags), so networks can extend cleanly to modded biomes. |
+| `biomes` | biome holder set | A single biome id, a list of biome ids, or a `#tag:like_this`. Standard vanilla holderset syntax. Tags from any namespace work, including modded ones (`#c:is_swamp`, `#forge:is_swamp`, mod-specific biome tags), so networks can extend cleanly to modded biomes. The built-in networks use their own tags, listed under [Built-in biome tags](#built-in-biome-tags). |
 | `weight` | int (optional, default `1`) | Relative weight when multiple networks compete for the same biome. Higher = more likely to win. |
 | `region_size` | int | Size of the worldgen region (in chunks) within which the network plans a path. Larger = longer, less frequent paths. Typical range 32-64. Networks with the same `region_size` share one starting point per region, so a network for a small or rare biome (mushroom fields use 12) needs its own smaller size, or its starting points rarely land in the biome. Not used, and not needed, with `origin`. |
 | `structure_sets` | list of resource locations (optional) | Structure sets to scatter along the path. Each entry runs independently - there is no weighted pick here. |
@@ -248,7 +269,7 @@ A reusable list of NBT structures with placement rules.
 | `placement` | `"endpoint"` or `"interval"` | `endpoint` places one structure at each end of the path. `interval` spreads structures along the entire path at regular distances. |
 | `spacing` | int | For `interval` mode: average distance in blocks between placements. For `endpoint` mode: typically `1`. |
 | `spacing_variance` | int | Random jitter added to `spacing` so placements do not look mechanical. `0` for perfectly regular. |
-| `flatness_tolerance` | int | Maximum Y variance (in blocks) across the structure's footprint that the placement check will accept. Lower = stricter, fewer placements but flatter ground. |
+| `flatness_tolerance` | int `0`-`255` | How far (in blocks) the ground may rise or drop around the placement spot. The check looks at a plus shape, 1 and 2 blocks out from the centre in each of the four directions, not the structure's whole footprint, and skips the placement if any of those 8 spots differs from the centre by more than this. Lower = stricter, fewer placements but flatter ground. A structure wider than 5 blocks can still hang over a drop at its corners; `beard_thin` below fills under it. |
 | `terrain_adjustment` | `"none"` or `"beard_thin"` (optional, default `none`) | If `beard_thin`, the placement carves a small pad under the structure so it sits flush on uneven ground. Use this for structures that need a level base. |
 | `side_offset` | int (optional, default `0`) | Perpendicular distance from the path centerline at which to place the structure. `0` is on the path, positive values push it to the side. |
 
@@ -265,7 +286,7 @@ A reusable list of NBT structures with placement rules.
 
 | field | type | description |
 |---|---|---|
-| `nbt` | resource location | NBT structure id, resolved as `data/<namespace>/structures/<path>.nbt`. |
+| `nbt` | resource location | NBT structure id, resolved as `data/<namespace>/structure/<path>.nbt` (`data/<namespace>/structures/<path>.nbt` on 1.20 and 1.20.1), the same place vanilla keeps structure templates. |
 | `rotation` | enum | `none`, `clockwise_90`, `clockwise_180`, `counterclockwise_90`, or `random`. |
 | `weight` | int | Relative weight when picking from this set. |
 | `offset` | `[x, y, z]` | Offset applied to the placement origin. Useful for nudging a structure off-center or sinking it into the ground. |
@@ -330,6 +351,63 @@ The mod ships a default `has_no_paths` that excludes oceans, rivers, the void, t
 }
 ```
 
+### Built-in biome tags
+
+Eleven of the built-in networks take their biomes from a tag named after the network,
+`#moogs_paths:has_path/<network>`, in `data/moogs_paths/tags/worldgen/biome/has_path/`. Each lists the
+vanilla biomes the path is made for, plus the loaders' common biome tags for the same kind of biome as
+optional entries, so biomes from Terralith, Biomes O' Plenty, Regions Unexplored and other biome mods
+get the path too. Optional entries are skipped when a tag doesn't exist, so one file works on every
+version and loader.
+
+| tag | vanilla biomes | common tags it adds |
+|---|---|---|
+| `has_path/badlands_canyon` | `#minecraft:is_badlands` | `#c:is_badlands`, `#c:badlands`, `#c:mesa` |
+| `has_path/cherry_grove` | cherry grove | `#c:primary_wood_type/cherry`, and Terralith's sakura grove and sakura valley |
+| `has_path/desert_highway` | desert | `#c:is_desert`, `#c:desert`, `#forge:is_desert` |
+| `has_path/dirt_road` | taiga, old growth pine and spruce taiga, dark forest, `#minecraft:is_taiga` (which adds snowy taiga) | `#c:is_taiga`, `#c:taiga` |
+| `has_path/mushroom_path` | mushroom fields | `#c:is_mushroom`, `#c:mushroom`, `#forge:is_mushroom` |
+| `has_path/plains_trail` | plains, sunflower plains, meadow | `#c:is_plains`, `#c:plains` |
+| `has_path/savanna_path` | `#minecraft:is_savanna` | `#c:is_savanna`, `#c:savanna` |
+| `has_path/snowy_trail` | snowy plains, snowy taiga, ice spikes, snowy beach | `#c:is_snowy_plains`, `#c:snowy_plains` |
+| `has_path/swamp_path`, `has_path/witch_hut_trail` | swamp, mangrove swamp | `#c:is_swamp`, `#c:swamp`, `#forge:is_swamp` |
+| `has_path/windswept_trail` | windswept hills, gravelly hills, forest and savanna, `#minecraft:is_hill` | `#c:is_windswept`, `#c:windswept` |
+
+The other networks use vanilla tags directly (`#minecraft:is_overworld`, `#minecraft:is_jungle`,
+`#minecraft:is_mountain`), which biome mods fill in themselves.
+
+To give a built-in path to more biomes, add them to its tag with `"replace": false`:
+
+```json
+{
+  "replace": false,
+  "values": [
+    "mypack:my_swamp",
+    { "id": "othermod:peat_bog", "required": false }
+  ]
+}
+```
+
+at `data/moogs_paths/tags/worldgen/biome/has_path/swamp_path.json`. To take a biome away, replace the
+tag outright with `"replace": true` and list everything it should keep.
+
+### Turning off a built-in network
+
+Override the network's file in your datapack, at the same path
+(`data/moogs_paths/moogs_paths/path_network/<network>.json`), and give it no biomes. Copy the rest of the
+original file across, since `path_type` and either `region_size` or `origin` are still required:
+
+```json
+{
+  "path_type": "moogs_paths:dirt_road",
+  "biomes": [],
+  "weight": 3,
+  "region_size": 36
+}
+```
+
+A network with no biomes never generates a path, including the ones that lead out of structures.
+
 ## Commands
 
 Requires permission level 2 (op). They search around wherever they run, so they also work from a command
@@ -345,4 +423,4 @@ block or the console, e.g. `/execute positioned 1000 64 -500 run paths locate`.
 
 `/paths debug structures` -- list every cached structure NBT and whether it resolved (`ok`) or is missing.
 
-`/paths debug reload` -- force a datapack reload and clear runtime caches. Note: `path_type`, `path_network`, `structure_set`, `feature_decorator_set` and `bush_decorator_set` are datapack registries, which on 1.20.1 require a world restart to fully refresh.
+`/paths debug reload` -- reload datapacks as `/reload` does, then clear the mod's caches: the structure templates it has loaded, and every path it has worked out, so paths in chunks that haven't generated yet are planned again. A plain `/reload` keeps the cached templates, so use this after changing a `.nbt`. `path_type`, `path_network`, `structure_set`, `feature_decorator_set` and `bush_decorator_set` are datapack registries, which Minecraft only loads with the world on every version: changes to those files need the world (or server) restarted.
