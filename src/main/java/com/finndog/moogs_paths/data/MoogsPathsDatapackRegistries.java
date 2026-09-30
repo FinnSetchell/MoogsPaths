@@ -204,9 +204,10 @@ public final class MoogsPathsDatapackRegistries {
                     Map.Entry::getKey,
                     e -> e.getValue().stream().mapToInt(n -> maxRadius(access, n)).max().orElse(1000)
                 ));
-            // Sorted by id so every chunk walks the anchored networks in the same order.
+            // Sorted by id so every chunk walks the anchored networks in the same order. A network none
+            // of whose structure sets is loaded (they all belong to mods that aren't installed) is left out.
             List<AnchoredNetwork> anchored = networkHolders(access)
-                .filter(h -> h.value().isStructureAnchored())
+                .filter(h -> h.value().isStructureAnchored() && anyStructureSetLoaded(access, h.value().origin().orElseThrow()))
                 .map(h -> new AnchoredNetwork(h.value(), keyId(h.key()), maxRadius(access, h.value())))
                 .sorted(Comparator.comparing(a -> a.id().toString()))
                 .toList();
@@ -214,6 +215,15 @@ public final class MoogsPathsDatapackRegistries {
             cachedDerivedViews = views;
         }
         return views;
+    }
+
+    // A list of sets may name optional modded ones, so only a network with none loaded warns.
+    private static boolean anyStructureSetLoaded(RegistryAccess access, StructureOrigin origin) {
+        for(ResourceLocation id : origin.structureSets()) {
+            if(vanillaStructureSet(access, id).isPresent()) return true;
+        }
+        origin.structureSets().forEach(id -> PathDataManager.warnMissingOnce("Structure set", id));
+        return false;
     }
 
     private record DerivedNetworkViews(

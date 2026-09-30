@@ -152,7 +152,7 @@ public final class PathsDebugCommand {
                 .map(pt -> pt.minLength() + "-" + pt.maxLength())
                 .orElse("?");
             String originStr = n.origin()
-                .map(o -> " origin=" + o.structureSet() + o.structure().map(s -> "/" + s).orElse("") + " x" + o.pathCount())
+                .map(o -> " origin=" + o.describe() + " x" + o.pathCount())
                 .orElse(" regionSize=" + n.regionSize() + " weight=" + n.weight());
             String line = "  " + id + ": pathType=" + n.pathType()
                 + " length=" + lengthStr
@@ -184,17 +184,16 @@ public final class PathsDebugCommand {
                 long dz = ((long) c.z() << 4) + 8 - from.getZ();
                 return dx * dx + dz * dz;
             }));
-            String target = origin.structureSet() + origin.structure().map(s -> "/" + s).orElse("");
-            src.sendSuccess(() -> Component.literal("  " + anchored.id() + " <- " + target + ": " + chunks.size() + " placement spot(s)"), false);
+            src.sendSuccess(() -> Component.literal("  " + anchored.id() + " <- " + origin.describe() + ": " + chunks.size() + " placement spot(s)"), false);
 
             for(StructureAnchors.StructureChunk chunk : chunks.subList(0, Math.min(ANCHOR_LIST_MAX, chunks.size()))) {
-                Optional<StructureAnchors.ResolvedStructure> structure = StructureAnchors.resolve(level, origin.structureSet(), chunk.x(), chunk.z());
-                boolean ours = structure.isPresent() && origin.structure().map(structure.get().structure()::equals).orElse(true);
+                Optional<StructureAnchors.ResolvedStructure> structure = StructureAnchors.resolve(level, origin, chunk.x(), chunk.z());
+                boolean ours = structure.isPresent() && structure.get().matches(origin);
                 int paths = ours ? StructureAnchors.pathsAt(level, anchored, chunk).size() : 0;
                 BlockPos at = structure.map(s -> s.bounds().getCenter()).orElse(new BlockPos((chunk.x() << 4) + 8, 0, (chunk.z() << 4) + 8));
                 String what = structure.map(s -> ours
-                        ? s.structure() + ": " + paths + "/" + origin.pathCount() + " path(s)"
-                        : s.structure() + " (not " + origin.structure().orElseThrow() + ")")
+                        ? s.structure() + ": " + paths + "/" + origin.pathCount() + " path(s), " + StructureAnchors.describeAnchor(s, origin)
+                        : s.structure() + " (not one of this network's)")
                     .orElse("no structure generates here");
                 MutableComponent line = Component.literal("    - ")
                     .append(teleportLink(at, false))

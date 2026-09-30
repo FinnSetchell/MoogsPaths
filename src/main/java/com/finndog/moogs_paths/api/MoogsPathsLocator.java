@@ -186,8 +186,8 @@ public final class MoogsPathsLocator {
             StructureOrigin origin = candidate.network().network().origin().orElseThrow();
             // A biome check first: generating every village in range to learn its kind took a minute.
             if(!StructureAnchors.mayHold(level, origin, candidate.chunk().x(), candidate.chunk().z())) continue;
-            Optional<StructureAnchors.ResolvedStructure> structure = StructureAnchors.resolve(level, origin.structureSet(), candidate.chunk().x(), candidate.chunk().z());
-            if(structure.isEmpty() || !origin.structure().map(structure.get().structure()::equals).orElse(true)) continue;
+            Optional<StructureAnchors.ResolvedStructure> structure = StructureAnchors.resolve(level, origin, candidate.chunk().x(), candidate.chunk().z());
+            if(structure.isEmpty() || !structure.get().matches(origin)) continue;
             if(verified++ >= MAX_ANCHORED_VERIFY) break;
             BlockPos best = null;
             PathType pathType = MoogsPathsDatapackRegistries.getPathType(access, candidate.network().network().pathType()).orElse(null);
