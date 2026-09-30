@@ -71,7 +71,9 @@ public final class PathsDebugCommand {
     private static final int LOCATE_RADIUS = 10000;
     // Checking an anchored spot generates its structure, so that search is tighter.
     private static final int ANCHORED_LOCATE_RADIUS = 6000;
-    private static final int MAX_ANCHORED_VERIFY = 64;
+    // Structures of the network's kind whose paths are tried before giving up. Spots holding no
+    // structure, or another kind from the same set, don't count.
+    private static final int MAX_ANCHORED_VERIFY = 16;
     private static final int ANCHOR_LIST_RADIUS = 1500;
     private static final int ANCHOR_LIST_MAX = 8;
 
@@ -203,6 +205,13 @@ public final class PathsDebugCommand {
 
         int verified = 0;
         for(Candidate candidate : candidates) {
+            // Most spots in range hold no structure (wrong biome) or another kind from the set, e.g.
+            // a plains village for a desert road. Counting those used to end the search ~2400 blocks out.
+            StructureOrigin origin = candidate.network().network().origin().orElseThrow();
+            // A biome check first: generating every village in range to learn its kind took a minute.
+            if(!StructureAnchors.mayHold(level, origin, candidate.chunk().x(), candidate.chunk().z())) continue;
+            Optional<StructureAnchors.ResolvedStructure> structure = StructureAnchors.resolve(level, origin.structureSet(), candidate.chunk().x(), candidate.chunk().z());
+            if(structure.isEmpty() || !origin.structure().map(structure.get().structure()::equals).orElse(true)) continue;
             if(verified++ >= MAX_ANCHORED_VERIFY) break;
             Located best = null;
             for(PathDataManager.CachedPath path : anchoredPaths(level, candidate.network(), candidate.chunk())) {

@@ -202,6 +202,57 @@ public final class StructureAnchors {
     //////////////////////////////
     // Resolution
 
+    private static final int[][] HOLD_SAMPLES = {{8, 8}, {0, 0}, {15, 0}, {0, 15}, {15, 15}};
+    // Fixed heights rather than the surface: a height lookup builds a whole noise column, which cost
+    // more than it saved. Above the ground a sample gives the surface biome, so the high ones cover
+    // tall terrain.
+    private static final int[] HOLD_SAMPLE_Y = {64, 96, 128, 192};
+
+    /**
+     * Whether the origin's structure can start in this chunk's biome: a quick check before
+     * {@link #resolve}, which generates the whole structure. Vanilla only starts a structure where
+     * its biome allows, so a chunk none of whose samples (centre and corners, several heights) is
+     * in those biomes can't hold one. Sampling can in principle miss a biome boundary, so this is for
+     * searches like /paths locate, not for world generation.
+     */
+    public static boolean mayHold(ServerLevel level, StructureOrigin origin, int chunkX, int chunkZ) {
+        Optional<StructureSet> set = MoogsPathsDatapackRegistries.vanillaStructureSet(level.registryAccess(), origin.structureSet());
+        if(set.isEmpty()) return false;
+        List<Structure> allowed = new ArrayList<>();
+        for(StructureSet.StructureSelectionEntry entry : set.get().structures()) {
+            ResourceLocation id = entry.structure().unwrapKey().map(MoogsPathsDatapackRegistries::keyId).orElse(null);
+            if(origin.structure().map(s -> s.equals(id)).orElse(true)) allowed.add(entry.structure().value());
+        }
+        if(allowed.isEmpty()) return false;
+
+        ChunkGenerator generator = level.getChunkSource().getGenerator();
+        RandomState randomState = level.getChunkSource().randomState();
+        int minX = chunkX << 4;
+        int minZ = chunkZ << 4;
+        //? if >=26.3 {
+        /*BiomeResolver resolver = generator.getBiomeSource().createUncachedResolver(randomState);
+        *///?} else {
+        BiomeSource biomeSource = generator.getBiomeSource();
+        Climate.Sampler sampler = randomState.sampler();
+        //?}
+        for(int[] sample : HOLD_SAMPLES) {
+            for(int y : HOLD_SAMPLE_Y) {
+                int qx = QuartPos.fromBlock(minX + sample[0]);
+                int qy = QuartPos.fromBlock(y);
+                int qz = QuartPos.fromBlock(minZ + sample[1]);
+                //? if >=26.3 {
+                /*Holder<Biome> biome = resolver.getNoiseBiome(qx, qy, qz);
+                *///?} else {
+                Holder<Biome> biome = biomeSource.getNoiseBiome(qx, qy, qz, sampler);
+                //?}
+                for(Structure structure : allowed) {
+                    if(structure.biomes().contains(biome)) return true;
+                }
+            }
+        }
+        return false;
+    }
+
     /** The structure vanilla generates for the set at this chunk, if one does. */
     public static Optional<ResolvedStructure> resolve(ServerLevel level, ResourceLocation setId, int chunkX, int chunkZ) {
         SetChunk key = new SetChunk(level.getSeed(), setId, chunkX, chunkZ);
