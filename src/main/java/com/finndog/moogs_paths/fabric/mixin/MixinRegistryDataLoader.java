@@ -1,6 +1,7 @@
 //? if <1.20.1 {
 /*package com.finndog.moogs_paths.fabric.mixin;
 
+import com.finndog.moogs_paths.Constants;
 import com.finndog.moogs_paths.fabric.FabricRegistryStore;
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import net.minecraft.resources.RegistryDataLoader;
@@ -39,14 +40,14 @@ public class MixinRegistryDataLoader {
     // for a registry like moogs_paths:path_network would have to live at data/<dp>/path_network/.
     // Mojang added the namespace prefix in 1.20.1 (Forge backports it via ForgeHooks.prefixNamespace,
     // which is why Forge picks our files up correctly). Backport the 1.20.1 behaviour so the same
-    // data/<dp>/moogs_paths/path_network/ layout works on plain 1.20 too. minecraft-namespaced
-    // registries are unchanged.
+    // data/<dp>/moogs_paths/path_network/ layout works on plain 1.20 too. Only our own registries:
+    // other mods' registries keep whatever layout they expect on 1.20.
     @ModifyReturnValue(
         method = "registryDirPath(Lnet/minecraft/resources/ResourceLocation;)Ljava/lang/String;",
         at = @At("RETURN")
     )
     private static String prefixCustomNamespace(String original, ResourceLocation id) {
-        if (id.getNamespace().equals("minecraft")) return original;
+        if (!id.getNamespace().equals(Constants.MOD_ID)) return original;
         return id.getNamespace() + "/" + original;
     }
 }

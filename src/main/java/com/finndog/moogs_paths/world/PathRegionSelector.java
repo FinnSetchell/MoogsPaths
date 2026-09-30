@@ -4,15 +4,9 @@ import net.minecraft.util.RandomSource;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
 
 public final class PathRegionSelector {
     private PathRegionSelector() {}
-
-    private record OriginKey(long worldSeed, int regionX, int regionZ, int regionSize) {}
-
-    private static final ConcurrentHashMap<OriginKey, int[]> ORIGIN_CACHE = new ConcurrentHashMap<>();
-    private static final int ORIGIN_CACHE_CAP = 1024;
 
     public static int regionX(int chunkX, int regionSize) {
         return Math.floorDiv(chunkX, regionSize);
@@ -22,19 +16,13 @@ public final class PathRegionSelector {
         return Math.floorDiv(chunkZ, regionSize);
     }
 
+    // Two random draws: cheaper to redo than a shared cache every worldgen thread hits.
     public static int[] originChunk(long worldSeed, int regionX, int regionZ, int regionSize) {
-        OriginKey key = new OriginKey(worldSeed, regionX, regionZ, regionSize);
-        int[] cached = ORIGIN_CACHE.get(key);
-        if (cached != null) return cached;
         long hash = worldSeed ^ ((long) regionX * 341873128712L) ^ ((long) regionZ * 132897987541L);
         RandomSource r = RandomSource.create(hash);
         int offsetX = r.nextInt(regionSize);
         int offsetZ = r.nextInt(regionSize);
-        int[] result = new int[]{ regionX * regionSize + offsetX, regionZ * regionSize + offsetZ };
-        int[] existing = ORIGIN_CACHE.putIfAbsent(key, result);
-        if (existing != null) return existing;
-        if (ORIGIN_CACHE.size() > ORIGIN_CACHE_CAP) ORIGIN_CACHE.clear();
-        return result;
+        return new int[]{ regionX * regionSize + offsetX, regionZ * regionSize + offsetZ };
     }
 
     public static List<int[]> originsInRange(long worldSeed, int chunkX, int chunkZ, int maxBlockRadius, int regionSize) {

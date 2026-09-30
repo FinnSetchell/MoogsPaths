@@ -1,6 +1,7 @@
 package com.finndog.moogs_paths.data;
 
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.DataResult;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.Vec3i;
 import net.minecraft.resources.ResourceLocation;
@@ -19,7 +20,8 @@ public record StructureSet(
         int sideOffset
 ) {
     public static final Codec<StructureSet> CODEC = RecordCodecBuilder.create(instance -> instance.group(
-            Codec.list(StructureEntry.CODEC).fieldOf("structures").forGetter(StructureSet::structures),
+            // An empty list would fail every placement; refuse it when the datapack loads instead.
+            Codec.list(StructureEntry.CODEC).flatXmap(StructureSet::nonEmpty, StructureSet::nonEmpty).fieldOf("structures").forGetter(StructureSet::structures),
             PlacementMode.CODEC.fieldOf("placement").forGetter(StructureSet::placement),
             Codec.intRange(1, Integer.MAX_VALUE).fieldOf("spacing").forGetter(StructureSet::spacing),
             Codec.intRange(0, Integer.MAX_VALUE).fieldOf("spacing_variance").forGetter(StructureSet::spacingVariance),
@@ -27,6 +29,10 @@ public record StructureSet(
             TerrainAdjustmentSetting.CODEC.optionalFieldOf("terrain_adjustment", TerrainAdjustmentSetting.NONE).forGetter(StructureSet::terrainAdjustment),
             Codec.INT.optionalFieldOf("side_offset", 0).forGetter(StructureSet::sideOffset)
     ).apply(instance, StructureSet::new));
+
+    private static DataResult<List<StructureEntry>> nonEmpty(List<StructureEntry> structures) {
+        return structures.isEmpty() ? DataResult.error(() -> "structures must not be empty") : DataResult.success(structures);
+    }
 
     public static final class StructureEntry {
         public static final Codec<StructureEntry> CODEC = RecordCodecBuilder.create(instance -> instance.group(
