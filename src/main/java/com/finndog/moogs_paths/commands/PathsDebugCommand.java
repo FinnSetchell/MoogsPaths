@@ -1,15 +1,13 @@
 package com.finndog.moogs_paths.commands;
 
+import com.finndog.moogs_paths.api.LocatedPath;
+import com.finndog.moogs_paths.api.MoogsPathsLocator;
 import com.finndog.moogs_paths.data.MoogsPathsDatapackRegistries;
 import com.finndog.moogs_paths.data.PathDataManager;
 import com.finndog.moogs_paths.data.PathNetworkType;
-import com.finndog.moogs_paths.data.PathType;
 import com.finndog.moogs_paths.data.StructureOrigin;
-import com.finndog.moogs_paths.world.PathChunkFeature;
 import com.finndog.moogs_paths.world.PathRegionSelector;
 import com.finndog.moogs_paths.world.StructureAnchors;
-import com.finndog.moogs_paths.world.deferred.DeferredPathJob;
-import com.finndog.moogs_paths.world.deferred.PlacementTickPump;
 import com.mojang.brigadier.CommandDispatcher;
 import net.minecraft.ChatFormatting;
 import net.minecraft.commands.CommandSourceStack;
@@ -22,9 +20,6 @@ import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.world.level.chunk.ChunkGenerator;
-import net.minecraft.world.level.levelgen.Heightmap;
-import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 
 import java.util.*;
@@ -68,18 +63,10 @@ public final class PathsDebugCommand {
 
     //////////////////////////////
 
-    private static final int MAX_LOCATE_VERIFY = 32;
-    private static final int LOCATE_RADIUS = 10000;
-    // Checking an anchored spot generates its structure, so that search is tighter.
-    private static final int ANCHORED_LOCATE_RADIUS = 6000;
-    // Structures of the network's kind whose paths are tried before giving up. Spots holding no
-    // structure, or another kind from the same set, don't count.
-    private static final int MAX_ANCHORED_VERIFY = 16;
     private static final int ANCHOR_LIST_RADIUS = 1500;
     private static final int ANCHOR_LIST_MAX = 8;
 
-    private record Located(ResourceLocation network, BlockPos waypoint, long distSq) {}
-
+    // The search itself is MoogsPathsLocator's, so the command and other mods can't drift apart.
     private static int locatePath(CommandSourceStack src, ResourceLocation networkFilter) {
         RegistryAccess access = src.registryAccess();
         if(MoogsPathsDatapackRegistries.networksById(access).isEmpty()) {
@@ -94,197 +81,23 @@ public final class PathsDebugCommand {
 
         ServerLevel level = src.getLevel();
         BlockPos from = BlockPos.containing(src.getPosition());
-        boolean anchoredOnly = filtered.map(PathNetworkType::isStructureAnchored).orElse(false);
-
-        Located best = anchoredOnly ? null : locateRegionPath(level, networkFilter, from.getX(), from.getZ());
-        if(networkFilter == null || anchoredOnly) {
-            Located anchored = locateAnchoredPath(level, networkFilter, from.getX(), from.getZ());
-            if(anchored != null && (best == null || anchored.distSq() < best.distSq())) best = anchored;
-        }
-        if(best == null) {
+        Optional<LocatedPath> found = networkFilter == null
+            ? MoogsPathsLocator.locate(level, from, Set.of())
+            : MoogsPathsLocator.locate(level, networkFilter, from, Set.of());
+        if(found.isEmpty()) {
             String target = networkFilter != null ? networkFilter.toString() : "nearest";
-            int radius = anchoredOnly ? ANCHORED_LOCATE_RADIUS : LOCATE_RADIUS;
+            boolean anchoredOnly = filtered.map(PathNetworkType::isStructureAnchored).orElse(false);
+            int radius = anchoredOnly ? MoogsPathsLocator.ANCHORED_LOCATE_RADIUS : MoogsPathsLocator.LOCATE_RADIUS;
             src.sendFailure(Component.literal("[paths] No " + target + " path found within " + radius + " blocks"));
             return 0;
         }
 
+        LocatedPath best = found.get();
         MutableComponent msg = Component.literal("[paths] Nearest " + best.network() + " at ")
-            .append(teleportLink(best.waypoint()))
-            .append(Component.literal(" (~" + (int) Math.sqrt(best.distSq()) + " blocks)"));
+            .append(teleportLink(best.landing()))
+            .append(Component.literal(" (~" + best.distance() + " blocks)"));
         src.sendSuccess(() -> msg, false);
         return 1;
-    }
-
-    // The path from the nearest region origin that produces one, per worldgen's own evaluation.
-    private static Located locateRegionPath(ServerLevel level, ResourceLocation networkFilter, int fromX, int fromZ) {
-        RegistryAccess access = level.registryAccess();
-        long worldSeed = level.getSeed();
-        int chunkX = fromX >> 4;
-        int chunkZ = fromZ >> 4;
-        ChunkGenerator generator = level.getChunkSource().getGenerator();
-        RandomState randomState = level.getChunkSource().randomState();
-
-        record OriginCandidate(int originChunkX, int originChunkZ, int regionSize, List<PathNetworkType> networks, long distSq) {}
-        List<OriginCandidate> candidates = new ArrayList<>();
-        for(Map.Entry<Integer, List<PathNetworkType>> entry : MoogsPathsDatapackRegistries.networksByRegionSize(access).entrySet()) {
-            int regionSize = entry.getKey();
-            List<PathNetworkType> networks = entry.getValue();
-            PathRegionSelector.originsInRange(worldSeed, chunkX, chunkZ, LOCATE_RADIUS, regionSize)
-                .forEach(origin -> {
-                    long dx = origin[0] * 16L + 8 - fromX;
-                    long dz = origin[1] * 16L + 8 - fromZ;
-                    candidates.add(new OriginCandidate(origin[0], origin[1], regionSize, networks, dx * dx + dz * dz));
-                });
-        }
-        candidates.sort(Comparator.comparingLong(OriginCandidate::distSq));
-
-        int verified = 0;
-        for(OriginCandidate candidate : candidates) {
-            if(verified >= MAX_LOCATE_VERIFY) break;
-
-            long pathSeed = worldSeed
-                ^ ((long) candidate.originChunkX() * PathChunkFeature.ORIGIN_X_MULT)
-                ^ ((long) candidate.originChunkZ() * PathChunkFeature.ORIGIN_Z_MULT)
-                ^ ((long) candidate.regionSize() * PathChunkFeature.ORIGIN_REGION_SIZE_MULT)
-                ^ PathChunkFeature.PATH_SEED_MIXER;
-
-            if(networkFilter != null) {
-                Optional<PathNetworkType> selected = PathChunkFeature.selectNetworkAt(
-                    generator, randomState, candidate.originChunkX(), candidate.originChunkZ(), pathSeed, candidate.networks());
-                if(selected.isEmpty()) continue;
-                if(!MoogsPathsDatapackRegistries.networkId(access, selected.get()).map(networkFilter::equals).orElse(false)) continue;
-            }
-
-            // already-rejected origins are free to skip - biome/pathfinder already determined they
-            // can't produce a path here, so they would just return empty from evaluateOrigin anyway
-            if(PathDataManager.isRejected(pathSeed)) continue;
-
-            verified++;
-
-            Optional<PathChunkFeature.EvaluatedOrigin> result = PathChunkFeature.evaluateOrigin(
-                level, generator, randomState, worldSeed,
-                candidate.originChunkX(), candidate.originChunkZ(), candidate.regionSize(), candidate.networks());
-            if(result.isEmpty()) continue;
-
-            PathChunkFeature.EvaluatedOrigin ev = result.get();
-            Optional<ResourceLocation> networkId = MoogsPathsDatapackRegistries.networkId(access, ev.network());
-            if(networkFilter != null && !networkId.map(networkFilter::equals).orElse(false)) continue;
-
-            // /locate computed the path synchronously into PathDataManager's cache but never
-            // told the deferred placement system about it. Without this enqueue, the player can
-            // teleport to the reported location and find no blocks placed: chunk-load handlers
-            // check DeferredPathState.pending, see no job for this pathSeed, and skip placement.
-            // Enqueueing here puts the job into pending so chunks loading at the destination
-            // will trigger LiveChunkPlacer. Idempotent: if the job is already pending (from a
-            // prior worldgen pass), DeferredPathState.addPending no-ops.
-            networkId.ifPresent(id -> PlacementTickPump.enqueueFromWorldgen(level, new DeferredPathJob(
-                ev.pathSeed(), candidate.originChunkX(), candidate.originChunkZ(), candidate.regionSize(), id)));
-
-            return nearestWaypoint(level, networkId.orElse(unknownId()), ev.cachedPath(), ev.pathType(), fromX, fromZ);
-        }
-        return null;
-    }
-
-    // The path leading out of the nearest structure that produces one. Computing it here caches it
-    // for worldgen and queues its placement, like a region path above.
-    private static Located locateAnchoredPath(ServerLevel level, ResourceLocation networkFilter, int fromX, int fromZ) {
-        RegistryAccess access = level.registryAccess();
-        long worldSeed = level.getSeed();
-
-        record Candidate(MoogsPathsDatapackRegistries.AnchoredNetwork network, StructureAnchors.StructureChunk chunk, long distSq) {}
-        List<Candidate> candidates = new ArrayList<>();
-        for(MoogsPathsDatapackRegistries.AnchoredNetwork anchored : MoogsPathsDatapackRegistries.anchoredNetworks(access)) {
-            if(networkFilter != null && !networkFilter.equals(anchored.id())) continue;
-            StructureOrigin origin = anchored.network().origin().orElseThrow();
-            for(StructureAnchors.StructureChunk chunk : StructureAnchors.candidatesInRange(level, origin, fromX >> 4, fromZ >> 4, ANCHORED_LOCATE_RADIUS)) {
-                long dx = ((long) chunk.x() << 4) + 8 - fromX;
-                long dz = ((long) chunk.z() << 4) + 8 - fromZ;
-                candidates.add(new Candidate(anchored, chunk, dx * dx + dz * dz));
-            }
-        }
-        candidates.sort(Comparator.comparingLong(Candidate::distSq));
-
-        int verified = 0;
-        for(Candidate candidate : candidates) {
-            // Most spots in range hold no structure (wrong biome) or another kind from the set, e.g.
-            // a plains village for a desert road. Counting those used to end the search ~2400 blocks out.
-            StructureOrigin origin = candidate.network().network().origin().orElseThrow();
-            // A biome check first: generating every village in range to learn its kind took a minute.
-            if(!StructureAnchors.mayHold(level, origin, candidate.chunk().x(), candidate.chunk().z())) continue;
-            Optional<StructureAnchors.ResolvedStructure> structure = StructureAnchors.resolve(level, origin.structureSet(), candidate.chunk().x(), candidate.chunk().z());
-            if(structure.isEmpty() || !origin.structure().map(structure.get().structure()::equals).orElse(true)) continue;
-            if(verified++ >= MAX_ANCHORED_VERIFY) break;
-            Located best = null;
-            PathType pathType = MoogsPathsDatapackRegistries.getPathType(access, candidate.network().network().pathType()).orElse(null);
-            for(PathDataManager.CachedPath path : anchoredPaths(level, candidate.network(), candidate.chunk())) {
-                Located here = nearestWaypoint(level, candidate.network().id(), path, pathType, fromX, fromZ);
-                if(best == null || here.distSq() < best.distSq()) best = here;
-            }
-            if(best != null) return best;
-        }
-        return null;
-    }
-
-    // Every path leading out of the structure at this chunk, computed now if need be and queued for
-    // placement. Empty when no structure of the network's kind generates there.
-    private static List<PathDataManager.CachedPath> anchoredPaths(ServerLevel level, MoogsPathsDatapackRegistries.AnchoredNetwork anchored, StructureAnchors.StructureChunk chunk) {
-        PathNetworkType network = anchored.network();
-        Optional<PathType> pathType = MoogsPathsDatapackRegistries.getPathType(level.registryAccess(), network.pathType());
-        if(pathType.isEmpty()) return List.of();
-        List<PathDataManager.CachedPath> paths = new ArrayList<>();
-        int pathCount = network.origin().orElseThrow().pathCount();
-        for(int i = 0; i < pathCount; i++) {
-            int pathIndex = i;
-            long pathSeed = StructureAnchors.pathSeed(level.getSeed(), chunk.x(), chunk.z(), anchored.id(), pathIndex);
-            if(PathDataManager.isRejected(pathSeed)) continue;
-            PathDataManager.CachedPath path = PathDataManager.getOrComputeWaypoints(pathSeed, () -> StructureAnchors.computePath(
-                level, network, anchored.id(), pathType.get(), chunk.x(), chunk.z(), pathIndex));
-            if(path.waypointCount() < 2) {
-                PathDataManager.markRejected(pathSeed);
-                continue;
-            }
-            PlacementTickPump.enqueueFromWorldgen(level, DeferredPathJob.anchored(pathSeed, chunk.x(), chunk.z(), pathIndex, anchored.id()));
-            paths.add(path);
-        }
-        return paths;
-    }
-
-    private static final int LAND_CHECKS = 64;
-    private static final int LAND_CHECK_STRIDE = 4;
-
-    // The nearest waypoint where the path is actually laid. A path type without water settings
-    // leaves nothing over water, so the nearest waypoint on a lake would send the player to an
-    // empty spot. Checks every few waypoints outward from the nearest, using the generator's height
-    // maps (no chunks generated); falls back to the plain nearest if none is on land.
-    private static Located nearestWaypoint(ServerLevel level, ResourceLocation network, PathDataManager.CachedPath path, PathType pathType, int fromX, int fromZ) {
-        List<BlockPos> byDistance = new ArrayList<>(path.waypoints());
-        byDistance.sort(Comparator.comparingLong(wp -> distSq(wp, fromX, fromZ)));
-        if(pathType != null && pathType.waterSettings().isEmpty()) {
-            ChunkGenerator generator = level.getChunkSource().getGenerator();
-            RandomState randomState = level.getChunkSource().randomState();
-            for(int i = 0, checks = 0; i < byDistance.size() && checks < LAND_CHECKS; i += LAND_CHECK_STRIDE, checks++) {
-                BlockPos wp = byDistance.get(i);
-                int floor = generator.getBaseHeight(wp.getX(), wp.getZ(), Heightmap.Types.OCEAN_FLOOR_WG, level, randomState);
-                int surface = generator.getBaseHeight(wp.getX(), wp.getZ(), Heightmap.Types.WORLD_SURFACE_WG, level, randomState);
-                if(floor >= surface) return new Located(network, wp, distSq(wp, fromX, fromZ));
-            }
-        }
-        BlockPos nearest = byDistance.get(0);
-        return new Located(network, nearest, distSq(nearest, fromX, fromZ));
-    }
-
-    private static long distSq(BlockPos wp, int fromX, int fromZ) {
-        long dx = wp.getX() - fromX;
-        long dz = wp.getZ() - fromZ;
-        return dx * dx + dz * dz;
-    }
-
-    private static ResourceLocation unknownId() {
-        //? if >=1.21.1 {
-        return ResourceLocation.fromNamespaceAndPath("unknown", "unknown");
-        //?} else {
-        /*return new ResourceLocation("unknown", "unknown");
-        *///?}
     }
 
     private static MutableComponent teleportLink(BlockPos pos) {
@@ -372,7 +185,7 @@ public final class PathsDebugCommand {
             for(StructureAnchors.StructureChunk chunk : chunks.subList(0, Math.min(ANCHOR_LIST_MAX, chunks.size()))) {
                 Optional<StructureAnchors.ResolvedStructure> structure = StructureAnchors.resolve(level, origin.structureSet(), chunk.x(), chunk.z());
                 boolean ours = structure.isPresent() && origin.structure().map(structure.get().structure()::equals).orElse(true);
-                int paths = ours ? anchoredPaths(level, anchored, chunk).size() : 0;
+                int paths = ours ? StructureAnchors.pathsAt(level, anchored, chunk).size() : 0;
                 BlockPos at = structure.map(s -> s.bounds().getCenter()).orElse(new BlockPos((chunk.x() << 4) + 8, 0, (chunk.z() << 4) + 8));
                 String what = structure.map(s -> ours
                         ? s.structure() + ": " + paths + "/" + origin.pathCount() + " path(s)"

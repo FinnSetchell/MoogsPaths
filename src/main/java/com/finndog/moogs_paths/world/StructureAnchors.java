@@ -6,6 +6,8 @@ import com.finndog.moogs_paths.data.PathDataManager;
 import com.finndog.moogs_paths.data.PathNetworkType;
 import com.finndog.moogs_paths.data.PathType;
 import com.finndog.moogs_paths.data.StructureOrigin;
+import com.finndog.moogs_paths.world.deferred.DeferredPathJob;
+import com.finndog.moogs_paths.world.deferred.PlacementTickPump;
 import com.mojang.datafixers.util.Either;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
@@ -436,6 +438,33 @@ public final class StructureAnchors {
         }
         BlockPos startPos = new BlockPos(start.getX(), heights.sampleAt(start.getX(), start.getZ()), start.getZ());
         return PathFinder.findPathTo(startPos, goalX, goalZ, length, pathType, heights, accept);
+    }
+
+    /**
+     * Every path leading out of the structure at this chunk, computed now if need be and queued for
+     * placement. Empty when no structure of the network's kind generates there. For searches on the
+     * server thread (/paths locate and the locate API), not for world generation.
+     */
+    public static List<PathDataManager.CachedPath> pathsAt(ServerLevel level, MoogsPathsDatapackRegistries.AnchoredNetwork anchored, StructureChunk chunk) {
+        PathNetworkType network = anchored.network();
+        Optional<PathType> pathType = MoogsPathsDatapackRegistries.getPathType(level.registryAccess(), network.pathType());
+        if(pathType.isEmpty()) return List.of();
+        List<PathDataManager.CachedPath> paths = new ArrayList<>();
+        int pathCount = network.origin().orElseThrow().pathCount();
+        for(int i = 0; i < pathCount; i++) {
+            int pathIndex = i;
+            long pathSeed = pathSeed(level.getSeed(), chunk.x(), chunk.z(), anchored.id(), pathIndex);
+            if(PathDataManager.isRejected(pathSeed)) continue;
+            PathDataManager.CachedPath path = PathDataManager.getOrComputeWaypoints(pathSeed, () -> computePath(
+                level, network, anchored.id(), pathType.get(), chunk.x(), chunk.z(), pathIndex));
+            if(path.waypointCount() < 2) {
+                PathDataManager.markRejected(pathSeed);
+                continue;
+            }
+            PlacementTickPump.enqueueFromWorldgen(level, DeferredPathJob.anchored(pathSeed, chunk.x(), chunk.z(), pathIndex, anchored.id()));
+            paths.add(path);
+        }
+        return paths;
     }
 
     // The network's biomes, less moogs_paths:has_no_paths, as the path finder's gate.

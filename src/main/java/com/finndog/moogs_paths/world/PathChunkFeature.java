@@ -58,8 +58,8 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
     /*public static final TagKey<Biome> HAS_NO_PATHS = TagKey.create(Registries.BIOME, new ResourceLocation(Constants.MOD_ID, "has_no_paths"));
     *///?}
 
-    // PathsDebugCommand reproduces evaluateOrigin against the same pathSeed inputs; the
-    // mixer constants must stay public so the locate command derives matching seeds.
+    // MoogsPathsLocator reproduces evaluateOrigin against the same pathSeed inputs; the
+    // mixer constants must stay public so the locate search derives matching seeds.
     public static final long PATH_SEED_MIXER = 0xABCDEF1234567890L;
     public static final long ORIGIN_X_MULT = 341873128712L;
     public static final long ORIGIN_Z_MULT = 132897987541L;
