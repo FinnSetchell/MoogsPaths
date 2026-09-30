@@ -5,18 +5,21 @@
 ## [1.1.0] - 2026-09-29
 
 ### Added
-- Roads now lead out of every village, two per village, in the style of its biome
+- Roads lead out of villages, styled to their biome
 - Trails lead out of witch huts and jungle temples
-- Datapacks can start paths at any vanilla or modded structure
-- Support for Minecraft 26.3 on Fabric and NeoForge
+- Datapacks can start paths at any structure
+- Minecraft 26.3 support (Fabric and NeoForge)
 
 ### Changed
-- On 1.20, paths now generate in the background like every other version, so servers start and worlds load faster
-- `/paths locate` also finds roads out of structures, and works from command blocks and the console
+- Paths on 1.20 generate in the background, so worlds load faster
+- `/paths locate` finds structure roads and works from the console
 
 ### Fixed
-- Flowers now grow along plains paths on 1.20 and 26.1
-- On 1.20 Fabric, older Fabric Loader versions now get a clear message instead of silently generating no paths
+- Flowers grow along plains paths on 1.20 and 26.1
+- 1.20 Fabric asks for a newer Fabric Loader instead of generating no paths
+- Dirt paths no longer stack or sit under blocks
+- Mushroom paths now generate
+- `/paths locate` no longer points into water
 
 ---
 
