@@ -105,3 +105,21 @@ tasks {
         into(rootProject.layout.buildDirectory.dir("libs/$version"))
     }
 }
+
+// IntelliJ 2026.2 turns the dots in a node's name into underscores when it names modules
+// (Root.1_21_1-fabric.main), but Loom writes its run configurations for Root.1.21.1-fabric.main,
+// which then don't run. Once the IDE has imported the project, point them at the name it actually uses.
+tasks.named("ideaSyncTask") {
+    val ideaDir = rootProject.file(".idea")
+    val dotted = "${rootProject.name}.${project.name}."
+    val underscored = "${rootProject.name}.${project.name.replace('.', '_')}."
+    doLast {
+        val modules = File(ideaDir, "modules.xml")
+        if (dotted == underscored || !modules.exists() || underscored !in modules.readText()) return@doLast
+        File(ideaDir, "runConfigurations").listFiles { f -> f.extension == "xml" }?.forEach { f ->
+            val text = f.readText()
+            val fixed = text.replace("<module name=\"$dotted", "<module name=\"$underscored")
+            if (fixed != text) f.writeText(fixed)
+        }
+    }
+}
