@@ -11,6 +11,10 @@
   "origin": {
     "structure_set": "minecraft:swamp_huts",
     "structure": "minecraft:swamp_hut",
-    "path_count": 1
+    "path_count": 1,
+    "anchor": {
+      "local_pos": [3, 0, -1],
+      "facing": "north"
+    }
   }
 }

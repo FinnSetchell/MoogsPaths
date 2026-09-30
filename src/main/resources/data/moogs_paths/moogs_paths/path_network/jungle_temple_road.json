@@ -9,6 +9,10 @@
   "origin": {
     "structure_set": "minecraft:jungle_temples",
     "structure": "minecraft:jungle_pyramid",
-    "path_count": 1
+    "path_count": 1,
+    "anchor": {
+      "local_pos": [5, 0, -1],
+      "facing": "north"
+    }
   }
 }
