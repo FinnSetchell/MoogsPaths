@@ -23,6 +23,7 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.ChunkGenerator;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 
@@ -179,7 +180,7 @@ public final class PathsDebugCommand {
             networkId.ifPresent(id -> PlacementTickPump.enqueueFromWorldgen(level, new DeferredPathJob(
                 ev.pathSeed(), candidate.originChunkX(), candidate.originChunkZ(), candidate.regionSize(), id)));
 
-            return nearestWaypoint(networkId.orElse(unknownId()), ev.cachedPath(), fromX, fromZ);
+            return nearestWaypoint(level, networkId.orElse(unknownId()), ev.cachedPath(), ev.pathType(), fromX, fromZ);
         }
         return null;
     }
@@ -214,8 +215,9 @@ public final class PathsDebugCommand {
             if(structure.isEmpty() || !origin.structure().map(structure.get().structure()::equals).orElse(true)) continue;
             if(verified++ >= MAX_ANCHORED_VERIFY) break;
             Located best = null;
+            PathType pathType = MoogsPathsDatapackRegistries.getPathType(access, candidate.network().network().pathType()).orElse(null);
             for(PathDataManager.CachedPath path : anchoredPaths(level, candidate.network(), candidate.chunk())) {
-                Located here = nearestWaypoint(candidate.network().id(), path, fromX, fromZ);
+                Located here = nearestWaypoint(level, candidate.network().id(), path, pathType, fromX, fromZ);
                 if(best == null || here.distSq() < best.distSq()) best = here;
             }
             if(best != null) return best;
@@ -247,18 +249,34 @@ public final class PathsDebugCommand {
         return paths;
     }
 
-    private static Located nearestWaypoint(ResourceLocation network, PathDataManager.CachedPath path, int fromX, int fromZ) {
-        BlockPos nearest = null;
-        long nearestSq = Long.MAX_VALUE;
-        for(BlockPos wp : path.waypoints()) {
-            long dx = wp.getX() - fromX;
-            long dz = wp.getZ() - fromZ;
-            if(dx * dx + dz * dz < nearestSq) {
-                nearestSq = dx * dx + dz * dz;
-                nearest = wp;
+    private static final int LAND_CHECKS = 64;
+    private static final int LAND_CHECK_STRIDE = 4;
+
+    // The nearest waypoint where the path is actually laid. A path type without water settings
+    // leaves nothing over water, so the nearest waypoint on a lake would send the player to an
+    // empty spot. Checks every few waypoints outward from the nearest, using the generator's height
+    // maps (no chunks generated); falls back to the plain nearest if none is on land.
+    private static Located nearestWaypoint(ServerLevel level, ResourceLocation network, PathDataManager.CachedPath path, PathType pathType, int fromX, int fromZ) {
+        List<BlockPos> byDistance = new ArrayList<>(path.waypoints());
+        byDistance.sort(Comparator.comparingLong(wp -> distSq(wp, fromX, fromZ)));
+        if(pathType != null && pathType.waterSettings().isEmpty()) {
+            ChunkGenerator generator = level.getChunkSource().getGenerator();
+            RandomState randomState = level.getChunkSource().randomState();
+            for(int i = 0, checks = 0; i < byDistance.size() && checks < LAND_CHECKS; i += LAND_CHECK_STRIDE, checks++) {
+                BlockPos wp = byDistance.get(i);
+                int floor = generator.getBaseHeight(wp.getX(), wp.getZ(), Heightmap.Types.OCEAN_FLOOR_WG, level, randomState);
+                int surface = generator.getBaseHeight(wp.getX(), wp.getZ(), Heightmap.Types.WORLD_SURFACE_WG, level, randomState);
+                if(floor >= surface) return new Located(network, wp, distSq(wp, fromX, fromZ));
             }
         }
-        return new Located(network, nearest, nearestSq);
+        BlockPos nearest = byDistance.get(0);
+        return new Located(network, nearest, distSq(nearest, fromX, fromZ));
+    }
+
+    private static long distSq(BlockPos wp, int fromX, int fromZ) {
+        long dx = wp.getX() - fromX;
+        long dz = wp.getZ() - fromZ;
+        return dx * dx + dz * dz;
     }
 
     private static ResourceLocation unknownId() {
