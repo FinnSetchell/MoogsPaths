@@ -11,6 +11,8 @@ logoFile = "assets/moogs_paths/icon.png"
 credits = "${credits}" #optional
 authors = "${mod_author}" #optional
 description = '''${description}''' #mandatory (Supports multiline text)
+# Server-side mod: a client without it can join a server that has it, so skip the version check.
+displayTest = "IGNORE_ALL_VERSION"
 [[dependencies.${mod_id}]] #optional
 modId = "forge" #mandatory
 mandatory = true #mandatory
