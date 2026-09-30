@@ -209,10 +209,21 @@ roads out of them. It works with vanilla and modded structures alike.
 
 | field | type | description |
 |---|---|---|
-| `structure_set` | resource location | A structure set (`worldgen/structure_set`), e.g. `minecraft:villages`, `minecraft:swamp_huts` or a modded set. The set, not the structure, because the set holds the placement that says where its structures go. |
-| `structure` | resource location (optional) | Only anchor to this structure of the set (`worldgen/structure`), e.g. `minecraft:village_desert` out of `minecraft:villages`. Without it, any structure of the set counts. |
+| `structure_set` | resource location, or a list | A structure set (`worldgen/structure_set`), e.g. `minecraft:villages`, `minecraft:swamp_huts` or a modded set, or several. The set, not the structure, because the set holds the placement that says where its structures go. A set that isn't loaded (its mod isn't installed) is skipped, so a list can name optional modded sets; a warning is only logged when none of them is loaded. |
+| `structure` | resource location, `#tag`, or a list of either (optional) | Only anchor to these structures of the sets (`worldgen/structure`), e.g. `minecraft:village_desert` out of `minecraft:villages`, or `#minecraft:village`. Without it, any structure of the sets counts. Ids that don't exist simply never match. |
 | `path_count` | int (optional, default `1`, up to `8`) | How many paths lead out of each structure. They head off in different directions. |
 | `anchor` | object (optional) | Start the paths at a particular spot inside the structure. See below. |
+
+Several sets and structures let one network cover modded structures too, e.g. plains roads that also
+leave Towns and Towers' meadow villages:
+
+```json
+"origin": {
+  "structure_set": ["minecraft:villages", "towns_and_towers:towns"],
+  "structure": ["minecraft:village_plains", "towns_and_towers:village_meadow"],
+  "path_count": 2
+}
+```
 
 By default a path starts just outside the structure, on the side it heads off towards, and never cuts
 back through the structure's pieces. The path still only runs through the network's `biomes` (and never
@@ -221,41 +232,58 @@ at the edge of their biome, and a narrow list like `#minecraft:has_structure/vil
 road at the first forest next to the village.
 
 Structures are found the way vanilla places them, including each set's frequency and exclusion zones,
-so a path only starts where the structure really is. Only `random_spread` placements can be used, which
+so a path only starts where the structure really is. A structure another mod turns off (YUNG's Better
+Jungle Temples replaces the vanilla jungle temple, for one) gets no paths. Only `random_spread` placements can be used, which
 covers villages, huts, temples, outposts and most modded structures. Strongholds (`concentric_rings`)
 are not supported and log a warning once.
 
-#### `anchor` - start from a spot inside the structure
+#### `anchor` - start from a spot on the structure
+
+A path can lead up to a door, or carry on from the end of a village street:
+
+```json
+"origin": {
+  "structure_set": "minecraft:jungle_temples",
+  "structure": "minecraft:jungle_pyramid",
+  "anchor": {
+    "local_pos": [5, 0, -1],
+    "facing": "north"
+  }
+}
+```
 
 ```json
 "origin": {
   "structure_set": "minecraft:villages",
   "structure": "minecraft:village_plains",
+  "path_count": 2,
   "anchor": {
-    "piece": "minecraft:village/plains/houses/plains_butcher_shop_1",
-    "piece_index": 0,
-    "local_pos": [3, 1, 2]
+    "piece": "minecraft:village/*/terminators/*"
   }
 }
 ```
 
 | field | type | description |
 |---|---|---|
-| `piece` | resource location (optional) | A template pool element's NBT id, the `location` of a `single_pool_element`: a particular village house, or a named piece of a modded jigsaw structure. Without it, the structure's first piece is used. |
-| `piece_index` | int (optional, default `0`) | Which one to use when that piece was placed more than once. |
-| `local_pos` | `[x, y, z]` (optional) | A position inside the piece's `.nbt`, the numbers a structure block shows. It turns with the piece, so it tracks the structure however it generated. Only `x` and `z` matter; the path starts on the surface. Without it, the piece's centre is used. |
+| `piece` | string, or a list (optional) | Which pieces to start from, by NBT id: the `location` of a `single_pool_element` (a village house, a named piece of a modded jigsaw structure) or the NBT of a template piece (an igloo). `*` stands for any part of one name between slashes and `**` for any run of folders, so `minecraft:village/*/terminators/*` matches every vanilla village's street ends. A list takes several ids or patterns, e.g. one per structure a network covers. Without it, the structure's first piece is used. |
+| `piece_index` | int (optional) | Pins one occurrence when `piece` matches several. Without it, each path starts from the matching piece lying furthest the way it heads, so the roads of a village each carry on from a different street end. When even that piece lies more than 32 blocks back from the structure's edge on that side, the path starts at the edge instead. |
+| `local_pos` | `[x, y, z]` (optional) | A position inside the piece: for an NBT piece the numbers a structure block shows; for a piece built in code (jungle temple, witch hut, desert pyramid) the piece's own coordinates, the ones its code places blocks at. It turns with the piece, so it tracks the structure however it generated, and may lie outside the piece (`-1` is just in front of its `z = 0` side). Only `x` and `z` matter; the path starts on the surface. Without it, the piece's centre is used. |
+| `facing` | `north`, `south`, `east` or `west` (optional) | The side the path leaves from, in the same frame as `local_pos` (`north` is towards `z = 0`), turned with the piece. The path runs straight out that way until it is clear of the structure, then turns towards where it is going, and a structure's first path heads that way. Without it, a path leaves by the shortest way clear of the structure, preferring the way it heads. |
 
-With an anchor the path starts exactly there and may cross the structure on its way out. `local_pos`
-needs an NBT piece, so on structures built in code (jungle temples, witch huts) it falls back to the
-piece's centre. A `piece` that never generates falls back to the structure's centre. Both log a warning
-once, which helps catch a mistyped id.
+With or without an anchor, a path never cuts back through the structure's pieces: from an anchor it only
+crosses them on its straight way out. When no piece matches, the path starts as it would without an
+anchor, so a list of pieces can cover structures that lack some of them.
 
-`/paths debug anchors` lists each structure-anchored network's structures near you and how many of
-their paths were built.
+The built-in networks use these: jungle temple roads leave the temple's front steps (`[5, 0, -1]`,
+facing `north`), witch hut trails the hut's porch (`[3, 0, -1]`, facing `north`), and village roads
+carry on from street ends.
+
+`/paths debug anchors` lists each structure-anchored network's structures near you, how many of their
+paths were built, and what the anchor picked in each.
 
 The mod ships these as built-in networks, each findable with `/paths locate <network>`:
 
-- `moogs_paths:village_road_plains`, `village_road_desert`, `village_road_savanna`, `village_road_snowy`, `village_road_taiga` - two roads out of every village, in the style of its biome
+- `moogs_paths:village_road_plains`, `village_road_desert`, `village_road_savanna`, `village_road_snowy`, `village_road_taiga` - two roads out of every village, in the style of its biome, Towns and Towers villages of those styles included
 - `moogs_paths:witch_hut_trail` - a swamp trail out of every witch hut
 - `moogs_paths:jungle_temple_road` - a jungle path out of every jungle temple
 
