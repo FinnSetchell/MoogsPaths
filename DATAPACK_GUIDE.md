@@ -267,8 +267,8 @@ A reusable list of NBT structures with placement rules.
 |---|---|---|
 | `structures` | list of structure entries | The actual structures and their per-entry settings. |
 | `placement` | `"endpoint"` or `"interval"` | `endpoint` places one structure at each end of the path. `interval` spreads structures along the entire path at regular distances. |
-| `spacing` | int | For `interval` mode: average distance in blocks between placements. For `endpoint` mode: typically `1`. |
-| `spacing_variance` | int | Random jitter added to `spacing` so placements do not look mechanical. `0` for perfectly regular. |
+| `spacing` | int | For `interval` mode: distance in blocks along the path between placements, before `spacing_variance` is added. For `endpoint` mode: unused, typically `1`. |
+| `spacing_variance` | int | Adds a random 0 to `spacing_variance - 1` blocks to each gap so placements do not look mechanical. `0` for perfectly regular. |
 | `flatness_tolerance` | int `0`-`255` | How far (in blocks) the ground may rise or drop around the placement spot. The check looks at a plus shape, 1 and 2 blocks out from the centre in each of the four directions, not the structure's whole footprint, and skips the placement if any of those 8 spots differs from the centre by more than this. Lower = stricter, fewer placements but flatter ground. A structure wider than 5 blocks can still hang over a drop at its corners; `beard_thin` below fills under it. |
 | `terrain_adjustment` | `"none"` or `"beard_thin"` (optional, default `none`) | If `beard_thin`, the placement carves a small pad under the structure so it sits flush on uneven ground. Use this for structures that need a level base. |
 | `side_offset` | int (optional, default `0`) | Perpendicular distance from the path centerline at which to place the structure. `0` is on the path, positive values push it to the side. |
@@ -413,7 +413,7 @@ A network with no biomes never generates a path, including the ones that lead ou
 Requires permission level 2 (op). They search around wherever they run, so they also work from a command
 block or the console, e.g. `/execute positioned 1000 64 -500 run paths locate`.
 
-`/paths locate [network]` -- teleport-suggest the nearest path origin. With no argument, finds the nearest path of any network. With a network id, finds the nearest path that rolled that network, including structure-anchored ones. Click the chat coord to fill `/tp`.
+`/paths locate [network]` -- teleport-suggest the nearest path origin. With no argument, finds the nearest path of any network. With a network id, finds the nearest path that rolled that network, including structure-anchored ones. Click the chat coord to fill `/tp` with a spot on the path.
 
 `/paths debug region` -- show which path region your position falls inside, for each loaded `region_size`.
 
@@ -422,5 +422,7 @@ block or the console, e.g. `/execute positioned 1000 64 -500 run paths locate`.
 `/paths debug anchors` -- for each structure-anchored network, list the nearest spots its structure set places a structure, which structure generated at each (click to teleport), and how many paths lead out of it.
 
 `/paths debug structures` -- list every cached structure NBT and whether it resolved (`ok`) or is missing.
+
+`/paths debug jobs` -- count the paths waiting to be laid in this dimension (and how many chunks of them are down), the paths already finished, and what is queued, computing and cached right now. A path is laid chunk by chunk as those chunks load, so it stays waiting until players have been everywhere it goes.
 
 `/paths debug reload` -- reload datapacks as `/reload` does, then clear the mod's caches: the structure templates it has loaded, and every path it has worked out, so paths in chunks that haven't generated yet are planned again. A plain `/reload` keeps the cached templates, so use this after changing a `.nbt`. `path_type`, `path_network`, `structure_set`, `feature_decorator_set` and `bush_decorator_set` are datapack registries, which Minecraft only loads with the world on every version: changes to those files need the world (or server) restarted.
