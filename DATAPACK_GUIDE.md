@@ -152,7 +152,7 @@ Binds a path_type to biomes and decorations. This is what the worldgen actually 
 | `path_type` | resource location | The path_type to use. |
 | `biomes` | biome holder set | A single biome id, a list of biome ids, or a `#tag:like_this`. Standard vanilla holderset syntax. Tags from any namespace work, including modded ones (`#c:is_overworld`, `#forge:is_overworld`, mod-specific biome tags), so networks can extend cleanly to modded biomes. |
 | `weight` | int (optional, default `1`) | Relative weight when multiple networks compete for the same biome. Higher = more likely to win. |
-| `region_size` | int | Size of the worldgen region (in chunks) within which the network plans a path. Larger = longer, less frequent paths. Typical range 32-64. Not used, and not needed, with `origin`. |
+| `region_size` | int | Size of the worldgen region (in chunks) within which the network plans a path. Larger = longer, less frequent paths. Typical range 32-64. Networks with the same `region_size` share one starting point per region, so a network for a small or rare biome (mushroom fields use 12) needs its own smaller size, or its starting points rarely land in the biome. Not used, and not needed, with `origin`. |
 | `structure_sets` | list of resource locations (optional) | Structure sets to scatter along the path. Each entry runs independently - there is no weighted pick here. |
 | `feature_decorator_sets` | list of resource locations (optional) | Feature decorator sets used for scattered features. |
 | `bush_decorator_sets` | list of resource locations (optional) | Bush decorator sets used for leaf blobs along the path. |
