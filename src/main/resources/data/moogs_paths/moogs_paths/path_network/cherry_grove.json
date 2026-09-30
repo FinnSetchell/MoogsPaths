@@ -1,8 +1,6 @@
 {
   "path_type": "moogs_paths:cherry_grove",
-  "biomes": [
-    "minecraft:cherry_grove"
-  ],
+  "biomes": "#moogs_paths:has_path/cherry_grove",
   "weight": 6,
   "region_size": 28,
   "structure_sets": [

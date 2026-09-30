@@ -1,9 +1,6 @@
 {
   "path_type": "moogs_paths:swamp_path",
-  "biomes": [
-    "minecraft:swamp",
-    "minecraft:mangrove_swamp"
-  ],
+  "biomes": "#moogs_paths:has_path/witch_hut_trail",
   "structure_sets": [
     "moogs_paths:swamp_posts"
   ],

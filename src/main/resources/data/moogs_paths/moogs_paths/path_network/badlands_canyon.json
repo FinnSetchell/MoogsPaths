@@ -1,10 +1,6 @@
 {
   "path_type": "moogs_paths:badlands_canyon",
-  "biomes": [
-    "minecraft:badlands",
-    "minecraft:eroded_badlands",
-    "minecraft:wooded_badlands"
-  ],
+  "biomes": "#moogs_paths:has_path/badlands_canyon",
   "weight": 3,
   "region_size": 24,
   "structure_sets": [

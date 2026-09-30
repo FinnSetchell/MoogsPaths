@@ -1,11 +1,6 @@
 {
   "path_type": "moogs_paths:dirt_road",
-  "biomes": [
-    "minecraft:taiga",
-    "minecraft:old_growth_pine_taiga",
-    "minecraft:old_growth_spruce_taiga",
-    "minecraft:dark_forest"
-  ],
+  "biomes": "#moogs_paths:has_path/dirt_road",
   "weight": 3,
   "region_size": 36,
   "structure_sets": [

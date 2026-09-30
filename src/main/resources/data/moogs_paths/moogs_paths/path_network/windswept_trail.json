@@ -1,11 +1,6 @@
 {
   "path_type": "moogs_paths:windswept_trail",
-  "biomes": [
-    "minecraft:windswept_hills",
-    "minecraft:windswept_gravelly_hills",
-    "minecraft:windswept_forest",
-    "minecraft:windswept_savanna"
-  ],
+  "biomes": "#moogs_paths:has_path/windswept_trail",
   "weight": 3,
   "region_size": 36,
   "structure_sets": [

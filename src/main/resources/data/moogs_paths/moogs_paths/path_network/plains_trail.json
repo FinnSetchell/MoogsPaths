@@ -1,10 +1,6 @@
 {
   "path_type": "moogs_paths:dirt_trail",
-  "biomes": [
-    "minecraft:plains",
-    "minecraft:sunflower_plains",
-    "minecraft:meadow"
-  ],
+  "biomes": "#moogs_paths:has_path/plains_trail",
   "weight": 6,
   "region_size": 32,
   "structure_sets": [

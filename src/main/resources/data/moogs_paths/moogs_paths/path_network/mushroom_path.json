@@ -1,8 +1,6 @@
 {
   "path_type": "moogs_paths:mushroom_path",
-  "biomes": [
-    "minecraft:mushroom_fields"
-  ],
+  "biomes": "#moogs_paths:has_path/mushroom_path",
   "weight": 4,
   "region_size": 12,
   "structure_sets": [

@@ -1,9 +1,6 @@
 {
   "path_type": "moogs_paths:swamp_path",
-  "biomes": [
-    "minecraft:swamp",
-    "minecraft:mangrove_swamp"
-  ],
+  "biomes": "#moogs_paths:has_path/swamp_path",
   "weight": 4,
   "region_size": 30,
   "structure_sets": [

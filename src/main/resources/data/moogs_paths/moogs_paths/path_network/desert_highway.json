@@ -1,6 +1,6 @@
 {
   "path_type": "moogs_paths:desert_highway",
-  "biomes": "minecraft:desert",
+  "biomes": "#moogs_paths:has_path/desert_highway",
   "weight": 4,
   "region_size": 36,
   "structure_sets": [
