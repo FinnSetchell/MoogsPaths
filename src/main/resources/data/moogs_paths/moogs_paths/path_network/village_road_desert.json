@@ -9,8 +9,22 @@
   ],
   "bush_decorator_sets": [],
   "origin": {
-    "structure_set": "minecraft:villages",
-    "structure": "minecraft:village_desert",
-    "path_count": 2
+    "structure_set": [
+      "minecraft:villages",
+      "towns_and_towers:towns"
+    ],
+    "structure": [
+      "minecraft:village_desert",
+      "towns_and_towers:village_badlands",
+      "towns_and_towers:village_wooded_badlands",
+      "towns_and_towers:exclusives/village_wandering_trader_camp"
+    ],
+    "path_count": 2,
+    "anchor": {
+      "piece": [
+        "minecraft:village/*/terminators/*",
+        "kaisyn:village/**/terminators/**"
+      ]
+    }
   }
 }

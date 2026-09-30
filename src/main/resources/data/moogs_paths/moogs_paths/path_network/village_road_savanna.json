@@ -7,8 +7,22 @@
   "feature_decorator_sets": [],
   "bush_decorator_sets": [],
   "origin": {
-    "structure_set": "minecraft:villages",
-    "structure": "minecraft:village_savanna",
-    "path_count": 2
+    "structure_set": [
+      "minecraft:villages",
+      "towns_and_towers:towns"
+    ],
+    "structure": [
+      "minecraft:village_savanna",
+      "towns_and_towers:village_savanna_plateau",
+      "towns_and_towers:exclusives/village_iberian",
+      "towns_and_towers:exclusives/village_mediterranean"
+    ],
+    "path_count": 2,
+    "anchor": {
+      "piece": [
+        "minecraft:village/*/terminators/*",
+        "kaisyn:village/**/terminators/**"
+      ]
+    }
   }
 }
