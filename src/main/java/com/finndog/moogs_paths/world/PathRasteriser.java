@@ -47,16 +47,18 @@ public final class PathRasteriser {
 
     //////////////////////////////
 
-    public static void rasteriseInChunk(WorldGenLevel level, List<BlockPos> waypoints, PathType pathType, int chunkX, int chunkZ, RandomSource random) {
-        rasteriseInChunk(level, waypoints, pathType, chunkX, chunkZ, random, 3);
+    public static LongOpenHashSet rasteriseInChunk(WorldGenLevel level, List<BlockPos> waypoints, PathType pathType, int chunkX, int chunkZ, RandomSource random) {
+        return rasteriseInChunk(level, waypoints, pathType, chunkX, chunkZ, random, 3);
     }
 
     // flags is the setBlock flag triplet to use for every placement. Worldgen passes 3
     // (UPDATE_NEIGHBORS | UPDATE_CLIENTS). Deferred live-chunk placement passes 18
     // (UPDATE_CLIENTS | UPDATE_KNOWN_SHAPE) to suppress neighbour-update cascades that
     // would otherwise visibly fire on already-loaded chunks.
-    public static void rasteriseInChunk(WorldGenLevel level, List<BlockPos> waypoints, PathType pathType, int chunkX, int chunkZ, RandomSource random, int flags) {
-        if(waypoints.size() < 2) return;
+    // Returns every surface position placed, for settleDirtPaths once the chunk's decorations are down.
+    public static LongOpenHashSet rasteriseInChunk(WorldGenLevel level, List<BlockPos> waypoints, PathType pathType, int chunkX, int chunkZ, RandomSource random, int flags) {
+        LongOpenHashSet placed = new LongOpenHashSet();
+        if(waypoints.size() < 2) return placed;
         int halfWidthMin = pathType.width().min() / 2;
         int halfWidthMax = pathType.width().max() / 2;
         int totalSegments = waypoints.size() - 1;
@@ -83,7 +85,30 @@ public final class PathRasteriser {
             // taper the width with fade so the path narrows to width.min near endpoints; sits
             // alongside the existing density taper that drops blocks probabilistically
             int segHalfWidth = halfWidthMin + Math.round((halfWidthMax - halfWidthMin) * fade);
-            rasteriseSegmentInChunk(level, from, to, pathType, segHalfWidth, fade, chunkX, chunkZ, random, waterPositions, chunkHeights, pathBlocks, flags);
+            rasteriseSegmentInChunk(level, from, to, pathType, segHalfWidth, fade, chunkX, chunkZ, random, waterPositions, chunkHeights, pathBlocks, placed, flags);
+        }
+        return placed;
+    }
+
+    /**
+     * Applies vanilla's dirt path rule to the placed surface: a dirt path with a solid block on top
+     * becomes dirt. Placement skips shape updates, so vanilla never gets the chance itself. Without
+     * this, segments at different heights stack paths on paths, and cut tiles leave paths buried in
+     * a slope. The block under each placed position is checked too, since it may be an older dirt
+     * path (another path, a village street) that something now sits on.
+     */
+    public static void settleDirtPaths(WorldGenLevel level, LongOpenHashSet placed, int flags) {
+        BlockPos.MutableBlockPos mpos = new BlockPos.MutableBlockPos();
+        LongIterator it = placed.iterator();
+        while(it.hasNext()) {
+            long packed = it.nextLong();
+            for(int dy = 0; dy >= -1; dy--) {
+                mpos.set(BlockPos.getX(packed), BlockPos.getY(packed) + dy, BlockPos.getZ(packed));
+                BlockState state = level.getBlockState(mpos);
+                if(state.is(Blocks.DIRT_PATH) && !state.canSurvive(level, mpos)) {
+                    level.setBlock(mpos, Blocks.DIRT.defaultBlockState(), flags);
+                }
+            }
         }
     }
 
@@ -120,7 +145,7 @@ public final class PathRasteriser {
 
     //////////////////////////////
 
-    private static void rasteriseSegmentInChunk(WorldGenLevel level, BlockPos from, BlockPos to, PathType pathType, int halfWidth, float fade, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet waterPositions, int[] chunkHeights, Set<Block> pathBlocks, int flags) {
+    private static void rasteriseSegmentInChunk(WorldGenLevel level, BlockPos from, BlockPos to, PathType pathType, int halfWidth, float fade, int chunkX, int chunkZ, RandomSource random, LongOpenHashSet waterPositions, int[] chunkHeights, Set<Block> pathBlocks, LongOpenHashSet placed, int flags) {
         int chunkMinX = chunkX * 16;
         int chunkMaxX = chunkMinX + 15;
         int chunkMinZ = chunkZ * 16;
@@ -215,6 +240,7 @@ public final class PathRasteriser {
                     }
 
                     if(didPlace) {
+                        placed.add(BlockPos.asLong(bx, placeY, bz));
                         clearVegetationAbove(level, mpos, bx, placeY, bz, flags);
                         mpos.set(bx, placeY - 1, bz);
                         BlockState under = level.getBlockState(mpos);

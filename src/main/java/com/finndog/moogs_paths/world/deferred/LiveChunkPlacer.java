@@ -72,18 +72,22 @@ public final class LiveChunkPlacer {
 
         try {
             RandomSource rasterRandom = RandomSource.create(pathSeed ^ ((long) chunkX * RASTER_CHUNK_X_MULT) ^ ((long) chunkZ * RASTER_CHUNK_Z_MULT));
-            PathRasteriser.rasteriseInChunk(level, waypoints, pathType, chunkX, chunkZ, rasterRandom, RASTER_FLAGS);
+            LongOpenHashSet placedSurface = PathRasteriser.rasteriseInChunk(level, waypoints, pathType, chunkX, chunkZ, rasterRandom, RASTER_FLAGS);
 
             if(!network.structureSets().isEmpty()) {
                 RandomSource structureRandom = RandomSource.create(pathSeed ^ STRUCTURE_MIXER);
                 LongOpenHashSet placedStructurePositions = new LongOpenHashSet();
-                StructurePlacer.placeInChunk(level, waypoints, network.structureSets(), network.biomes(), chunkX, chunkZ, structureRandom, placedStructurePositions, RASTER_FLAGS);
+                StructurePlacer.placeInChunk(level, waypoints, network.structureSets(), network.biomes(), chunkX, chunkZ, structureRandom, placedStructurePositions, placedSurface, RASTER_FLAGS);
             }
 
             if(!network.bushDecoratorSets().isEmpty()) {
                 RandomSource bushRandom = RandomSource.create(pathSeed ^ BUSH_MIXER);
                 BushPlacer.placeInChunk(level, waypoints, network.bushDecoratorSets(), network.biomes(), chunkX, chunkZ, bushRandom, BUSH_FLAGS);
             }
+
+            // Last, so posts and bushes standing on the path count as blocks on top of it. The
+            // structure placer has added the blocks its structures stand on.
+            PathRasteriser.settleDirtPaths(level, placedSurface, RASTER_FLAGS);
         } catch(Throwable t) {
             Constants.LOG.error("Deferred placement failed for seed {} chunk ({}, {}): {}", pathSeed, chunkX, chunkZ, t.toString(), t);
         }
