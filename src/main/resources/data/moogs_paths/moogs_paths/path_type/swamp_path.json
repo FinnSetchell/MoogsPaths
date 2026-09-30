@@ -52,8 +52,8 @@
     "max_inclusive": 300
   },
   "fade": {
-    "start_blocks": 6,
-    "end_blocks": 6
+    "start_blocks": 3,
+    "end_blocks": 3
   },
   "water_settings": {
     "surface_blocks": [

@@ -22,8 +22,8 @@
     }
   ],
   "placement": "interval",
-  "spacing": 20,
-  "spacing_variance": 10,
+  "spacing": 10,
+  "spacing_variance": 5,
   "flatness_tolerance": 4,
   "terrain_adjustment": "beard_thin",
   "side_offset": 0

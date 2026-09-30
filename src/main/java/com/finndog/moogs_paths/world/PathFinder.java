@@ -78,7 +78,7 @@ public final class PathFinder {
 
     private static List<BlockPos> solve(BlockPos origin, int goalBlockX, int goalBlockZ, int length, PathType pathType, HeightSampler rawHeightAt, BiomeAccept biome) {
         // A* only needs heights for the slope filter and step cost, both tolerant of coarse
-        // approximations. Snapping to a 16-block grid shares one noise eval across 16 cells.
+        // approximations. Snapping to an 8-block grid shares one noise eval across 4 cells.
         HeightSampler coarseHeightAt = memoiseCoarse(rawHeightAt);
         // interpolateToBlocks wants per-block heights so the rasteriser sees a smooth Y curve.
         HeightSampler preciseHeightAt = memoise(rawHeightAt);
@@ -94,7 +94,8 @@ public final class PathFinder {
 
         List<BlockPos> blockWaypoints = interpolateToBlocks(cellPath, preciseHeightAt, origin.getY());
         carverSmooth(blockWaypoints, pathType.carver());
-        return chaikinOnce(blockWaypoints);
+        smoothHeights(blockWaypoints);
+        return blockWaypoints;
     }
 
     //////////////////////////////
@@ -371,26 +372,20 @@ public final class PathFinder {
         return value;
     }
 
-    // One pass of Chaikin corner-cutting on XZ+Y. Endpoints preserved so structure placement at
-    // path ends stays where A* decided.
-    private static List<BlockPos> chaikinOnce(List<BlockPos> raw) {
-        if(raw.size() < 3) return raw;
-        List<BlockPos> next = new ArrayList<>(raw.size() * 2);
-        next.add(raw.get(0));
-        for(int i = 0; i < raw.size() - 1; i++) {
-            BlockPos a = raw.get(i);
-            BlockPos b = raw.get(i + 1);
-            int qx = Math.round(0.75f * a.getX() + 0.25f * b.getX());
-            int qy = Math.round(0.75f * a.getY() + 0.25f * b.getY());
-            int qz = Math.round(0.75f * a.getZ() + 0.25f * b.getZ());
-            int rx = Math.round(0.25f * a.getX() + 0.75f * b.getX());
-            int ry = Math.round(0.25f * a.getY() + 0.75f * b.getY());
-            int rz = Math.round(0.25f * a.getZ() + 0.75f * b.getZ());
-            next.add(new BlockPos(qx, qy, qz));
-            next.add(new BlockPos(rx, ry, rz));
+    // Softens steep steps between neighbouring waypoints: each takes 3/4 of its own height and 1/8
+    // of each neighbour's. Waypoints stay one per block, so spacing and fade count blocks. (This was
+    // a Chaikin pass, which on block-dense waypoints only duplicated them, apart from this smoothing.)
+    private static void smoothHeights(List<BlockPos> waypoints) {
+        if(waypoints.size() < 3) return;
+        int[] ys = new int[waypoints.size()];
+        for(int i = 0; i < ys.length; i++) ys[i] = waypoints.get(i).getY();
+        for(int i = 1; i < ys.length - 1; i++) {
+            int y = Math.round(0.125f * ys[i - 1] + 0.75f * ys[i] + 0.125f * ys[i + 1]);
+            if(y != ys[i]) {
+                BlockPos p = waypoints.get(i);
+                waypoints.set(i, new BlockPos(p.getX(), y, p.getZ()));
+            }
         }
-        next.add(raw.get(raw.size() - 1));
-        return next;
     }
 
     private static HeightSampler memoise(HeightSampler source) {

@@ -35,7 +35,7 @@
     "max_inclusive": 1000
   },
   "fade": {
-    "start_blocks": 15,
-    "end_blocks": 15
+    "start_blocks": 8,
+    "end_blocks": 8
   }
 }
