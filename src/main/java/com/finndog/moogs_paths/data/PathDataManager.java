@@ -119,9 +119,13 @@ public final class PathDataManager {
     public static CachedPath getOrComputeWaypoints(long pathSeed, Supplier<List<BlockPos>> computer) {
         CachedPath cached = WAYPOINT_CACHE.get(pathSeed);
         if(cached != null) return cached;
-        CachedPath computed = WAYPOINT_CACHE.computeIfAbsent(pathSeed, k -> buildCachedPath(computer.get()));
+        // Computed outside the map: computeIfAbsent holds a lock on part of the map for the whole
+        // pathfind, so path workers (and /paths locate) whose seeds collide queued behind each other.
+        // Two threads may now compute the same seed at once; paths are deterministic, first one wins.
+        CachedPath computed = buildCachedPath(computer.get());
+        CachedPath raced = WAYPOINT_CACHE.putIfAbsent(pathSeed, computed);
         if(WAYPOINT_CACHE.size() > WAYPOINT_CACHE_MAX_SIZE) trimCache();
-        return computed;
+        return raced != null ? raced : computed;
     }
 
     // returns a cached path without triggering computation - a hit implies biome filter already passed

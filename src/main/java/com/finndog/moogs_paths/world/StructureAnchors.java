@@ -47,6 +47,9 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.LockSupport;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Turns a {@link StructureOrigin} into paths that lead away from real structures.
@@ -264,15 +267,38 @@ public final class StructureAnchors {
         return computed;
     }
 
-    private static final Object GENERATE_LOCK = new Object();
+    private static final ReentrantLock GENERATE_LOCK = new ReentrantLock();
+    // Server-thread callers (/paths locate) waiting for the lock. Path workers step aside while there
+    // are any: the server thread may need the lock dozens of times in one command, and queueing
+    // behind every busy worker each time froze the server for minutes.
+    private static final AtomicInteger PRIORITY_WAITERS = new AtomicInteger();
     private static final int GENERATE_ATTEMPTS = 3;
+
+    private static void lockGenerate(ServerLevel level) {
+        if(level.getServer().isSameThread()) {
+            PRIORITY_WAITERS.incrementAndGet();
+            try {
+                GENERATE_LOCK.lock();
+            } finally {
+                PRIORITY_WAITERS.decrementAndGet();
+            }
+            return;
+        }
+        while(true) {
+            GENERATE_LOCK.lock();
+            if(PRIORITY_WAITERS.get() == 0) return;
+            GENERATE_LOCK.unlock();
+            LockSupport.parkNanos(1_000_000L);
+        }
+    }
 
     // Structure generation fills lazy caches in vanilla's templates (StructureTemplate.Palette keeps
     // them in a plain HashMap), so two of our threads must never generate at once. A vanilla
     // world-gen thread filling the same cache can still race us; that throws, and a retry finds the
     // cache filled.
     private static Optional<ResolvedStructure> generateGuarded(ServerLevel level, ResourceLocation setId, int chunkX, int chunkZ) {
-        synchronized(GENERATE_LOCK) {
+        lockGenerate(level);
+        try {
             for(int attempt = 1; ; attempt++) {
                 try {
                     return generate(level, setId, chunkX, chunkZ);
@@ -280,6 +306,8 @@ public final class StructureAnchors {
                     if(attempt >= GENERATE_ATTEMPTS) throw ex;
                 }
             }
+        } finally {
+            GENERATE_LOCK.unlock();
         }
     }
 
