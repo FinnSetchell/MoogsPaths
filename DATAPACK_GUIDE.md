@@ -286,6 +286,7 @@ The mod ships these as built-in networks, each findable with `/paths locate <net
 - `moogs_paths:village_road_plains`, `village_road_desert`, `village_road_savanna`, `village_road_snowy`, `village_road_taiga` - two roads out of every village, in the style of its biome, Towns and Towers villages of those styles included
 - `moogs_paths:witch_hut_trail` - a swamp trail out of every witch hut
 - `moogs_paths:jungle_temple_road` - a jungle path out of every jungle temple
+- `moogs_paths:mvs_house`, `mvs_tall_house`, `mvs_desert_house`, `mvs_swamp_house` - a path up to the door of four of Moog's Voyager Structures' houses, when that mod is installed (a network whose structure sets all belong to a mod that isn't installed is left out without a warning)
 
 ### structure_set
 

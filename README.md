@@ -50,6 +50,8 @@ Seven more lead out of structures, so villages, witch huts and jungle temples ha
 *   **Witch Hut Trail** - a swamp path with wooden posts out of every witch hut
 *   **Jungle Temple Road** - a mossy jungle path with branch shrines out of every jungle temple
 
+With [Moog's Voyager Structures](https://modrinth.com/mod/moogs-voyager-structures) installed, four of its houses get a path up to their door too: the house, the tall house, the desert house and the small swamp house.
+
 Each path is decorated with a combination of:
 
 *   **15 NBT structures** - cairns, lamps, signposts, shrines, benches, markers, posts, and candles
