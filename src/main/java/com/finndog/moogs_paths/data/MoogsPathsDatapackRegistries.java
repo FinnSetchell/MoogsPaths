@@ -17,6 +17,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -206,8 +207,9 @@ public final class MoogsPathsDatapackRegistries {
                 ));
             // Sorted by id so every chunk walks the anchored networks in the same order. A network none
             // of whose structure sets is loaded (they all belong to mods that aren't installed) is left out.
+            Set<String> setNamespaces = structureSetNamespaces(access);
             List<AnchoredNetwork> anchored = networkHolders(access)
-                .filter(h -> h.value().isStructureAnchored() && anyStructureSetLoaded(access, h.value().origin().orElseThrow()))
+                .filter(h -> h.value().isStructureAnchored() && anyStructureSetLoaded(access, h.value().origin().orElseThrow(), setNamespaces))
                 .map(h -> new AnchoredNetwork(h.value(), keyId(h.key()), maxRadius(access, h.value())))
                 .sorted(Comparator.comparing(a -> a.id().toString()))
                 .toList();
@@ -217,13 +219,27 @@ public final class MoogsPathsDatapackRegistries {
         return views;
     }
 
-    // A list of sets may name optional modded ones, so only a network with none loaded warns.
-    private static boolean anyStructureSetLoaded(RegistryAccess access, StructureOrigin origin) {
+    // A list of sets may name optional modded ones, so only a network with none loaded warns, and
+    // only about sets of a mod that is installed: a network for another mod's structures (the MVS
+    // houses) stays quiet without that mod, but a misspelt or renamed set still shows up.
+    private static boolean anyStructureSetLoaded(RegistryAccess access, StructureOrigin origin, Set<String> setNamespaces) {
         for(ResourceLocation id : origin.structureSets()) {
             if(vanillaStructureSet(access, id).isPresent()) return true;
         }
-        origin.structureSets().forEach(id -> PathDataManager.warnMissingOnce("Structure set", id));
+        origin.structureSets().stream()
+            .filter(id -> setNamespaces.contains(id.getNamespace()))
+            .forEach(id -> PathDataManager.warnMissingOnce("Structure set", id));
         return false;
+    }
+
+    // The namespaces with any structure set loaded: roughly, which structure mods are installed.
+    private static Set<String> structureSetNamespaces(RegistryAccess access) {
+        //? if <1.21.11 {
+        Stream<Holder.Reference<net.minecraft.world.level.levelgen.structure.StructureSet>> holders = access.registryOrThrow(Registries.STRUCTURE_SET).holders();
+        //?} else {
+        /*Stream<Holder.Reference<net.minecraft.world.level.levelgen.structure.StructureSet>> holders = access.lookupOrThrow(Registries.STRUCTURE_SET).listElements();
+        *///?}
+        return holders.map(h -> keyId(h.key()).getNamespace()).collect(Collectors.toSet());
     }
 
     private record DerivedNetworkViews(
