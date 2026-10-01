@@ -1,6 +1,7 @@
 package com.finndog.moogs_paths.world;
 
 import com.finndog.moogs_paths.Constants;
+import com.finndog.moogs_paths.config.MoogsPathsConfig;
 import com.finndog.moogs_paths.data.MoogsPathsDatapackRegistries;
 import com.finndog.moogs_paths.data.PathDataManager;
 import com.finndog.moogs_paths.data.PathNetworkType;
@@ -163,6 +164,15 @@ public final class StructureAnchors {
     // Seeds
 
     /** One path's seed: stable for a structure chunk, network and path index, distinct across all three. */
+    /**
+     * Whether the config's chance for the network keeps this structure's paths: one roll per structure
+     * and network, so a structure gets all of its paths or none. Checked before the structure is
+     * generated, so a structure left out costs nothing.
+     */
+    public static boolean keepsPaths(long worldSeed, int structureChunkX, int structureChunkZ, ResourceLocation networkId, PathNetworkType network) {
+        return MoogsPathsConfig.keeps(pathSeed(worldSeed, structureChunkX, structureChunkZ, networkId, -1), MoogsPathsConfig.chance(network));
+    }
+
     public static long pathSeed(long worldSeed, int structureChunkX, int structureChunkZ, ResourceLocation network, int pathIndex) {
         long z = worldSeed
             + (long) structureChunkX * CHUNK_X_MULT
@@ -659,6 +669,7 @@ public final class StructureAnchors {
      */
     public static List<PathDataManager.CachedPath> pathsAt(ServerLevel level, MoogsPathsDatapackRegistries.AnchoredNetwork anchored, StructureChunk chunk) {
         PathNetworkType network = anchored.network();
+        if(!keepsPaths(level.getSeed(), chunk.x(), chunk.z(), anchored.id(), network)) return List.of();
         Optional<PathType> pathType = MoogsPathsDatapackRegistries.getPathType(level.registryAccess(), network.pathType());
         if(pathType.isEmpty()) return List.of();
         List<PathDataManager.CachedPath> paths = new ArrayList<>();

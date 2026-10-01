@@ -18,10 +18,12 @@ import net.minecraftforge.event.server.ServerAboutToStartEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.fml.loading.FMLPaths;
 import net.minecraftforge.registries.DataPackRegistryEvent;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.nio.file.Path;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -49,6 +51,11 @@ public class ForgePlatformHelper implements IPlatformHelper {
         void register(DataPackRegistryEvent.NewRegistry event) {
             event.dataPackRegistry(key, codec, null);
         }
+    }
+
+    @Override
+    public Path getConfigDir() {
+        return FMLPaths.CONFIGDIR.get();
     }
 
     @Override

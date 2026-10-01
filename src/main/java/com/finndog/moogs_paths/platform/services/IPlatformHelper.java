@@ -9,12 +9,16 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.LevelChunk;
 
+import java.nio.file.Path;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 public interface IPlatformHelper {
 
     <T> void registerDatapackRegistry(ResourceKey<Registry<T>> key, Codec<T> codec);
+
+    // The instance's config folder.
+    Path getConfigDir();
 
     // Before the server creates its levels, so before the spawn area generates, on every loader.
     void registerServerAboutToStartListener(Consumer<MinecraftServer> listener);

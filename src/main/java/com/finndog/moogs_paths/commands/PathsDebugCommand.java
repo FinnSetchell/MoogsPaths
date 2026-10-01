@@ -2,10 +2,12 @@ package com.finndog.moogs_paths.commands;
 
 import com.finndog.moogs_paths.api.LocatedPath;
 import com.finndog.moogs_paths.api.MoogsPathsLocator;
+import com.finndog.moogs_paths.config.MoogsPathsConfig;
 import com.finndog.moogs_paths.data.MoogsPathsDatapackRegistries;
 import com.finndog.moogs_paths.data.PathDataManager;
 import com.finndog.moogs_paths.data.PathNetworkType;
 import com.finndog.moogs_paths.data.StructureOrigin;
+import com.finndog.moogs_paths.platform.Services;
 import com.finndog.moogs_paths.world.PathRegionSelector;
 import com.finndog.moogs_paths.world.StructureAnchors;
 import com.finndog.moogs_paths.world.deferred.DeferredPathState;
@@ -154,7 +156,7 @@ public final class PathsDebugCommand {
             String originStr = n.origin()
                 .map(o -> " origin=" + o.describe() + " x" + o.pathCount())
                 .orElse(" regionSize=" + n.regionSize() + " weight=" + n.weight());
-            String line = "  " + id + ": pathType=" + n.pathType()
+            String line = "  " + id + ": chance=" + MoogsPathsConfig.chance(n) + "% pathType=" + n.pathType()
                 + " length=" + lengthStr
                 + originStr
                 + " structureSets=" + n.structureSets().size()
@@ -189,11 +191,12 @@ public final class PathsDebugCommand {
             for(StructureAnchors.StructureChunk chunk : chunks.subList(0, Math.min(ANCHOR_LIST_MAX, chunks.size()))) {
                 Optional<StructureAnchors.ResolvedStructure> structure = StructureAnchors.resolve(level, origin, chunk.x(), chunk.z());
                 boolean ours = structure.isPresent() && structure.get().matches(origin);
+                boolean kept = StructureAnchors.keepsPaths(level.getSeed(), chunk.x(), chunk.z(), anchored.id(), anchored.network());
                 int paths = ours ? StructureAnchors.pathsAt(level, anchored, chunk).size() : 0;
                 BlockPos at = structure.map(s -> s.bounds().getCenter()).orElse(new BlockPos((chunk.x() << 4) + 8, 0, (chunk.z() << 4) + 8));
-                String what = structure.map(s -> ours
-                        ? s.structure() + ": " + paths + "/" + origin.pathCount() + " path(s), " + StructureAnchors.describeAnchor(s, origin)
-                        : s.structure() + " (not one of this network's)")
+                String what = structure.map(s -> !ours ? s.structure() + " (not one of this network's)"
+                        : !kept ? s.structure() + ": left out by its " + MoogsPathsConfig.chance(anchored.network()) + "% chance in " + MoogsPathsConfig.FILE_NAME
+                        : s.structure() + ": " + paths + "/" + origin.pathCount() + " path(s), " + StructureAnchors.describeAnchor(s, origin))
                     .orElse("no structure generates here");
                 MutableComponent line = Component.literal("    - ")
                     .append(teleportLink(at, false))
@@ -234,6 +237,7 @@ public final class PathsDebugCommand {
             .toList();
         src.getServer().reloadResources(packIds)
             .thenRun(() -> {
+                MoogsPathsConfig.load(Services.PLATFORM.getConfigDir(), src.getServer().registryAccess());
                 PathDataManager.clearCaches();
                 MoogsPathsDatapackRegistries.invalidateDerivedViews();
                 src.sendSuccess(() -> Component.literal("[paths] Reload complete (note: path_type/path_network/structure_set/feature_decorator_set/bush_decorator_set are datapack registries and require a world restart)"), false);

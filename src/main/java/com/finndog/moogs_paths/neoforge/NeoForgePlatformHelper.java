@@ -10,6 +10,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.loading.FMLPaths;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.level.ChunkEvent;
@@ -27,6 +28,7 @@ import net.neoforged.neoforge.registries.DataPackRegistryEvent;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.nio.file.Path;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -67,6 +69,11 @@ public class NeoForgePlatformHelper implements IPlatformHelper {
             event.dataPackRegistry(key, codec, null);
         }
         //?}
+    }
+
+    @Override
+    public Path getConfigDir() {
+        return FMLPaths.CONFIGDIR.get();
     }
 
     @Override

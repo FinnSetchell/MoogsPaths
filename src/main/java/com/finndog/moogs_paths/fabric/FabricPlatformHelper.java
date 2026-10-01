@@ -15,6 +15,7 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
 //? if >=1.20.1 {
 import net.fabricmc.fabric.api.event.registry.DynamicRegistries;
 //?}
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
@@ -22,6 +23,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.LevelChunk;
 
+import java.nio.file.Path;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -34,6 +36,11 @@ public class FabricPlatformHelper implements IPlatformHelper {
         //?} else {
         /*FabricRegistryStore.add(key, codec);
         *///?}
+    }
+
+    @Override
+    public Path getConfigDir() {
+        return FabricLoader.getInstance().getConfigDir();
     }
 
     // Fabric's SERVER_STARTING fires before any level is created.

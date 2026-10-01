@@ -437,6 +437,37 @@ original file across, since `path_type` and either `region_size` or `origin` are
 
 A network with no biomes never generates a path, including the ones that lead out of structures.
 
+### How often each network lays paths (`config/moogs_paths.json`)
+
+Players and server owners can make any network rarer without a datapack. On every world start the mod
+writes `config/moogs_paths.json` in the instance (or server) folder, listing every loaded network, the
+built-in ones and those from other mods and datapacks, each with a chance from `0` (never) to `100`
+(every time, the default):
+
+```json
+{
+  "path_chance": {
+    "moogs_paths:dirt_road": 100,
+    "moogs_paths:village_road_plains": 50,
+    "moogs_paths:witch_hut_trail": 0
+  }
+}
+```
+
+- A region network rolls its chance for each origin it would take: a miss leaves that origin without a
+  path. A network turned down never hands its origins to another, so the other networks stay where
+  they are. (Turning a network off through its biomes, above, lets the others fill in instead.)
+- A structure-anchored network rolls once per structure, so a village keeps all of its roads or none.
+- The roll is seeded by the path, so changing a chance never moves a path: the paths kept at 50 are
+  among those kept at 75, and lowering a chance only leaves paths out.
+- Changes apply when a world starts, or straight away with `/paths debug reload`, to paths not laid yet.
+  A path already partly laid is finished either way.
+- Entries for networks that aren't loaded are kept, so a mod or datapack missing for a while doesn't
+  lose its setting.
+
+`/paths locate` and the locate API only find paths the config keeps, and `/paths debug networks` shows
+each network's chance.
+
 ## Commands
 
 Requires permission level 2 (op). They search around wherever they run, so they also work from a command
@@ -446,7 +477,7 @@ block or the console, e.g. `/execute positioned 1000 64 -500 run paths locate`.
 
 `/paths debug region` -- show which path region your position falls inside, for each loaded `region_size`.
 
-`/paths debug networks` -- list every loaded `path_network` with its id, `path_type`, length range, region size and weight (or `origin`), and decorator-set counts.
+`/paths debug networks` -- list every loaded `path_network` with its id, its chance from `config/moogs_paths.json`, `path_type`, length range, region size and weight (or `origin`), and decorator-set counts.
 
 `/paths debug anchors` -- for each structure-anchored network, list the nearest spots its structure set places a structure, which structure generated at each (click to teleport), and how many paths lead out of it.
 

@@ -184,6 +184,7 @@ public final class MoogsPathsLocator {
             // Most spots in range hold no structure (wrong biome) or another kind from the set, e.g.
             // a plains village for a desert road. Counting those used to end the search ~2400 blocks out.
             StructureOrigin origin = candidate.network().network().origin().orElseThrow();
+            if(!StructureAnchors.keepsPaths(level.getSeed(), candidate.chunk().x(), candidate.chunk().z(), candidate.network().id(), candidate.network().network())) continue;
             // A biome check first: generating every village in range to learn its kind took a minute.
             if(!StructureAnchors.mayHold(level, origin, candidate.chunk().x(), candidate.chunk().z())) continue;
             Optional<StructureAnchors.ResolvedStructure> structure = StructureAnchors.resolve(level, origin, candidate.chunk().x(), candidate.chunk().z());

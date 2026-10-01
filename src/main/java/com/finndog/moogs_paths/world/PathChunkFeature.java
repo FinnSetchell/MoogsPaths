@@ -1,6 +1,7 @@
 package com.finndog.moogs_paths.world;
 
 import com.finndog.moogs_paths.Constants;
+import com.finndog.moogs_paths.config.MoogsPathsConfig;
 import com.finndog.moogs_paths.data.MoogsPathsDatapackRegistries;
 import com.finndog.moogs_paths.data.PathCounter;
 import com.finndog.moogs_paths.data.PathDataManager;
@@ -136,6 +137,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
             StructureOrigin origin = anchored.network().origin().orElseThrow();
             int reach = anchored.maxRadius() + StructureAnchors.STRUCTURE_REACH;
             for(StructureAnchors.StructureChunk structure : StructureAnchors.candidatesInRange(serverLevel, origin, chunkX, chunkZ, reach)) {
+                if(!StructureAnchors.keepsPaths(worldSeed, structure.x(), structure.z(), anchored.id(), anchored.network())) continue;
                 for(int pathIndex = 0; pathIndex < origin.pathCount(); pathIndex++) {
                     long pathSeed = StructureAnchors.pathSeed(worldSeed, structure.x(), structure.z(), anchored.id(), pathIndex);
                     if(PathDataManager.isRejected(pathSeed)) continue;
@@ -160,7 +162,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
     // Single source of truth for "which network does this origin route to?" - used by both
     // worldgen (inside evaluateOrigin) and /locate's pre-filter. Keeping the biome-filter +
     // weighted-pick step in one place prevents the two callers from drifting apart and
-    // returning different networks for the same origin.
+    // returning different networks for the same origin. The config's chance is rolled here too.
     public static Optional<PathNetworkType> selectNetworkAt(
         ChunkGenerator generator, RandomState randomState,
         int originChunkX, int originChunkZ, long pathSeed,
@@ -177,7 +179,11 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
             if(n.biomes().contains(originBiome)) eligible.add(n);
         }
         if(eligible.isEmpty()) return Optional.empty();
-        return Optional.of(PathNetworkType.pickWeighted(eligible, RandomSource.create(pathSeed)));
+        PathNetworkType picked = PathNetworkType.pickWeighted(eligible, RandomSource.create(pathSeed));
+        // The config's chance for the network: a miss leaves this origin without a path. Rolled after the
+        // pick, so a network turned down never hands its origins to another.
+        if(!MoogsPathsConfig.keeps(pathSeed, MoogsPathsConfig.chance(picked))) return Optional.empty();
+        return Optional.of(picked);
     }
 
     /**

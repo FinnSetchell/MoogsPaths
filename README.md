@@ -62,11 +62,12 @@ Each path is decorated with a combination of:
 
 *   **Biome-aware generation** - paths pick surfaces and decorations that match their biome
 *   **Terrain-following pathfinder** - A* pathfinding on a 4x4 block grid with slope awareness, cliff rejection and configurable rigidness
-*   **Smooth curves** - Chaikin corner-cutting and carver smoothing produce natural-looking paths
+*   **Smooth slopes** - carver and height smoothing keep paths from jumping up and down with the terrain
 *   **Fade in / fade out** - paths blend into the terrain at their start and end
 *   **Water bridging** - paths can use alternate blocks over water (boardwalk planks, etc.)
 *   **NBT structure placement** - place structures at endpoints or at intervals along the path, with flatness checks and terrain adjustment
 *   **Fully data-driven** - every path type, network, structure set and decorator set is a JSON file that datapacks can override or extend
+*   **Rarity per path** - `config/moogs_paths.json` sets how often each network lays paths, from 0 to 100%, without moving any path that stays
 
 ![datapacks](https://pub-24a4e0e7ea8544a5b6f73c3a23512589.r2.dev/images/833ffe14834e4daea69c0fea20ce1f91.png)
 

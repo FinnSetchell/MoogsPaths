@@ -1,6 +1,7 @@
 package com.finndog.moogs_paths;
 
 import com.finndog.moogs_paths.commands.PathsDebugCommand;
+import com.finndog.moogs_paths.config.MoogsPathsConfig;
 import com.finndog.moogs_paths.data.MoogsPathsDatapackRegistries;
 import com.finndog.moogs_paths.data.PathDataManager;
 import com.finndog.moogs_paths.debug.PathDebugTimer;
@@ -16,6 +17,7 @@ public class MoogsPathsCommon {
     public static void init() {
         MoogsPathsDatapackRegistries.register();
         Services.PLATFORM.registerServerAboutToStartListener(server -> {
+            MoogsPathsConfig.load(Services.PLATFORM.getConfigDir(), server.registryAccess());
             MoogsPathsDatapackRegistries.invalidateDerivedViews();
             //? if >=26.3 {
             /*PathDataManager.onServerStart(server.getStructureTemplateManager());

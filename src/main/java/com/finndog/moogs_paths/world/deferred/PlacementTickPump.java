@@ -1,9 +1,11 @@
 package com.finndog.moogs_paths.world.deferred;
 
+import com.finndog.moogs_paths.config.MoogsPathsConfig;
 import com.finndog.moogs_paths.data.MoogsPathsDatapackRegistries;
 import com.finndog.moogs_paths.data.PathDataManager;
 import com.finndog.moogs_paths.data.PathNetworkType;
 import com.finndog.moogs_paths.data.PathType;
+import com.finndog.moogs_paths.world.StructureAnchors;
 import it.unimi.dsi.fastutil.longs.LongIterator;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.resources.ResourceLocation;
@@ -92,9 +94,22 @@ public final class PlacementTickPump {
         for(ServerLevel level : server.getAllLevels()) {
             DeferredPathState state = DeferredPathState.get(level);
             for(DeferredPathJob job : state.pendingJobs()) {
-                if(state.bounds(job.pathSeed()) == null) PathfindWorker.submit(level, job);
+                if(state.bounds(job.pathSeed()) != null) continue;
+                // Never computed, so nothing of it is laid yet: a path the config now leaves out is dropped.
+                // Paths already under way finish whatever the config says.
+                if(!keptByConfig(level, job)) state.retire(job.pathSeed());
+                else PathfindWorker.submit(level, job);
             }
         }
+    }
+
+    private static boolean keptByConfig(ServerLevel level, DeferredPathJob job) {
+        int chance = MoogsPathsConfig.chance(job.networkId());
+        if(job.isAnchored()) {
+            long structureSeed = StructureAnchors.pathSeed(level.getSeed(), job.originChunkX(), job.originChunkZ(), job.networkId(), -1);
+            return MoogsPathsConfig.keeps(structureSeed, chance);
+        }
+        return MoogsPathsConfig.keeps(job.pathSeed(), chance);
     }
 
     public static void onServerStopping(MinecraftServer server) {

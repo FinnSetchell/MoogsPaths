@@ -1,6 +1,7 @@
 package com.finndog.moogs_paths.data;
 
 import com.finndog.moogs_paths.Constants;
+import com.finndog.moogs_paths.config.MoogsPathsConfig;
 import com.finndog.moogs_paths.platform.Services;
 import net.minecraft.core.Holder;
 //? if >=1.21.11 {
@@ -206,10 +207,12 @@ public final class MoogsPathsDatapackRegistries {
                     e -> e.getValue().stream().mapToInt(n -> maxRadius(access, n)).max().orElse(1000)
                 ));
             // Sorted by id so every chunk walks the anchored networks in the same order. A network none
-            // of whose structure sets is loaded (they all belong to mods that aren't installed) is left out.
+            // of whose structure sets is loaded (they all belong to mods that aren't installed) is left out,
+            // as is one the config turns off.
             Set<String> setNamespaces = structureSetNamespaces(access);
             List<AnchoredNetwork> anchored = networkHolders(access)
-                .filter(h -> h.value().isStructureAnchored() && anyStructureSetLoaded(access, h.value().origin().orElseThrow(), setNamespaces))
+                .filter(h -> h.value().isStructureAnchored() && MoogsPathsConfig.chance(h.value()) > 0
+                    && anyStructureSetLoaded(access, h.value().origin().orElseThrow(), setNamespaces))
                 .map(h -> new AnchoredNetwork(h.value(), keyId(h.key()), maxRadius(access, h.value())))
                 .sorted(Comparator.comparing(a -> a.id().toString()))
                 .toList();
