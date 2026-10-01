@@ -20,6 +20,15 @@ sourceSets.main {
     resources.srcDir(rootProject.file("src/neoforge/resources"))
 }
 
+repositories {
+    maven("https://maven.shedaniel.me") { name = "Shedaniel" }
+}
+
+dependencies {
+    // The optional config screen: compiled against, never bundled or required at runtime.
+    compileOnly("me.shedaniel.cloth:cloth-config-neoforge:${prop("deps.cloth_config")}") { isTransitive = false }
+}
+
 neoForge {
     version = prop("deps.neoforge")
 

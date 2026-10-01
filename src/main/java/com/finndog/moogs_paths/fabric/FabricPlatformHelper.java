@@ -1,5 +1,6 @@
 package com.finndog.moogs_paths.fabric;
 
+import com.finndog.moogs_paths.config.BundledPathNetworks;
 import com.finndog.moogs_paths.platform.services.IPlatformHelper;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.serialization.Codec;
@@ -16,14 +17,19 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
 import net.fabricmc.fabric.api.event.registry.DynamicRegistries;
 //?}
 import net.fabricmc.loader.api.FabricLoader;
+import net.fabricmc.loader.api.ModContainer;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.LevelChunk;
 
 import java.nio.file.Path;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -41,6 +47,20 @@ public class FabricPlatformHelper implements IPlatformHelper {
     @Override
     public Path getConfigDir() {
         return FabricLoader.getInstance().getConfigDir();
+    }
+
+    @Override
+    public Set<ResourceLocation> bundledPathNetworks() {
+        Set<ResourceLocation> ids = new HashSet<>();
+        for(ModContainer mod : FabricLoader.getInstance().getAllMods()) {
+            for(Path root : mod.getRootPaths()) BundledPathNetworks.scanDataFolder(root.resolve("data"), ids);
+        }
+        return ids;
+    }
+
+    @Override
+    public Optional<String> modName(String namespace) {
+        return FabricLoader.getInstance().getModContainer(namespace).map(mod -> mod.getMetadata().getName());
     }
 
     // Fabric's SERVER_STARTING fires before any level is created.

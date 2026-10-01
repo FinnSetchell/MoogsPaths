@@ -11,6 +11,8 @@
 # mod.fabric_mixins ships the Fabric mixin config; only 1.20 has a mixin.
 # mod.resource_excludes drops shared resources a node must not ship (comma-separated patterns).
 # mod.neo_icon_key is the neoforge.mods.toml key for the mod icon; NeoForge 26.3 renamed it.
+# deps.cloth_config and deps.modmenu are only compiled against, for the optional config screen; the
+# versions match Moog's Structure Lib's for the same Minecraft.
 
 # Loom for the obfuscated versions, applied by dev.kikugie.loom-back-compat.
 loomx.loom_version = "1.17-SNAPSHOT"
@@ -33,6 +35,8 @@ mod.fabric_loader_dep = ">=0.15"
 mod.fabric_mixins = "true"
 deps.fabric_loader = "0.16.9"
 deps.fabric_api = "0.83.0+1.20"
+deps.cloth_config = "11.0.99"
+deps.modmenu = "7.2.2"
 
 # Built by build.forge-legacy.gradle.kts: Forge before 1.20.5 needs a reobfuscated jar.
 [forge."1.20"]
@@ -41,6 +45,8 @@ mod.mc_compat = "[1.20,1.20.1)"
 deps.forge = "46.0.14"
 deps.forge_loader_range = "[46,47)"
 deps.forge_range = "[46.0.14,)"
+deps.cloth_config = "11.0.99"
+deps.cloth_config_loader = "forge"
 
 # ------------------------------------------------------------------ 1.20.1 (Java 17)
 ["1.20.1"]
@@ -57,6 +63,8 @@ mod.fabric_loader_dep = ">=0.14"
 mod.fabric_mixins = "false"
 deps.fabric_loader = "0.16.9"
 deps.fabric_api = "0.92.1+1.20.1"
+deps.cloth_config = "11.0.99"
+deps.modmenu = "7.2.2"
 
 [forge."1.20.1"]
 mod.mc_build = "1.20.1"
@@ -64,6 +72,8 @@ mod.mc_compat = "[1.20.1]"
 deps.forge = "47.2.30"
 deps.forge_loader_range = "[47,)"
 deps.forge_range = "[47.2.30,)"
+deps.cloth_config = "11.0.99"
+deps.cloth_config_loader = "forge"
 
 # ------------------------------------------------------------------ 1.21-1.21.1 (Java 21)
 ["1.21.1"]
@@ -80,6 +90,8 @@ mod.fabric_loader_dep = ">=0.14"
 mod.fabric_mixins = "false"
 deps.fabric_loader = "0.19.2"
 deps.fabric_api = "0.116.12+1.21.1"
+deps.cloth_config = "15.0.140"
+deps.modmenu = "11.0.4"
 
 [forge."1.21.1"]
 mod.mc_build = "1.21.1"
@@ -87,6 +99,8 @@ mod.mc_compat = "[1.21, 1.22)"
 deps.forge = "52.1.0"
 deps.forge_loader_range = "[51,)"
 deps.forge_range = "[51, 53)"
+deps.cloth_config = "15.0.140"
+deps.cloth_config_loader = "forge"
 
 [neoforge."1.21.1"]
 mod.mc_build = "1.21.1"
@@ -94,6 +108,7 @@ mod.mc_compat = "[1.21, 1.22)"
 mod.neo_icon_key = "logoFile"
 deps.neoforge = "21.1.230"
 deps.neoforge_range = "[21.0, 21.2)"
+deps.cloth_config = "15.0.140"
 
 # ------------------------------------------------------------------ 1.21.11 (Java 21)
 ["1.21.11"]
@@ -110,6 +125,8 @@ mod.fabric_loader_dep = ">=0.18"
 mod.fabric_mixins = "false"
 deps.fabric_loader = "0.18.3"
 deps.fabric_api = "0.140.2+1.21.11"
+deps.cloth_config = "21.11.153"
+deps.modmenu = "17.0.0"
 
 [neoforge."1.21.11"]
 mod.mc_build = "1.21.11"
@@ -117,6 +134,7 @@ mod.mc_compat = "[1.21.11, 1.22)"
 mod.neo_icon_key = "logoFile"
 deps.neoforge = "21.11.42"
 deps.neoforge_range = "[21.11, 21.12)"
+deps.cloth_config = "21.11.153"
 
 # ------------------------------------------------------------------ 26.1-26.1.2 (Java 25)
 ["26.1.2"]
@@ -133,6 +151,8 @@ mod.fabric_loader_dep = ">=0.18"
 mod.fabric_mixins = "false"
 deps.fabric_loader = "0.18.4"
 deps.fabric_api = "0.149.1+26.1.2"
+deps.cloth_config = "26.1.154"
+deps.modmenu = "18.0.0"
 
 [neoforge."26.1.2"]
 mod.mc_build = "26.1.2"
@@ -140,6 +160,7 @@ mod.mc_compat = "[26.1, 26.2)"
 mod.neo_icon_key = "logoFile"
 deps.neoforge = "26.1.2.59-beta"
 deps.neoforge_range = "[26.1, 26.2)"
+deps.cloth_config = "26.1.154"
 
 # ------------------------------------------------------------------ 26.2 (Java 25)
 # 26.2 removed the patch_tall_grass feature, so the plains decorator in src/overlays/26.2 drops it.
@@ -157,6 +178,8 @@ mod.fabric_loader_dep = ">=0.19"
 mod.fabric_mixins = "false"
 deps.fabric_loader = "0.19.3"
 deps.fabric_api = "0.152.2+26.2"
+deps.cloth_config = "26.2.155"
+deps.modmenu = "20.0.1"
 
 [neoforge."26.2"]
 mod.mc_build = "26.2"
@@ -164,6 +187,7 @@ mod.mc_compat = "[26.2, 26.3)"
 mod.neo_icon_key = "logoFile"
 deps.neoforge = "26.2.0.6-beta"
 deps.neoforge_range = "[26.2, 26.3)"
+deps.cloth_config = "26.2.155"
 
 # ------------------------------------------------------------------ 26.3 (Java 25)
 # 26.3 folded configured features into worldgen/feature, so path_gen's definition moves there
@@ -182,6 +206,8 @@ mod.fabric_loader_dep = ">=0.19.5"
 mod.fabric_mixins = "false"
 deps.fabric_loader = "0.19.5"
 deps.fabric_api = "0.160.6+26.3"
+deps.cloth_config = "26.3.158"
+deps.modmenu = "21.0.0-beta.1"
 
 [neoforge."26.3"]
 mod.mc_build = "26.3"
@@ -190,3 +216,4 @@ mod.neo_icon_key = "iconFile"
 # 26.3.0.31 replaced DataPackRegistryEvent.NewRegistry, so earlier 26.3 betas cannot load this jar.
 deps.neoforge = "26.3.0.31-beta"
 deps.neoforge_range = "[26.3.0.31-beta,)"
+deps.cloth_config = "26.3.158"

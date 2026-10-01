@@ -39,10 +39,13 @@ repositories {
     maven(fg.forgeMaven)
     maven(fg.minecraftLibsMaven)
     mavenCentral()
+    maven("https://maven.shedaniel.me") { name = "Shedaniel" }
 }
 
 dependencies {
     implementation(minecraft.dependency("net.minecraftforge:forge:$mcBuild-${prop("deps.forge")}"))
+    // The optional config screen: compiled against, never bundled or required at runtime.
+    compileOnly("me.shedaniel.cloth:cloth-config-${prop("deps.cloth_config_loader")}:${prop("deps.cloth_config")}") { isTransitive = false }
 }
 
 java {

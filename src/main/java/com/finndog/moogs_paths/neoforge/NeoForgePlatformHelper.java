@@ -1,15 +1,18 @@
 package com.finndog.moogs_paths.neoforge;
 
+import com.finndog.moogs_paths.config.BundledPathNetworks;
 import com.finndog.moogs_paths.platform.services.IPlatformHelper;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.serialization.Codec;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.fml.ModList;
 import net.neoforged.fml.loading.FMLPaths;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.RegisterCommandsEvent;
@@ -19,6 +22,7 @@ import net.neoforged.neoforge.event.server.ServerAboutToStartEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
+import net.neoforged.neoforgespi.language.IModFileInfo;
 // NeoForge 26.3.0.31 replaced DataPackRegistryEvent.NewRegistry with NewDatapackRegistryEvent.
 //? if >=26.3 {
 /*import net.neoforged.neoforge.registries.NewDatapackRegistryEvent;
@@ -29,6 +33,9 @@ import net.neoforged.neoforge.registries.DataPackRegistryEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.nio.file.Path;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -74,6 +81,25 @@ public class NeoForgePlatformHelper implements IPlatformHelper {
     @Override
     public Path getConfigDir() {
         return FMLPaths.CONFIGDIR.get();
+    }
+
+    @Override
+    public Set<ResourceLocation> bundledPathNetworks() {
+        Set<ResourceLocation> ids = new HashSet<>();
+        for(IModFileInfo file : ModList.get().getModFiles()) {
+            // NeoForge 1.21.10 replaced a mod file's path lookup with a visitor over its contents.
+            //? if <1.21.10 {
+            BundledPathNetworks.scanDataFolder(file.getFile().findResource("data"), ids);
+            //?} else {
+            /*file.getFile().getContents().visitContent("data/", (path, resource) -> BundledPathNetworks.addIfNetwork(path, ids));
+            *///?}
+        }
+        return ids;
+    }
+
+    @Override
+    public Optional<String> modName(String namespace) {
+        return ModList.get().getModContainerById(namespace).map(mod -> mod.getModInfo().getDisplayName());
     }
 
     @Override

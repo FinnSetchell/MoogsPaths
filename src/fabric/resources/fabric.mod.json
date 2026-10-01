@@ -22,6 +22,9 @@
     "entrypoints": {
         "main": [
             "com.finndog.moogs_paths.fabric.MoogsPathsFabric"
+        ],
+        "modmenu": [
+            "com.finndog.moogs_paths.fabric.client.ModMenuIntegration"
         ]
     },
     "depends": {
@@ -31,7 +34,8 @@
         "java": ">=${java_version}"
     },
     "suggests": {
-        "modmenu": "*"
+        "modmenu": "*",
+        "cloth-config": "*"
     },
     "custom": {
         "modmenu": {

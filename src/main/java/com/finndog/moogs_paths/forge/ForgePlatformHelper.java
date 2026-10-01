@@ -1,11 +1,13 @@
 package com.finndog.moogs_paths.forge;
 
+import com.finndog.moogs_paths.config.BundledPathNetworks;
 import com.finndog.moogs_paths.platform.services.IPlatformHelper;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.serialization.Codec;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.LevelChunk;
@@ -17,13 +19,18 @@ import net.minecraftforge.event.level.LevelEvent;
 import net.minecraftforge.event.server.ServerAboutToStartEvent;
 import net.minecraftforge.event.server.ServerStartedEvent;
 import net.minecraftforge.event.server.ServerStoppingEvent;
+import net.minecraftforge.fml.ModList;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
 import net.minecraftforge.fml.loading.FMLPaths;
+import net.minecraftforge.forgespi.language.IModFileInfo;
 import net.minecraftforge.registries.DataPackRegistryEvent;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.nio.file.Path;
+import java.util.HashSet;
+import java.util.Optional;
+import java.util.Set;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
@@ -56,6 +63,20 @@ public class ForgePlatformHelper implements IPlatformHelper {
     @Override
     public Path getConfigDir() {
         return FMLPaths.CONFIGDIR.get();
+    }
+
+    @Override
+    public Set<ResourceLocation> bundledPathNetworks() {
+        Set<ResourceLocation> ids = new HashSet<>();
+        for(IModFileInfo file : ModList.get().getModFiles()) {
+            BundledPathNetworks.scanDataFolder(file.getFile().findResource("data"), ids);
+        }
+        return ids;
+    }
+
+    @Override
+    public Optional<String> modName(String namespace) {
+        return ModList.get().getModContainerById(namespace).map(mod -> mod.getModInfo().getDisplayName());
     }
 
     @Override

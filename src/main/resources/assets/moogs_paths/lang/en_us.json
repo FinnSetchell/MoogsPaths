@@ -5,5 +5,20 @@
     "moogs_paths.releases": "GitHub Releases",
     "moogs_paths.kofi": "Ko-fi",
     "moogs_paths.curseforge": "CurseForge",
-    "moogs_paths.modrinth": "Modrinth"
+    "moogs_paths.modrinth": "Modrinth",
+    "moogs_paths.config.title": "Moog's Paths",
+    "moogs_paths.config.category": "Path rarity",
+    "moogs_paths.config.notice": "How often each path network lays a path, from 0% (never) to 100% (every time). Changes apply when a world starts, to paths not laid yet. Lowering one only leaves paths out; it never moves a path. A server uses its own config/moogs_paths.json.",
+    "moogs_paths.config.unreadable": "config/%s can't be read, so changes here won't be saved. Fix or delete the file.",
+    "moogs_paths.cloth_required.title": "Cloth Config needed",
+    "moogs_paths.cloth_required.message": "The path rarity sliders need Cloth Config. Without it, set each path's chance (0 to 100) in config/moogs_paths.json.",
+    "moogs_paths.network.moogs_paths.mvs_house": "Voyager House",
+    "moogs_paths.network.moogs_paths.mvs_tall_house": "Voyager Tall House",
+    "moogs_paths.network.moogs_paths.mvs_desert_house": "Voyager Desert House",
+    "moogs_paths.network.moogs_paths.mvs_swamp_house": "Voyager Small Swamp House",
+    "moogs_paths.network.moogs_paths.village_road_plains": "Plains Village Roads",
+    "moogs_paths.network.moogs_paths.village_road_desert": "Desert Village Roads",
+    "moogs_paths.network.moogs_paths.village_road_savanna": "Savanna Village Roads",
+    "moogs_paths.network.moogs_paths.village_road_snowy": "Snowy Village Roads",
+    "moogs_paths.network.moogs_paths.village_road_taiga": "Taiga Village Roads"
 }

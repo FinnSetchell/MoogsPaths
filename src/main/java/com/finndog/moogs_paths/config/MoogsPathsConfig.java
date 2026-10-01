@@ -59,27 +59,9 @@ public final class MoogsPathsConfig {
     /** Reads the file, adds every loaded network to it and writes it back. */
     public static void load(Path configDir, RegistryAccess access) {
         Path file = configDir.resolve(FILE_NAME);
-        Map<ResourceLocation, Integer> fromFile = new TreeMap<>(BY_ID);
-        boolean readable = true;
-        if(Files.exists(file)) {
-            try {
-                JsonObject root = JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8)).getAsJsonObject();
-                JsonObject chances = root.has(CHANCE_KEY) ? root.getAsJsonObject(CHANCE_KEY) : new JsonObject();
-                for(Map.Entry<String, JsonElement> e : chances.entrySet()) {
-                    ResourceLocation id = ResourceLocation.tryParse(e.getKey());
-                    if(id == null || !e.getValue().isJsonPrimitive() || !e.getValue().getAsJsonPrimitive().isNumber()) {
-                        Constants.LOG.warn("Ignoring {} entry {}: {}", FILE_NAME, e.getKey(), e.getValue());
-                        continue;
-                    }
-                    fromFile.put(id, clamp((int) Math.round(e.getValue().getAsDouble())));
-                }
-            } catch(Exception ex) {
-                // Left as it is, so a typo doesn't cost the rest of the file; every network runs at 100.
-                Constants.LOG.error("Could not read {} ({}); every path network runs at {} until it is fixed", file, ex.toString(), MAX_CHANCE);
-                readable = false;
-                fromFile.clear();
-            }
-        }
+        Map<ResourceLocation, Integer> read = readFile(configDir);
+        boolean readable = read != null;
+        Map<ResourceLocation, Integer> fromFile = readable ? read : new TreeMap<>(BY_ID);
 
         Map<ResourceLocation, PathNetworkType> networks = MoogsPathsDatapackRegistries.networksById(access);
         Map<PathNetworkType, Integer> byNetwork = new IdentityHashMap<>();
@@ -121,14 +103,43 @@ public final class MoogsPathsConfig {
         return Math.floorMod(mix(seed ^ RARITY_MIXER), MAX_CHANCE) < chance;
     }
 
-    /** Saves new chances (the config screen), keeping every other entry, for the next world or reload. */
-    public static void save(Path configDir, Map<ResourceLocation, Integer> changes) {
+    /**
+     * The chances in the file, in id order: empty when there is no file yet, null when it can't be read
+     * (it is then left alone, so a typo doesn't cost the rest of it).
+     */
+    public static Map<ResourceLocation, Integer> readFile(Path configDir) {
         Path file = configDir.resolve(FILE_NAME);
-        Map<ResourceLocation, Integer> all = new TreeMap<>(BY_ID);
-        all.putAll(snapshot.byId());
+        Map<ResourceLocation, Integer> chances = new TreeMap<>(BY_ID);
+        if(!Files.exists(file)) return chances;
+        try {
+            JsonObject root = JsonParser.parseString(Files.readString(file, StandardCharsets.UTF_8)).getAsJsonObject();
+            JsonObject list = root.has(CHANCE_KEY) ? root.getAsJsonObject(CHANCE_KEY) : new JsonObject();
+            for(Map.Entry<String, JsonElement> e : list.entrySet()) {
+                ResourceLocation id = ResourceLocation.tryParse(e.getKey());
+                if(id == null || !e.getValue().isJsonPrimitive() || !e.getValue().getAsJsonPrimitive().isNumber()) {
+                    Constants.LOG.warn("Ignoring {} entry {}: {}", FILE_NAME, e.getKey(), e.getValue());
+                    continue;
+                }
+                chances.put(id, clamp((int) Math.round(e.getValue().getAsDouble())));
+            }
+            return chances;
+        } catch(Exception ex) {
+            Constants.LOG.error("Could not read {} ({}); every path network runs at {} until it is fixed", file, ex.toString(), MAX_CHANCE);
+            return null;
+        }
+    }
+
+    /**
+     * Saves chances from the config screen into the file, keeping every other entry. The running game
+     * picks them up on the next world start or /paths debug reload, like edits to the file. Returns
+     * false when the file can't be read, so it isn't overwritten.
+     */
+    public static boolean save(Path configDir, Map<ResourceLocation, Integer> changes) {
+        Map<ResourceLocation, Integer> all = readFile(configDir);
+        if(all == null) return false;
         changes.forEach((id, chance) -> all.put(id, clamp(chance)));
-        snapshot = new Snapshot(Collections.unmodifiableMap(all), snapshot.byNetwork());
-        write(file, all);
+        write(configDir.resolve(FILE_NAME), all);
+        return true;
     }
 
     private static void write(Path file, Map<ResourceLocation, Integer> chances) {

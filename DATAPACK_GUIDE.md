@@ -465,6 +465,10 @@ built-in ones and those from other mods and datapacks, each with a chance from `
 - Entries for networks that aren't loaded are kept, so a mod or datapack missing for a while doesn't
   lose its setting.
 
+With [Cloth Config](https://modrinth.com/mod/cloth-config) installed, the same chances are sliders in
+the mod's config screen (Mod Menu on Fabric, the Mods list on Forge and NeoForge). The screen edits the
+file on that computer, so a dedicated server still reads its own `config/moogs_paths.json`.
+
 `/paths locate` and the locate API only find paths the config keeps, and `/paths debug networks` shows
 each network's chance.
 

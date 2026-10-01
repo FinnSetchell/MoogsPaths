@@ -2,13 +2,16 @@ package com.finndog.moogs_paths.forge;
 
 import com.finndog.moogs_paths.Constants;
 import com.finndog.moogs_paths.MoogsPathsCommon;
+import com.finndog.moogs_paths.forge.client.MoogsPathsForgeClient;
 import com.finndog.moogs_paths.world.MoogsPathsRegistries;
 import com.finndog.moogs_paths.world.PathChunkFeature;
 import net.minecraft.world.level.levelgen.feature.Feature;
 import net.minecraft.world.level.levelgen.feature.configurations.NoneFeatureConfiguration;
+import net.minecraftforge.api.distmarker.Dist;
 import net.minecraftforge.eventbus.api.IEventBus;
 import net.minecraftforge.fml.common.Mod;
 import net.minecraftforge.fml.javafmlmod.FMLJavaModLoadingContext;
+import net.minecraftforge.fml.loading.FMLEnvironment;
 import net.minecraftforge.registries.DeferredRegister;
 import net.minecraftforge.registries.ForgeRegistries;
 
@@ -23,5 +26,6 @@ public class MoogsPathsForge {
         features.register(bus);
 
         MoogsPathsCommon.init();
+        if(FMLEnvironment.dist == Dist.CLIENT) MoogsPathsForgeClient.registerConfigScreen();
     }
 }

@@ -67,7 +67,7 @@ Each path is decorated with a combination of:
 *   **Water bridging** - paths can use alternate blocks over water (boardwalk planks, etc.)
 *   **NBT structure placement** - place structures at endpoints or at intervals along the path, with flatness checks and terrain adjustment
 *   **Fully data-driven** - every path type, network, structure set and decorator set is a JSON file that datapacks can override or extend
-*   **Rarity per path** - `config/moogs_paths.json` sets how often each network lays paths, from 0 to 100%, without moving any path that stays
+*   **Rarity per path** - set how often each network lays paths, from 0 to 100%, in `config/moogs_paths.json` or with sliders in game (needs Cloth Config), without moving any path that stays
 
 ![datapacks](https://pub-24a4e0e7ea8544a5b6f73c3a23512589.r2.dev/images/833ffe14834e4daea69c0fea20ce1f91.png)
 

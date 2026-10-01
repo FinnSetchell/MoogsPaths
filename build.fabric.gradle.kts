@@ -23,6 +23,11 @@ sourceSets.main {
     resources.srcDir(rootProject.file("src/fabric/resources"))
 }
 
+repositories {
+    maven("https://maven.shedaniel.me") { name = "Shedaniel" }
+    maven("https://maven.terraformersmc.com/releases") { name = "TerraformersMC" }
+}
+
 dependencies {
     minecraft("com.mojang:minecraft:$mcBuild")
     // No-op on the unobfuscated versions; applies Mojang mappings on the obfuscated ones.
@@ -30,6 +35,10 @@ dependencies {
 
     modImplementation("net.fabricmc:fabric-loader:${prop("deps.fabric_loader")}")
     modImplementation("net.fabricmc.fabric-api:fabric-api:${prop("deps.fabric_api")}")
+
+    // The optional config screen: compiled against, never bundled or required at runtime.
+    modCompileOnly("me.shedaniel.cloth:cloth-config-fabric:${prop("deps.cloth_config")}") { isTransitive = false }
+    modCompileOnly("com.terraformersmc:modmenu:${prop("deps.modmenu")}") { isTransitive = false }
 }
 
 loom {

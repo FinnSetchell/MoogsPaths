@@ -25,6 +25,15 @@ sourceSets.main {
     resources.srcDir(rootProject.file("src/forge/resources"))
 }
 
+repositories {
+    maven("https://maven.shedaniel.me") { name = "Shedaniel" }
+}
+
+dependencies {
+    // The optional config screen: compiled against, never bundled or required at runtime.
+    modCompileOnly("me.shedaniel.cloth:cloth-config-${prop("deps.cloth_config_loader")}:${prop("deps.cloth_config")}") { isTransitive = false }
+}
+
 legacyForge {
     version = "$mcBuild-${prop("deps.forge")}"
 
