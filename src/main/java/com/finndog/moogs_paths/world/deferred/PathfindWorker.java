@@ -14,15 +14,15 @@ import net.minecraft.world.level.levelgen.RandomState;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Owns the {@link ExecutorService} that runs deferred A* off the main thread, plus the
+ * Owns the {@link ThreadPoolExecutor} that runs deferred A* off the main thread, plus the
  * "what's currently queued" bookkeeping.
  *
  * Lifecycle is tied to MC server lifetime: {@link #start} before the levels load,
@@ -38,7 +38,7 @@ public final class PathfindWorker {
     // A job that throws this many times in one session is retired rather than retried on every chunk load.
     private static final int MAX_FAILURES = 3;
 
-    private static volatile ExecutorService executor;
+    private static volatile ThreadPoolExecutor executor;
     private static final Set<Long> IN_FLIGHT = ConcurrentHashMap.newKeySet();
     private static final ConcurrentHashMap<Long, Integer> FAILURES = new ConcurrentHashMap<>();
     private static volatile JobCompletionHook completionHook;
@@ -65,19 +65,23 @@ public final class PathfindWorker {
             t.setPriority(Thread.MIN_PRIORITY + 1);
             return t;
         };
-        executor = Executors.newFixedThreadPool(cores, tf);
+        executor = new ThreadPoolExecutor(cores, cores, 0L, TimeUnit.MILLISECONDS, new LinkedBlockingQueue<>(), tf);
         Constants.LOG.info("PathfindWorker started with {} threads", cores);
     }
 
     public static void stop() {
         SESSION.incrementAndGet();
         completionHook = null;
-        ExecutorService ex = executor;
+        ThreadPoolExecutor ex = executor;
         executor = null;
         IN_FLIGHT.clear();
         if(ex != null) {
-            ex.shutdownNow();
-            try { ex.awaitTermination(2, TimeUnit.SECONDS); } catch(InterruptedException ignored) { Thread.currentThread().interrupt(); }
+            // Queued jobs are dropped; running ones finish on their own and the session check discards
+            // what they find. Never interrupted: an interrupt during a read closes the file channel under
+            // it (ClosedByInterruptException), which for the Minecraft jar stops every later template load
+            // from it, and in singleplayer the game carries on in the same process after the server stops.
+            ex.getQueue().clear();
+            ex.shutdown();
         }
     }
 
@@ -85,7 +89,7 @@ public final class PathfindWorker {
 
     /** Submit a job to compute waypoints. No-op if already in flight; reports at once if already cached. */
     public static void submit(ServerLevel level, DeferredPathJob job) {
-        ExecutorService ex = executor;
+        ThreadPoolExecutor ex = executor;
         if(ex == null) return;
         PathDataManager.CachedPath cached = PathDataManager.peekCachedPath(job.pathSeed());
         if(cached != null) {
