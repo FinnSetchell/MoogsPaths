@@ -9,12 +9,13 @@
 - Trails lead from the doors of witch huts and jungle temples
 - Towns and Towers villages get roads too
 - Four Moog's Voyager Structures houses get a path up to their door
+- A rarity slider for each path, in the config or in game with Cloth Config
 - Datapacks can start paths at any structure, door or street end
 - Minecraft 26.3 support (Fabric and NeoForge)
 - Players without the mod can join Forge servers that have it
 
 ### Changed
-- Paths appear in modded biomes like Terralith and Biomes O' Plenty
+- Paths appear in modded biomes from Terralith, Biomes O' Plenty and Regions Unexplored
 - Dirt roads also run through snowy taigas
 - Paths on 1.20 generate in the background, so worlds load faster
 - `/paths locate` finds structure roads, works from the console and puts you on the path
@@ -25,7 +26,7 @@
 - Paths no longer cut through houses, farms, doors or chests
 - Bushes no longer grow on paths
 - Flowers line paths near spawn too
-- No roads to temples or huts another mod replaced
+- No roads to temples or huts that YUNG's mods replace
 - Long-running servers no longer slow down as paths pile up
 - Paths from one world no longer turn up in the next
 - Paths stay in the overworld on Forge and NeoForge
