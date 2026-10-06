@@ -38,6 +38,8 @@ Paths now lead to structures!
 - Mushroom paths now generate
 - `/paths locate` no longer points into water
 
+![path leading to mvs house](https://i.moogsmods.com/images/8b8dba72c61d4a00bc4e51499cd1f2fb.png)
+
 ---
 
 ## [1.0.2] - 2026-06-22
