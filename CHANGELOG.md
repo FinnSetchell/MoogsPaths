@@ -4,6 +4,8 @@
 
 ## [1.1.0] - 2026-09-29
 
+Paths now lead to structures!
+
 ### Added
 - Roads lead out from the ends of village streets, styled to their biome
 - Trails lead from the doors of witch huts and jungle temples
