@@ -210,7 +210,7 @@ public final class PlacementTickPump {
         for(int dx = -1; dx <= 1; dx++) {
             for(int dz = -1; dz <= 1; dz++) {
                 int cx = loadedX + dx, cz = loadedZ + dz;
-                if((dx != 0 || dz != 0) && !level.getChunkSource().hasChunk(cx, cz)) continue;
+                if((dx != 0 || dz != 0) && !generated(level, cx, cz)) continue;
                 if(!neighbourhoodLoaded(level, cx, cz, loading)) continue;
                 queueChunk(level, state, cx, cz);
             }
@@ -271,7 +271,7 @@ public final class PlacementTickPump {
                 if(pp == null) break;
                 long seed = pp.job.pathSeed();
                 if(!state.isPending(seed) || state.wasPlaced(seed, pp.chunkX, pp.chunkZ)) continue;
-                // A neighbour unloaded meanwhile: dropped, and queued again when the neighbourhood is back.
+                // A neighbour unloaded or is still generating: dropped, and queued again when the last one loads.
                 if(!neighbourhoodLoaded(level, pp.chunkX, pp.chunkZ, Long.MIN_VALUE)) continue;
                 budget--;
                 LevelChunk chunk = level.getChunk(pp.chunkX, pp.chunkZ);
@@ -292,10 +292,17 @@ public final class PlacementTickPump {
         for(int dx = -1; dx <= 1; dx++) {
             for(int dz = -1; dz <= 1; dz++) {
                 if(pack(cx + dx, cz + dz) == assumeLoaded) continue;
-                if(!level.getChunkSource().hasChunk(cx + dx, cz + dz)) return false;
+                if(!generated(level, cx + dx, cz + dz)) return false;
             }
         }
         return true;
+    }
+
+    // hasChunk is true as soon as a chunk is scheduled to load, before it has generated, and reading
+    // one in that state makes the server thread wait for its generation. getChunkNow only returns a
+    // chunk that is fully generated.
+    private static boolean generated(ServerLevel level, int cx, int cz) {
+        return level.getChunkSource().getChunkNow(cx, cz) != null;
     }
 
     private static boolean allPlaced(DeferredPathState state, long seed, LongOpenHashSet touched) {
