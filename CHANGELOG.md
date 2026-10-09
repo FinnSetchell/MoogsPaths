@@ -2,6 +2,13 @@
 
 ---
 
+## [1.1.1] - 2026-10-09
+
+### Fixed
+- The server no longer freezes for a few seconds while exploring new terrain
+
+---
+
 ## [1.1.0] - 2026-10-06
 
 Paths now lead to structures!
