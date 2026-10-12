@@ -38,6 +38,8 @@ public final class PathFinder {
     private static final double MAX_SHORTCUT_DRIFT = 8.0; // blocks a straightened stretch may stray from the searched route
     private static final int MAX_SHORTCUT_HEIGHT_DIFF = 4; // ground height a shortcut may differ by from the route beside it
     private static final double CORNER_RADIUS = 12.0; // blocks either side of a corner that its curve replaces
+    private static final int MAX_WATER_CROSSING = 8; // cells of water in a row a path will cross (32 blocks); wider water it goes round
+    private static final int STARTING_WATER = -1; // in place of a crossing's length: the water a path started in, which has no limit
 
     // Primitive variant of BiFunction<Integer,Integer,Integer> - avoids autoboxing per call.
     @FunctionalInterface
@@ -51,25 +53,43 @@ public final class PathFinder {
         boolean test(int x, int z);
     }
 
-    // smooth is false only for a path begun before routes were smoothed, which keeps the route it was laid on.
-    public static List<BlockPos> findPath(BlockPos origin, PathType pathType, RandomSource random, HeightSampler rawHeightAt, BiomeAccept biomeAccept, boolean smooth) {
+    // What the search knows of a column: its surface height and whether that surface is water,
+    // packed by terrain(). One lookup, so telling water from land costs the search nothing more.
+    @FunctionalInterface
+    public interface TerrainSampler {
+        int sampleAt(int x, int z);
+    }
+
+    public static int terrain(int height, boolean water) { return (height << 1) | (water ? 1 : 0); }
+
+    /** Whether a path of this type should not head for this spot: it is water, and the type keeps off water. */
+    public static boolean inWater(TerrainSampler terrainAt, PathType pathType, int x, int z) {
+        return terrainAt != null && pathType.waterCost() > 0f && isWater(terrainAt.sampleAt(x, z));
+    }
+    private static int heightOf(int terrain) { return terrain >> 1; }
+    private static boolean isWater(int terrain) { return (terrain & 1) != 0; }
+
+    // A path begun before 1.2.0 keeps the route it was laid on: no terrainAt (the search is blind to
+    // water, as it was) and smooth false.
+    public static List<BlockPos> findPath(BlockPos origin, PathType pathType, RandomSource random, HeightSampler rawHeightAt, TerrainSampler terrainAt, BiomeAccept biomeAccept, boolean smooth) {
         BiomeAccept biome = memoiseBiome(biomeAccept);
 
         int length = pathType.length().sample(random);
 
-        // Reroll the goal angle a few times to land somewhere the biome gate accepts. Origin
-        // enumeration upstream guarantees the start cell passes; the goal does not. If every
-        // attempt misses, A* still runs with the last attempt and falls back to bestReachedKey.
+        // Reroll the goal angle a few times to land somewhere the biome gate accepts, on dry land
+        // for a path that keeps off water. Origin enumeration upstream guarantees the start cell
+        // passes; the goal does not. If every attempt misses, A* still runs with the last attempt
+        // and falls back to bestReachedKey.
         int goalBlockX = origin.getX();
         int goalBlockZ = origin.getZ();
         for(int attempt = 0; attempt < GOAL_REROLL_ATTEMPTS; attempt++) {
             double angle = random.nextDouble() * Math.PI * 2.0;
             goalBlockX = origin.getX() + (int) Math.round(Math.cos(angle) * length);
             goalBlockZ = origin.getZ() + (int) Math.round(Math.sin(angle) * length);
-            if(biome == null || biome.test(goalBlockX, goalBlockZ)) break;
+            if((biome == null || biome.test(goalBlockX, goalBlockZ)) && !inWater(terrainAt, pathType, goalBlockX, goalBlockZ)) break;
         }
 
-        return solve(origin, goalBlockX, goalBlockZ, length, pathType, rawHeightAt, biome, smooth);
+        return solve(origin, goalBlockX, goalBlockZ, length, pathType, rawHeightAt, terrainAt, biome, smooth);
     }
 
     /**
@@ -77,14 +97,15 @@ public final class PathFinder {
      * structure. Cells failing biomeAccept are gated out as in {@link #findPath}; the origin's cell
      * never is.
      */
-    public static List<BlockPos> findPathTo(BlockPos origin, int goalBlockX, int goalBlockZ, int length, PathType pathType, HeightSampler rawHeightAt, BiomeAccept biomeAccept, boolean smooth) {
-        return solve(origin, goalBlockX, goalBlockZ, length, pathType, rawHeightAt, memoiseBiome(biomeAccept), smooth);
+    public static List<BlockPos> findPathTo(BlockPos origin, int goalBlockX, int goalBlockZ, int length, PathType pathType, HeightSampler rawHeightAt, TerrainSampler terrainAt, BiomeAccept biomeAccept, boolean smooth) {
+        return solve(origin, goalBlockX, goalBlockZ, length, pathType, rawHeightAt, terrainAt, memoiseBiome(biomeAccept), smooth);
     }
 
-    private static List<BlockPos> solve(BlockPos origin, int goalBlockX, int goalBlockZ, int length, PathType pathType, HeightSampler rawHeightAt, BiomeAccept biome, boolean smooth) {
+    private static List<BlockPos> solve(BlockPos origin, int goalBlockX, int goalBlockZ, int length, PathType pathType, HeightSampler rawHeightAt, TerrainSampler terrainAt, BiomeAccept biome, boolean smooth) {
         // A* only needs heights for the slope filter and step cost, both tolerant of coarse
         // approximations. Snapping to an 8-block grid shares one noise eval across 4 cells.
-        CoarseHeights coarseHeightAt = new CoarseHeights(rawHeightAt);
+        CoarseTerrain coarseHeightAt = new CoarseTerrain(terrainAt != null ? terrainAt : (x, z) -> terrain(rawHeightAt.sampleAt(x, z), false));
+        float waterCost = terrainAt != null ? pathType.waterCost() : 0f;
         // interpolateToBlocks wants per-block heights so the rasteriser sees a smooth Y curve.
         HeightSampler preciseHeightAt = memoise(rawHeightAt);
 
@@ -95,13 +116,20 @@ public final class PathFinder {
 
         List<int[]> cellPath = astarCells(
             startCellX, startCellZ, goalCellX, goalCellZ,
-            pathType.rigidness(), length, coarseHeightAt, biome);
+            pathType.rigidness(), waterCost, length, coarseHeightAt, biome);
 
         // The search moves in 8 directions on its grid. Straightening and rounding the route it found
         // takes out its kinks and turns its corners into curves, without another height sample.
+        // A new route runs through the spots the search sampled, one in every 8 blocks, not the cells
+        // between them: the search took a cell's ground from the nearest of those, so beside water a
+        // route through the cells ran several blocks out in the shallows the whole way along.
         List<int[]> route = new ArrayList<>(cellPath.size());
-        for(int[] cell : cellPath) route.add(new int[]{cell[0] * CELL_SIZE, cell[1] * CELL_SIZE});
-        if(smooth) route = roundCorners(straighten(route, coarseHeightAt, biome), biome);
+        for(int[] cell : cellPath) {
+            int x = cell[0] * CELL_SIZE, z = cell[1] * CELL_SIZE;
+            if(terrainAt == null || route.isEmpty()) route.add(new int[]{x, z});
+            else addPoint(route, new int[]{CoarseTerrain.sampled(x), CoarseTerrain.sampled(z)});
+        }
+        if(smooth) route = roundCorners(straighten(route, coarseHeightAt, biome, waterCost > 0f), coarseHeightAt, biome, waterCost > 0f);
 
         List<BlockPos> blockWaypoints = interpolateToBlocks(route, preciseHeightAt, origin.getY());
         carverSmooth(blockWaypoints, pathType.carver());
@@ -111,11 +139,13 @@ public final class PathFinder {
 
     //////////////////////////////
 
-    // Step cost = distance (cardinal=1, diagonal=sqrt(2)) + slope_delta^2 scaled by (1-rigidness).
+    // Step cost = distance (cardinal=1, diagonal=sqrt(2)), times 1 + waterCost onto water, plus
+    // slope_delta^2 scaled by (1-rigidness). Water is flat, so without its cost a path would follow a
+    // river; with it a path keeps to the bank and crosses the short way when it has to.
     // Cells failing biomeAccept are gated out of expansion so the path stays inside the source biome.
     // On any non-success exit (biome boundary, slope walls, iter cap, bail) returns a path to the
     // closest-to-goal in-biome cell reached - never null.
-    private static List<int[]> astarCells(int startX, int startZ, int goalX, int goalZ, float rigidness, int length, HeightSampler heightAt, BiomeAccept biomeAccept) {
+    private static List<int[]> astarCells(int startX, int startZ, int goalX, int goalZ, float rigidness, float waterCost, int length, CoarseTerrain terrainAt, BiomeAccept biomeAccept) {
         long startKey = packCell(startX, startZ);
         long goalKey = packCell(goalX, goalZ);
 
@@ -123,10 +153,15 @@ public final class PathFinder {
         cameFrom.defaultReturnValue(NO_PREV);
         Long2DoubleOpenHashMap gScore = new Long2DoubleOpenHashMap();
         gScore.defaultReturnValue(Double.POSITIVE_INFINITY);
+        Long2IntOpenHashMap waterRun = new Long2IntOpenHashMap(); // cells of water in a row on the way to a cell
         OpenHeap open = new OpenHeap(64);
 
-        int startYRaw = heightAt.sampleAt(startX * CELL_SIZE, startZ * CELL_SIZE);
+        int startTerrain = terrainAt.sampleAt(startX * CELL_SIZE, startZ * CELL_SIZE);
+        int startYRaw = heightOf(startTerrain);
         gScore.put(startKey, 0.0);
+        // A path that starts in water may go as far as it must to reach land; a crossing is only
+        // measured once it has been on land.
+        if(waterCost > 0f && isWater(startTerrain)) waterRun.put(startKey, STARTING_WATER);
         open.push(startKey, HEURISTIC_WEIGHT * octile(startX, startZ, goalX, goalZ), startYRaw);
 
         // length is straight-line block distance; CELL_SIZE=4 makes it 4x the cell-space
@@ -199,18 +234,29 @@ public final class PathFinder {
                 int nx = cx + DX[d];
                 int nz = cz + DZ[d];
                 if(octile(nx, nz, startX, startZ) + octile(nx, nz, goalX, goalZ) > ellipseSum) continue;
-                int nyRaw = heightAt.sampleAt(nx * CELL_SIZE, nz * CELL_SIZE);
+                int nTerrain = terrainAt.sampleAt(nx * CELL_SIZE, nz * CELL_SIZE);
+                int nyRaw = heightOf(nTerrain);
                 int ny = nyRaw < 0 ? curY : nyRaw;
                 int slopeDelta = Math.abs(ny - curY);
                 if(slopeDelta > MAX_NATURAL_STEP) continue;
 
-                double stepCost = STEP_COST[d] + (double) slopeDelta * slopeDelta * (1.0 - rigidness) * SLOPE_COST_SCALE;
+                // Water past the limit is not a crossing but something to go round: a lake, or a
+                // river followed along its length.
+                boolean wet = waterCost > 0f && isWater(nTerrain);
+                int before = waterRun.get(curKey);
+                int crossing = !wet ? 0 : before == STARTING_WATER ? STARTING_WATER : before + 1;
+                if(crossing > MAX_WATER_CROSSING) continue;
+
+                double stepCost = STEP_COST[d] * (wet ? 1.0 + waterCost : 1.0)
+                    + (double) slopeDelta * slopeDelta * (1.0 - rigidness) * SLOPE_COST_SCALE;
                 double tentativeG = curG + stepCost;
                 long neighKey = packCell(nx, nz);
                 double prev = gScore.get(neighKey);
                 if(tentativeG < prev) {
                     cameFrom.put(neighKey, curKey);
                     gScore.put(neighKey, tentativeG);
+                    if(wet) waterRun.put(neighKey, crossing);
+                    else waterRun.remove(neighKey);
                     open.push(neighKey, tentativeG + HEURISTIC_WEIGHT * octile(nx, nz, goalX, goalZ), nyRaw);
                 }
             }
@@ -325,7 +371,7 @@ public final class PathFinder {
 
     // Replaces stretches of the route with straight lines: from each kept point, on to the farthest
     // later point the route can be cut straight to.
-    private static List<int[]> straighten(List<int[]> route, CoarseHeights heights, BiomeAccept biome) {
+    private static List<int[]> straighten(List<int[]> route, CoarseTerrain terrain, BiomeAccept biome, boolean avoidWater) {
         int n = route.size();
         if(n < 3) return route;
         List<int[]> out = new ArrayList<>();
@@ -334,7 +380,7 @@ public final class PathFinder {
         while(i < n - 1) {
             int j = i + 1;
             for(int k = i + 2; k < n; k++) {
-                if(!shortcutOk(route, i, k, heights, biome)) break;
+                if(!shortcutOk(route, i, k, terrain, biome, avoidWater)) break;
                 j = k;
             }
             out.add(route.get(j));
@@ -344,10 +390,11 @@ public final class PathFinder {
     }
 
     // A straight line from route point i to k is fine when every point it skips stays close to it,
-    // in a biome the path may cross, over ground about as high as the route had there. Heights are
-    // only the ones the search already sampled: where it has none the line is taken on trust, as it
-    // is never more than MAX_SHORTCUT_DRIFT from ground the search did accept.
-    private static boolean shortcutOk(List<int[]> route, int i, int k, CoarseHeights heights, BiomeAccept biome) {
+    // in a biome the path may cross, over ground about as high as the route had there, and not onto
+    // water the route kept off. Terrain is only what the search already sampled: where it has none
+    // the line is taken on trust, as it is never more than MAX_SHORTCUT_DRIFT from ground the search
+    // did accept.
+    private static boolean shortcutOk(List<int[]> route, int i, int k, CoarseTerrain terrain, BiomeAccept biome, boolean avoidWater) {
         int[] a = route.get(i), b = route.get(k);
         double dx = b[0] - a[0], dz = b[1] - a[1];
         double lengthSq = dx * dx + dz * dz;
@@ -361,16 +408,20 @@ public final class PathFinder {
             int cellX = Math.floorDiv((int) Math.round(qx), CELL_SIZE) * CELL_SIZE;
             int cellZ = Math.floorDiv((int) Math.round(qz), CELL_SIZE) * CELL_SIZE;
             if(biome != null && !biome.test(cellX, cellZ)) return false;
-            int routeY = heights.known(p[0], p[1]);
-            int lineY = heights.known(cellX, cellZ);
+            int routeTerrain = terrain.known(p[0], p[1]);
+            int lineTerrain = terrain.known(cellX, cellZ);
+            if(routeTerrain == HEIGHT_UNSET || lineTerrain == HEIGHT_UNSET) continue;
+            int routeY = heightOf(routeTerrain), lineY = heightOf(lineTerrain);
             if(routeY >= 0 && lineY >= 0 && Math.abs(lineY - routeY) > MAX_SHORTCUT_HEIGHT_DIFF) return false;
+            if(avoidWater && isWater(lineTerrain) && !isWater(routeTerrain)) return false;
         }
         return true;
     }
 
     // Replaces each corner with a curve that leaves the route up to CORNER_RADIUS before the corner
-    // and rejoins it as far after. A corner whose curve would leave the path's biomes stays sharp.
-    private static List<int[]> roundCorners(List<int[]> route, BiomeAccept biome) {
+    // and rejoins it as far after. A corner whose curve would leave the path's biomes, or put a dry
+    // corner into water, stays sharp.
+    private static List<int[]> roundCorners(List<int[]> route, CoarseTerrain terrain, BiomeAccept biome, boolean avoidWater) {
         int n = route.size();
         if(n < 3) return route;
         List<int[]> out = new ArrayList<>();
@@ -380,7 +431,9 @@ public final class PathFinder {
             double lenIn = Math.hypot(corner[0] - before[0], corner[1] - before[1]);
             double lenOut = Math.hypot(after[0] - corner[0], after[1] - corner[1]);
             double radius = Math.min(CORNER_RADIUS, Math.min(lenIn, lenOut) / 2.0);
-            List<int[]> curve = radius < 1.5 ? null : cornerCurve(before, corner, after, radius / lenIn, radius / lenOut, biome);
+            int cornerTerrain = terrain.known(corner[0], corner[1]);
+            boolean keepDry = avoidWater && !(cornerTerrain != HEIGHT_UNSET && isWater(cornerTerrain));
+            List<int[]> curve = radius < 1.5 ? null : cornerCurve(before, corner, after, radius / lenIn, radius / lenOut, terrain, biome, keepDry);
             if(curve == null) addPoint(out, corner);
             else for(int[] point : curve) addPoint(out, point);
         }
@@ -389,8 +442,8 @@ public final class PathFinder {
     }
 
     // Five points of the quadratic curve from a point on the way in to one on the way out, pulled
-    // towards the corner. Null when one of them is outside the path's biomes.
-    private static List<int[]> cornerCurve(int[] before, int[] corner, int[] after, double shareIn, double shareOut, BiomeAccept biome) {
+    // towards the corner. Null when one of them is outside the path's biomes, or on water it must keep off.
+    private static List<int[]> cornerCurve(int[] before, int[] corner, int[] after, double shareIn, double shareOut, CoarseTerrain terrain, BiomeAccept biome, boolean keepDry) {
         double startX = corner[0] + (before[0] - corner[0]) * shareIn, startZ = corner[1] + (before[1] - corner[1]) * shareIn;
         double endX = corner[0] + (after[0] - corner[0]) * shareOut, endZ = corner[1] + (after[1] - corner[1]) * shareOut;
         List<int[]> curve = new ArrayList<>(5);
@@ -398,7 +451,12 @@ public final class PathFinder {
             double t = step / 4.0, u = 1.0 - t;
             int x = (int) Math.round(u * u * startX + 2 * t * u * corner[0] + t * t * endX);
             int z = (int) Math.round(u * u * startZ + 2 * t * u * corner[1] + t * t * endZ);
-            if(biome != null && !biome.test(Math.floorDiv(x, CELL_SIZE) * CELL_SIZE, Math.floorDiv(z, CELL_SIZE) * CELL_SIZE)) return null;
+            int cellX = Math.floorDiv(x, CELL_SIZE) * CELL_SIZE, cellZ = Math.floorDiv(z, CELL_SIZE) * CELL_SIZE;
+            if(biome != null && !biome.test(cellX, cellZ)) return null;
+            if(keepDry) {
+                int pointTerrain = terrain.known(cellX, cellZ);
+                if(pointTerrain != HEIGHT_UNSET && isWater(pointTerrain)) return null;
+            }
             curve.add(new int[]{x, z});
         }
         return curve;
@@ -527,13 +585,18 @@ public final class PathFinder {
     // inside the same stride tile shares one noise evaluation. The slope filter and slope cost
     // both tolerate this approximation; the worst case is a couple of adjacent cells claiming
     // the same Y when terrain is moving fast, which the post-A* carver/chaikin pass smooths out.
-    private static final class CoarseHeights implements HeightSampler {
-        private final HeightSampler source;
+    private static final class CoarseTerrain implements TerrainSampler {
+        private final TerrainSampler source;
         private final Long2IntOpenHashMap cache = new Long2IntOpenHashMap();
 
-        CoarseHeights(HeightSampler source) {
+        CoarseTerrain(TerrainSampler source) {
             this.source = source;
             cache.defaultReturnValue(HEIGHT_UNSET);
+        }
+
+        // The coordinate the terrain for this one is sampled at.
+        static int sampled(int coordinate) {
+            return Math.floorDiv(coordinate, COARSE_HEIGHT_STRIDE) * COARSE_HEIGHT_STRIDE;
         }
 
         @Override
@@ -548,7 +611,7 @@ public final class PathFinder {
             return computed;
         }
 
-        // The height already sampled for this spot's tile, or HEIGHT_UNSET. Never samples.
+        // The terrain already sampled for this spot's tile, or HEIGHT_UNSET. Never samples.
         int known(int x, int z) {
             int sx = Math.floorDiv(x, COARSE_HEIGHT_STRIDE) * COARSE_HEIGHT_STRIDE;
             int sz = Math.floorDiv(z, COARSE_HEIGHT_STRIDE) * COARSE_HEIGHT_STRIDE;

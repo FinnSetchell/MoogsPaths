@@ -59,6 +59,14 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
     /*public static final TagKey<Biome> HAS_NO_PATHS = TagKey.create(Registries.BIOME, new ResourceLocation(Constants.MOD_ID, "has_no_paths"));
     *///?}
 
+    // Biomes a path may pass through on its way though no network lists them: rivers. Nothing starts,
+    // ends or is decorated there, and the water in them costs the search what the path type says.
+    //? if >=1.21.1 {
+    public static final TagKey<Biome> CROSSABLE = TagKey.create(Registries.BIOME, ResourceLocation.fromNamespaceAndPath(Constants.MOD_ID, "crossable"));
+    //?} else {
+    /*public static final TagKey<Biome> CROSSABLE = TagKey.create(Registries.BIOME, new ResourceLocation(Constants.MOD_ID, "crossable"));
+    *///?}
+
     // MoogsPathsLocator reproduces evaluateOrigin against the same pathSeed inputs; the
     // mixer constants must stay public so the locate search derives matching seeds.
     public static final long PATH_SEED_MIXER = 0xABCDEF1234567890L;
@@ -312,8 +320,10 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
         Climate.Sampler sampler = randomState.sampler();
         //?}
         RandomSource walkRandom = RandomSource.create(pathSeed ^ WALK_MIXER);
+        boolean oldRoute = DeferredPathState.get(serverLevel).keepsOldRoute(pathSeed);
         return PathFinder.findPath(originPos, pathType, walkRandom,
             (x, z) -> generator.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, serverLevel, randomState),
+            oldRoute ? null : (x, z) -> surfaceTerrain(generator, x, z, serverLevel, randomState),
             (gx, gz) -> {
                 if(Constants.ENABLE_DEBUG_TIMER) PathDataManager.recordBiomeCall(com.finndog.moogs_paths.data.BiomeCallSite.PATHFINDER_GOAL_CHECK);
                 //? if >=26.3 {
@@ -321,8 +331,20 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                 *///?} else {
                 Holder<Biome> b = biomeSource.getNoiseBiome(QuartPos.fromBlock(gx), biomeQuartY, QuartPos.fromBlock(gz), sampler);
                 //?}
-                return network.biomes().contains(b) && !b.is(HAS_NO_PATHS);
-            }, !DeferredPathState.get(serverLevel).keepsOldRoute(pathSeed));
+                return network.biomes().contains(b) && !b.is(HAS_NO_PATHS) || !oldRoute && b.is(CROSSABLE);
+            }, !oldRoute);
+    }
+
+    /**
+     * A column's surface for {@link PathFinder.TerrainSampler}, from one lookup of its solid ground:
+     * ground below sea level is under water, and the surface there is the water's. A lake above sea
+     * level is not seen as water. (Reading the whole column instead sees those, at up to 1.6 times the
+     * cost of a lookup.)
+     */
+    public static int surfaceTerrain(ChunkGenerator generator, int x, int z, ServerLevel level, RandomState randomState) {
+        int ground = generator.getBaseHeight(x, z, Heightmap.Types.OCEAN_FLOOR_WG, level, randomState);
+        int seaLevel = generator.getSeaLevel();
+        return ground < seaLevel ? PathFinder.terrain(seaLevel, true) : PathFinder.terrain(ground, false);
     }
 
     //? if >=26.3 {

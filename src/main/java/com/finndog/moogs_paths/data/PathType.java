@@ -21,14 +21,18 @@ public record PathType(
     float carver,
     IntProvider length,
     FadeSettings fade,
-    Optional<WaterSettings> waterSettings
+    Optional<WaterSettings> waterSettings,
+    float waterCost
 ) {
+
+    // A block of water costs the search as much as 1 + water_cost blocks of level ground.
+    public static final float DEFAULT_WATER_COST = 4.0f;
 
     /** This type without its fade-in, for a path that leaves a structure at full width. */
     public PathType withoutStartFade() {
         if(fade.startBlocks() == 0) return this;
         return new PathType(surfaceBlocks, edgeBlocks, fillBlock, width, rigidness, carver, length,
-            new FadeSettings(0, fade.endBlocks()), waterSettings);
+            new FadeSettings(0, fade.endBlocks()), waterSettings, waterCost);
     }
 
     // 26.1 renamed IntProvider#getMinValue/getMaxValue to minInclusive/maxInclusive.
@@ -94,6 +98,7 @@ public record PathType(
         /*IntProviders.codec(1, 100_000).fieldOf("length").forGetter(PathType::length),
         *///?}
         FadeSettings.CODEC.fieldOf("fade").forGetter(PathType::fade),
-        WaterSettings.CODEC.optionalFieldOf("water_settings").forGetter(PathType::waterSettings)
+        WaterSettings.CODEC.optionalFieldOf("water_settings").forGetter(PathType::waterSettings),
+        Codec.floatRange(0.0f, 100.0f).optionalFieldOf("water_cost", DEFAULT_WATER_COST).forGetter(PathType::waterCost)
     ).apply(instance, PathType::new));
 }

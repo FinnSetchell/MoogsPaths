@@ -607,7 +607,11 @@ public final class StructureAnchors {
         ChunkGenerator generator = level.getChunkSource().getGenerator();
         RandomState randomState = level.getChunkSource().randomState();
         PathFinder.HeightSampler heights = (x, z) -> generator.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, level, randomState);
-        PathFinder.BiomeAccept biomes = networkBiomes(generator.getBiomeSource(), randomState, network);
+        boolean oldRoute = DeferredPathState.get(level).keepsOldRoute(pathSeed);
+        PathFinder.TerrainSampler terrain = oldRoute ? null : (x, z) -> PathChunkFeature.surfaceTerrain(generator, x, z, level, randomState);
+        // A path starts and aims within its network's biomes; on the way it may also cross a river.
+        PathFinder.BiomeAccept biomes = networkBiomes(generator.getBiomeSource(), randomState, network, false);
+        PathFinder.BiomeAccept passable = oldRoute ? biomes : networkBiomes(generator.getBiomeSource(), randomState, network, true);
 
         // Paths of one structure share a base heading and split the circle between them; the base
         // comes from a seed shared by all of them (index -1).
@@ -626,7 +630,7 @@ public final class StructureAnchors {
         // A path never runs back through the structure it leaves: one from an anchor only crosses it
         // on its straight way out.
         int margin = pathType.width().max() + 4;
-        PathFinder.BiomeAccept accept = (x, z) -> !insidePieces(structure, x, z, margin) && biomes.test(x, z);
+        PathFinder.BiomeAccept accept = (x, z) -> !insidePieces(structure, x, z, margin) && passable.test(x, z);
 
         BlockPos start = null;
         List<BlockPos> lead = List.of();
@@ -647,7 +651,8 @@ public final class StructureAnchors {
             // the structure are passable, so a path never starts facing into a lake or river.
             int stepX = from.getX() + (int) Math.round(dx * FIRST_STEP);
             int stepZ = from.getZ() + (int) Math.round(dz * FIRST_STEP);
-            boolean good = biomes.test(gx, gz) && accept.test(stepX, stepZ);
+            boolean good = biomes.test(gx, gz) && biomes.test(stepX, stepZ) && !insidePieces(structure, stepX, stepZ, margin)
+                && !PathFinder.inWater(terrain, pathType, gx, gz);
             if(start == null || good) {
                 start = from;
                 lead = way;
@@ -657,8 +662,7 @@ public final class StructureAnchors {
             if(good) break;
         }
         BlockPos startPos = new BlockPos(start.getX(), heights.sampleAt(start.getX(), start.getZ()), start.getZ());
-        List<BlockPos> path = PathFinder.findPathTo(startPos, goalX, goalZ, length, pathType, heights, accept,
-            !DeferredPathState.get(level).keepsOldRoute(pathSeed));
+        List<BlockPos> path = PathFinder.findPathTo(startPos, goalX, goalZ, length, pathType, heights, terrain, accept, !oldRoute);
         // A lead with nowhere to go is not a path.
         if(lead.isEmpty() || path.size() < 2) return path;
         return withLead(lead, path, heights);
@@ -692,20 +696,21 @@ public final class StructureAnchors {
         return paths;
     }
 
-    // The network's biomes, less moogs_paths:has_no_paths, as the path finder's gate.
-    private static PathFinder.BiomeAccept networkBiomes(BiomeSource biomeSource, RandomState randomState, PathNetworkType network) {
+    // The network's biomes, less moogs_paths:has_no_paths, as the path finder's gate; with crossable,
+    // moogs_paths:crossable biomes (rivers) pass too.
+    private static PathFinder.BiomeAccept networkBiomes(BiomeSource biomeSource, RandomState randomState, PathNetworkType network, boolean crossable) {
         int quartY = QuartPos.fromBlock(BIOME_Y);
         //? if >=26.3 {
         /*BiomeResolver resolver = biomeSource.createUncachedResolver(randomState);
         return (x, z) -> {
             Holder<Biome> b = resolver.getNoiseBiome(QuartPos.fromBlock(x), quartY, QuartPos.fromBlock(z));
-            return network.biomes().contains(b) && !b.is(PathChunkFeature.HAS_NO_PATHS);
+            return network.biomes().contains(b) && !b.is(PathChunkFeature.HAS_NO_PATHS) || crossable && b.is(PathChunkFeature.CROSSABLE);
         };
         *///?} else {
         Climate.Sampler sampler = randomState.sampler();
         return (x, z) -> {
             Holder<Biome> b = biomeSource.getNoiseBiome(QuartPos.fromBlock(x), quartY, QuartPos.fromBlock(z), sampler);
-            return network.biomes().contains(b) && !b.is(PathChunkFeature.HAS_NO_PATHS);
+            return network.biomes().contains(b) && !b.is(PathChunkFeature.HAS_NO_PATHS) || crossable && b.is(PathChunkFeature.CROSSABLE);
         };
         //?}
     }
