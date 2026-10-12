@@ -4,8 +4,11 @@
 
 ## [1.2.0] - 2026-10-12
 
+![moogs-paths-1.2.0-before-after](https://i.moogsmods.com/images/90f529d53fbf4e3fb540f61266ccef28.gif)
+
 ### Changed
 - Paths have fewer kinks and turn in gentle curves
+- Roads avoid water when they can
 
 ### Fixed
 - Worlds last played before 1.1.0 no longer log save errors on Minecraft 1.21.11 and newer

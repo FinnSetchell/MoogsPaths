@@ -65,6 +65,7 @@ Each path is decorated with a combination of:
 *   **Smooth slopes** - carver and height smoothing keep paths from jumping up and down with the terrain
 *   **Gentle curves** - routes are straightened and their corners rounded, so paths have fewer kinks and turn in curves
 *   **Fade in / fade out** - paths blend into the terrain at their start and end
+*   **Keeps off the water** - roads stay on dry land, cross a river by the short way and carry on from the far bank; each path type sets how much it minds water
 *   **Water bridging** - paths can use alternate blocks over water (boardwalk planks, etc.)
 *   **NBT structure placement** - place structures at endpoints or at intervals along the path, with flatness checks and terrain adjustment
 *   **Fully data-driven** - every path type, network, structure set and decorator set is a JSON file that datapacks can override or extend

@@ -16,7 +16,7 @@ A generated path is built from several layered configs. Understanding which file
 
 A network references the path_type and the decorator sets by id, so the same path_type can be reused across multiple networks, and the same structure_set can be shared between networks.
 
-The `moogs_paths:has_no_paths` biome tag is a hard blocklist. Any biome in this tag never generates paths, regardless of network bindings.
+The `moogs_paths:has_no_paths` biome tag is a hard blocklist. Any biome in this tag never generates paths, regardless of network bindings. A path may still pass through a biome in `moogs_paths:crossable` (rivers, by default) on its way somewhere else.
 
 Every numeric field is bounds-checked when the datapack loads. Weights must be `>= 1`,
 densities must be in `[0, 1]`, `width.min <= width.max`, `region_size >= 1`,
@@ -129,6 +129,7 @@ The visual and structural definition of a path.
 | `length` | IntProvider | Total path length in blocks. Use vanilla IntProvider syntax (`uniform`, `constant`, etc). Bounded `[1, 100000]`. |
 | `fade` | `{ "start_blocks": int, "end_blocks": int }` | Number of blocks at the start/end of the path where placement probability ramps from 0 to full. `0` disables fade on that end. |
 | `water_settings` | object (optional) | If present, paths will bridge water instead of skipping it. See below. |
+| `water_cost` | float `0`-`100` (optional, default `4`) | How hard the route avoids water. A block of water costs the pathfinder as much as `1 + water_cost` blocks of level ground, so a path keeps to the bank and crosses only where going round would be longer, by the shortest way across. It never crosses more than 32 blocks of water in one go: wider water it goes round. `0` ignores water, for a path meant to wander through it (the built-in swamp path). Only water at sea level is seen, so a lake high in the mountains is not. |
 
 #### `surface_blocks` / `edge_blocks` entry shape
 
@@ -377,6 +378,19 @@ The mod ships a default `has_no_paths` that excludes oceans, rivers, the void, t
     "minecraft:deep_dark",
     "minecraft:lush_caves",
     "minecraft:dripstone_caves"
+  ]
+}
+```
+
+### crossable biome tag
+
+`data/moogs_paths/tags/worldgen/biome/crossable.json` lists biomes a path may pass through even though its network does not list them, and even if they are in `has_no_paths`. The mod ships it with `#minecraft:is_river`, which is what lets a road cross a river and carry on from the far bank. Nothing starts, ends or is decorated in these biomes, and the water in them costs the route its path type's `water_cost`. Empty the tag (with `"replace": true`) to make rivers a wall again.
+
+```json
+{
+  "replace": false,
+  "values": [
+    "#minecraft:is_river"
   ]
 }
 ```
