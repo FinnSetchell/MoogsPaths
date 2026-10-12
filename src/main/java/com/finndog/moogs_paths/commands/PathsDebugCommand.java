@@ -216,6 +216,9 @@ public final class PathsDebugCommand {
         src.sendSuccess(() -> Component.literal("  " + PlacementTickPump.landedPathCount() + " paths landed this session, "
             + PlacementTickPump.queuedPlacementCount(src.getLevel()) + " placements queued, "
             + PathfindWorker.inFlightCount() + " computing, " + PathDataManager.cachedPathCount() + " paths cached"), false);
+        if(state.oldRouteCount() > 0) {
+            src.sendSuccess(() -> Component.literal("  " + state.oldRouteCount() + " paths begun before 1.2.0 keep their old route"), false);
+        }
         return 1;
     }
 

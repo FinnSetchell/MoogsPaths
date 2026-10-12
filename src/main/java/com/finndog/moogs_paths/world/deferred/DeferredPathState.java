@@ -45,6 +45,9 @@ import java.util.concurrent.ConcurrentHashMap;
  *    placement. Idempotency gate so a deferred path can't paint the same chunk twice.
  *  - {@code completed}: seeds whose path is fully laid (or too short to lay). Their placed
  *    chunks are dropped, and worldgen never queues them again.
+ *  - {@code oldRoutes}: seeds of paths begun before routes were straightened and rounded (1.2.0).
+ *    They keep the route they were laid on, so a half-laid path joins up and a locate still
+ *    lands on it. Filled once, when a save from before then loads.
  *
  * Accessed concurrently from worldgen threads (enqueue), the pathfind workers and the server
  * tick. All collections are {@link ConcurrentHashMap}-backed. One instance per level, created on
@@ -65,6 +68,10 @@ public class DeferredPathState extends SavedData {
     private final Map<Long, int[]> bounds = new ConcurrentHashMap<>();
     private final Map<Long, Set<Long>> placedByPath = new ConcurrentHashMap<>();
     private final Set<Long> completed = ConcurrentHashMap.newKeySet();
+    private final Set<Long> oldRoutes = ConcurrentHashMap.newKeySet();
+
+    // Saved as "routes". A save without it predates route smoothing.
+    private static final int ROUTE_VERSION = 1;
 
     public DeferredPathState() {}
 
@@ -177,6 +184,23 @@ public class DeferredPathState extends SavedData {
         return completed.contains(pathSeed);
     }
 
+    /** True for a path begun before routes were smoothed: it is computed as it was then. Any thread. */
+    public boolean keepsOldRoute(long pathSeed) {
+        return oldRoutes.contains(pathSeed);
+    }
+
+    public int oldRouteCount() { return oldRoutes.size(); }
+
+    // A save from before route smoothing: every finished path, and every one with chunks already
+    // laid, was laid on its route as searched. Paths not started yet take the new routes.
+    private void adoptOldRoutes() {
+        for(Map.Entry<Long, Set<Long>> e : placedByPath.entrySet()) {
+            if(!e.getValue().isEmpty() && pendingJobs.containsKey(e.getKey())) oldRoutes.add(e.getKey());
+        }
+        oldRoutes.addAll(completed);
+        setDirty();
+    }
+
     public boolean addPending(DeferredPathJob job) {
         if(completed.contains(job.pathSeed())) return false;
         if(pendingJobs.putIfAbsent(job.pathSeed(), job) == null) {
@@ -276,6 +300,12 @@ public class DeferredPathState extends SavedData {
         int d = 0;
         for(long seed : completed) done[d++] = seed;
         tag.put("done", new LongArrayTag(done));
+
+        tag.putInt("routes", ROUTE_VERSION);
+        long[] old = new long[oldRoutes.size()];
+        int o = 0;
+        for(long seed : oldRoutes) old[o++] = seed;
+        tag.put("old_routes", new LongArrayTag(old));
         return tag;
     }
 
@@ -316,6 +346,11 @@ public class DeferredPathState extends SavedData {
             if(bb.length == 4) state.bounds.put(b.getLong("seed"), bb);
         }
         for(long seed : tag.getLongArray("done")) state.completed.add(seed);
+        if(tag.getInt("routes") >= ROUTE_VERSION) {
+            for(long seed : tag.getLongArray("old_routes")) state.oldRoutes.add(seed);
+        } else {
+            state.adoptOldRoutes();
+        }
         return state;
     }
     //?} else {
@@ -340,8 +375,10 @@ public class DeferredPathState extends SavedData {
             // No default value here: a default stream is one object shared by every load, and a stream
             // can be read once, so the second save without the field (any from before 1.1.0) failed to load.
             Codec.LONG_STREAM.optionalFieldOf("done")
-                .forGetter(s -> java.util.Optional.of(s.completed.stream().mapToLong(Long::longValue)))
-        ).apply(inst, (pending, placed, boundsList, done) -> {
+                .forGetter(s -> java.util.Optional.of(s.completed.stream().mapToLong(Long::longValue))),
+            Codec.INT.optionalFieldOf("routes", 0).forGetter(s -> ROUTE_VERSION),
+            Codec.LONG.listOf().optionalFieldOf("old_routes", List.of()).forGetter(s -> new ArrayList<>(s.oldRoutes))
+        ).apply(inst, (pending, placed, boundsList, done, routes, old) -> {
             DeferredPathState state = new DeferredPathState();
             for(DeferredPathJob job : pending) {
                 try {
@@ -359,6 +396,8 @@ public class DeferredPathState extends SavedData {
                 if(be.bb().length == 4) state.bounds.put(be.seed(), be.bb());
             }
             done.ifPresent(seeds -> seeds.forEach(state.completed::add));
+            if(routes >= ROUTE_VERSION) state.oldRoutes.addAll(old);
+            else state.adoptOldRoutes();
             return state;
         }));
     }

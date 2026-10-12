@@ -8,6 +8,7 @@ import com.finndog.moogs_paths.data.PathNetworkType;
 import com.finndog.moogs_paths.data.PathType;
 import com.finndog.moogs_paths.data.StructureOrigin;
 import com.finndog.moogs_paths.world.deferred.DeferredPathJob;
+import com.finndog.moogs_paths.world.deferred.DeferredPathState;
 import com.finndog.moogs_paths.world.deferred.PlacementTickPump;
 import com.mojang.datafixers.util.Either;
 import net.minecraft.core.BlockPos;
@@ -656,7 +657,8 @@ public final class StructureAnchors {
             if(good) break;
         }
         BlockPos startPos = new BlockPos(start.getX(), heights.sampleAt(start.getX(), start.getZ()), start.getZ());
-        List<BlockPos> path = PathFinder.findPathTo(startPos, goalX, goalZ, length, pathType, heights, accept);
+        List<BlockPos> path = PathFinder.findPathTo(startPos, goalX, goalZ, length, pathType, heights, accept,
+            !DeferredPathState.get(level).keepsOldRoute(pathSeed));
         // A lead with nowhere to go is not a path.
         if(lead.isEmpty() || path.size() < 2) return path;
         return withLead(lead, path, heights);

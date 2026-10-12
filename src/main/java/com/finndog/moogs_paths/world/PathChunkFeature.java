@@ -10,6 +10,7 @@ import com.finndog.moogs_paths.data.PathType;
 import com.finndog.moogs_paths.data.StructureOrigin;
 import com.finndog.moogs_paths.debug.PathDebugTimer;
 import com.finndog.moogs_paths.world.deferred.DeferredPathJob;
+import com.finndog.moogs_paths.world.deferred.DeferredPathState;
 import com.finndog.moogs_paths.world.deferred.PlacementTickPump;
 //? if >=26.3 {
 /*import com.mojang.serialization.MapCodec;
@@ -321,7 +322,7 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
                 Holder<Biome> b = biomeSource.getNoiseBiome(QuartPos.fromBlock(gx), biomeQuartY, QuartPos.fromBlock(gz), sampler);
                 //?}
                 return network.biomes().contains(b) && !b.is(HAS_NO_PATHS);
-            });
+            }, !DeferredPathState.get(serverLevel).keepsOldRoute(pathSeed));
     }
 
     //? if >=26.3 {

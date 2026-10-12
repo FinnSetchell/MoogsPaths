@@ -35,6 +35,9 @@ public final class PathFinder {
     private static final int HEIGHT_UNSET = Integer.MIN_VALUE; // sentinel in the height memo cache meaning "not yet sampled"
     private static final int COARSE_HEIGHT_STRIDE = 8; // A* snaps height samples to this stride so adjacent cells share noise lookups
     private static final long NO_PREV = Long.MIN_VALUE; // sentinel in cameFrom meaning "no predecessor cell"
+    private static final double MAX_SHORTCUT_DRIFT = 8.0; // blocks a straightened stretch may stray from the searched route
+    private static final int MAX_SHORTCUT_HEIGHT_DIFF = 4; // ground height a shortcut may differ by from the route beside it
+    private static final double CORNER_RADIUS = 12.0; // blocks either side of a corner that its curve replaces
 
     // Primitive variant of BiFunction<Integer,Integer,Integer> - avoids autoboxing per call.
     @FunctionalInterface
@@ -48,7 +51,8 @@ public final class PathFinder {
         boolean test(int x, int z);
     }
 
-    public static List<BlockPos> findPath(BlockPos origin, PathType pathType, RandomSource random, HeightSampler rawHeightAt, BiomeAccept biomeAccept) {
+    // smooth is false only for a path begun before routes were smoothed, which keeps the route it was laid on.
+    public static List<BlockPos> findPath(BlockPos origin, PathType pathType, RandomSource random, HeightSampler rawHeightAt, BiomeAccept biomeAccept, boolean smooth) {
         BiomeAccept biome = memoiseBiome(biomeAccept);
 
         int length = pathType.length().sample(random);
@@ -65,7 +69,7 @@ public final class PathFinder {
             if(biome == null || biome.test(goalBlockX, goalBlockZ)) break;
         }
 
-        return solve(origin, goalBlockX, goalBlockZ, length, pathType, rawHeightAt, biome);
+        return solve(origin, goalBlockX, goalBlockZ, length, pathType, rawHeightAt, biome, smooth);
     }
 
     /**
@@ -73,14 +77,14 @@ public final class PathFinder {
      * structure. Cells failing biomeAccept are gated out as in {@link #findPath}; the origin's cell
      * never is.
      */
-    public static List<BlockPos> findPathTo(BlockPos origin, int goalBlockX, int goalBlockZ, int length, PathType pathType, HeightSampler rawHeightAt, BiomeAccept biomeAccept) {
-        return solve(origin, goalBlockX, goalBlockZ, length, pathType, rawHeightAt, memoiseBiome(biomeAccept));
+    public static List<BlockPos> findPathTo(BlockPos origin, int goalBlockX, int goalBlockZ, int length, PathType pathType, HeightSampler rawHeightAt, BiomeAccept biomeAccept, boolean smooth) {
+        return solve(origin, goalBlockX, goalBlockZ, length, pathType, rawHeightAt, memoiseBiome(biomeAccept), smooth);
     }
 
-    private static List<BlockPos> solve(BlockPos origin, int goalBlockX, int goalBlockZ, int length, PathType pathType, HeightSampler rawHeightAt, BiomeAccept biome) {
+    private static List<BlockPos> solve(BlockPos origin, int goalBlockX, int goalBlockZ, int length, PathType pathType, HeightSampler rawHeightAt, BiomeAccept biome, boolean smooth) {
         // A* only needs heights for the slope filter and step cost, both tolerant of coarse
         // approximations. Snapping to an 8-block grid shares one noise eval across 4 cells.
-        HeightSampler coarseHeightAt = memoiseCoarse(rawHeightAt);
+        CoarseHeights coarseHeightAt = new CoarseHeights(rawHeightAt);
         // interpolateToBlocks wants per-block heights so the rasteriser sees a smooth Y curve.
         HeightSampler preciseHeightAt = memoise(rawHeightAt);
 
@@ -93,7 +97,13 @@ public final class PathFinder {
             startCellX, startCellZ, goalCellX, goalCellZ,
             pathType.rigidness(), length, coarseHeightAt, biome);
 
-        List<BlockPos> blockWaypoints = interpolateToBlocks(cellPath, preciseHeightAt, origin.getY());
+        // The search moves in 8 directions on its grid. Straightening and rounding the route it found
+        // takes out its kinks and turns its corners into curves, without another height sample.
+        List<int[]> route = new ArrayList<>(cellPath.size());
+        for(int[] cell : cellPath) route.add(new int[]{cell[0] * CELL_SIZE, cell[1] * CELL_SIZE});
+        if(smooth) route = roundCorners(straighten(route, coarseHeightAt, biome), biome);
+
+        List<BlockPos> blockWaypoints = interpolateToBlocks(route, preciseHeightAt, origin.getY());
         carverSmooth(blockWaypoints, pathType.carver());
         smoothHeights(blockWaypoints);
         return blockWaypoints;
@@ -310,19 +320,110 @@ public final class PathFinder {
 
     //////////////////////////////
 
-    // Expands cell waypoints to block-dense ones. Drops consecutive duplicate (x,z).
+    //////////////////////////////
+    // Route smoothing
+
+    // Replaces stretches of the route with straight lines: from each kept point, on to the farthest
+    // later point the route can be cut straight to.
+    private static List<int[]> straighten(List<int[]> route, CoarseHeights heights, BiomeAccept biome) {
+        int n = route.size();
+        if(n < 3) return route;
+        List<int[]> out = new ArrayList<>();
+        out.add(route.get(0));
+        int i = 0;
+        while(i < n - 1) {
+            int j = i + 1;
+            for(int k = i + 2; k < n; k++) {
+                if(!shortcutOk(route, i, k, heights, biome)) break;
+                j = k;
+            }
+            out.add(route.get(j));
+            i = j;
+        }
+        return out;
+    }
+
+    // A straight line from route point i to k is fine when every point it skips stays close to it,
+    // in a biome the path may cross, over ground about as high as the route had there. Heights are
+    // only the ones the search already sampled: where it has none the line is taken on trust, as it
+    // is never more than MAX_SHORTCUT_DRIFT from ground the search did accept.
+    private static boolean shortcutOk(List<int[]> route, int i, int k, CoarseHeights heights, BiomeAccept biome) {
+        int[] a = route.get(i), b = route.get(k);
+        double dx = b[0] - a[0], dz = b[1] - a[1];
+        double lengthSq = dx * dx + dz * dz;
+        for(int m = i + 1; m < k; m++) {
+            int[] p = route.get(m);
+            double t = lengthSq == 0 ? 0 : Math.max(0.0, Math.min(1.0, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dz) / lengthSq));
+            double qx = a[0] + t * dx, qz = a[1] + t * dz;
+            double drift = Math.hypot(p[0] - qx, p[1] - qz);
+            if(drift > MAX_SHORTCUT_DRIFT) return false;
+            if(drift < 0.5) continue;
+            int cellX = Math.floorDiv((int) Math.round(qx), CELL_SIZE) * CELL_SIZE;
+            int cellZ = Math.floorDiv((int) Math.round(qz), CELL_SIZE) * CELL_SIZE;
+            if(biome != null && !biome.test(cellX, cellZ)) return false;
+            int routeY = heights.known(p[0], p[1]);
+            int lineY = heights.known(cellX, cellZ);
+            if(routeY >= 0 && lineY >= 0 && Math.abs(lineY - routeY) > MAX_SHORTCUT_HEIGHT_DIFF) return false;
+        }
+        return true;
+    }
+
+    // Replaces each corner with a curve that leaves the route up to CORNER_RADIUS before the corner
+    // and rejoins it as far after. A corner whose curve would leave the path's biomes stays sharp.
+    private static List<int[]> roundCorners(List<int[]> route, BiomeAccept biome) {
+        int n = route.size();
+        if(n < 3) return route;
+        List<int[]> out = new ArrayList<>();
+        out.add(route.get(0));
+        for(int i = 1; i < n - 1; i++) {
+            int[] before = route.get(i - 1), corner = route.get(i), after = route.get(i + 1);
+            double lenIn = Math.hypot(corner[0] - before[0], corner[1] - before[1]);
+            double lenOut = Math.hypot(after[0] - corner[0], after[1] - corner[1]);
+            double radius = Math.min(CORNER_RADIUS, Math.min(lenIn, lenOut) / 2.0);
+            List<int[]> curve = radius < 1.5 ? null : cornerCurve(before, corner, after, radius / lenIn, radius / lenOut, biome);
+            if(curve == null) addPoint(out, corner);
+            else for(int[] point : curve) addPoint(out, point);
+        }
+        addPoint(out, route.get(n - 1));
+        return out;
+    }
+
+    // Five points of the quadratic curve from a point on the way in to one on the way out, pulled
+    // towards the corner. Null when one of them is outside the path's biomes.
+    private static List<int[]> cornerCurve(int[] before, int[] corner, int[] after, double shareIn, double shareOut, BiomeAccept biome) {
+        double startX = corner[0] + (before[0] - corner[0]) * shareIn, startZ = corner[1] + (before[1] - corner[1]) * shareIn;
+        double endX = corner[0] + (after[0] - corner[0]) * shareOut, endZ = corner[1] + (after[1] - corner[1]) * shareOut;
+        List<int[]> curve = new ArrayList<>(5);
+        for(int step = 0; step <= 4; step++) {
+            double t = step / 4.0, u = 1.0 - t;
+            int x = (int) Math.round(u * u * startX + 2 * t * u * corner[0] + t * t * endX);
+            int z = (int) Math.round(u * u * startZ + 2 * t * u * corner[1] + t * t * endZ);
+            if(biome != null && !biome.test(Math.floorDiv(x, CELL_SIZE) * CELL_SIZE, Math.floorDiv(z, CELL_SIZE) * CELL_SIZE)) return null;
+            curve.add(new int[]{x, z});
+        }
+        return curve;
+    }
+
+    private static void addPoint(List<int[]> points, int[] point) {
+        int[] last = points.get(points.size() - 1);
+        if(last[0] != point[0] || last[1] != point[1]) points.add(point);
+    }
+
+    //////////////////////////////
+
+    // Expands the route's points to block-dense waypoints. Drops consecutive duplicate (x,z).
     //
     // Heights are the bulk of a path's cost (a noise column per sample), so every other block is
     // sampled, and a block between two samples of the same height takes that height; any other
     // block is sampled too. On real paths that skips about a third of the samples and leaves one
     // height in a thousand off, nearly always by a single block. The route itself never changes.
-    private static List<BlockPos> interpolateToBlocks(List<int[]> cells, HeightSampler heightAt, int originY) {
+    private static List<BlockPos> interpolateToBlocks(List<int[]> route, HeightSampler heightAt, int originY) {
         LongArrayList points = new LongArrayList();
         long[] lastKey = {Long.MIN_VALUE};
-        for(int i = 0; i < cells.size() - 1; i++) {
-            int[] a = cells.get(i);
-            int[] b = cells.get(i + 1);
-            PathGeometryUtils.bresenham(a[0] * CELL_SIZE, a[1] * CELL_SIZE, b[0] * CELL_SIZE, b[1] * CELL_SIZE, (px, pz) -> {
+        for(int i = 0; i < route.size() - 1; i++) {
+            int[] a = route.get(i);
+            int[] b = route.get(i + 1);
+            PathGeometryUtils.bresenham(a[0], a[1], b[0], b[1], (px, pz) -> {
                 long pk = ((long) px << 32) | (pz & 0xFFFFFFFFL);
                 if(pk == lastKey[0]) return;
                 lastKey[0] = pk;
@@ -331,10 +432,10 @@ public final class PathFinder {
         }
         List<BlockPos> result = new ArrayList<>(points.size());
         if(points.isEmpty()) {
-            if(!cells.isEmpty()) {
-                int[] a = cells.get(0);
-                int y = heightAt.sampleAt(a[0] * CELL_SIZE, a[1] * CELL_SIZE);
-                result.add(new BlockPos(a[0] * CELL_SIZE, y < 0 ? originY : y, a[1] * CELL_SIZE));
+            if(!route.isEmpty()) {
+                int[] a = route.get(0);
+                int y = heightAt.sampleAt(a[0], a[1]);
+                result.add(new BlockPos(a[0], y < 0 ? originY : y, a[1]));
             }
             return result;
         }
@@ -426,10 +527,17 @@ public final class PathFinder {
     // inside the same stride tile shares one noise evaluation. The slope filter and slope cost
     // both tolerate this approximation; the worst case is a couple of adjacent cells claiming
     // the same Y when terrain is moving fast, which the post-A* carver/chaikin pass smooths out.
-    private static HeightSampler memoiseCoarse(HeightSampler source) {
-        Long2IntOpenHashMap cache = new Long2IntOpenHashMap();
-        cache.defaultReturnValue(HEIGHT_UNSET);
-        return (x, z) -> {
+    private static final class CoarseHeights implements HeightSampler {
+        private final HeightSampler source;
+        private final Long2IntOpenHashMap cache = new Long2IntOpenHashMap();
+
+        CoarseHeights(HeightSampler source) {
+            this.source = source;
+            cache.defaultReturnValue(HEIGHT_UNSET);
+        }
+
+        @Override
+        public int sampleAt(int x, int z) {
             int sx = Math.floorDiv(x, COARSE_HEIGHT_STRIDE) * COARSE_HEIGHT_STRIDE;
             int sz = Math.floorDiv(z, COARSE_HEIGHT_STRIDE) * COARSE_HEIGHT_STRIDE;
             long key = ((long) sx << 32) | (sz & 0xFFFFFFFFL);
@@ -438,7 +546,14 @@ public final class PathFinder {
             int computed = source.sampleAt(sx, sz);
             cache.put(key, computed);
             return computed;
-        };
+        }
+
+        // The height already sampled for this spot's tile, or HEIGHT_UNSET. Never samples.
+        int known(int x, int z) {
+            int sx = Math.floorDiv(x, COARSE_HEIGHT_STRIDE) * COARSE_HEIGHT_STRIDE;
+            int sz = Math.floorDiv(z, COARSE_HEIGHT_STRIDE) * COARSE_HEIGHT_STRIDE;
+            return cache.get(((long) sx << 32) | (sz & 0xFFFFFFFFL));
+        }
     }
 
     private static BiomeAccept memoiseBiome(BiomeAccept source) {
