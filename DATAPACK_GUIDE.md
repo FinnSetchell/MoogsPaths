@@ -160,6 +160,7 @@ Each tile of a path is a small diamond around the centre line, so a path is `2 *
 #### Practical tuning notes
 
 - `rigidness` picks the route, `carver` then evens out its height. A low-rigidness, high-carver path winds around hills and stays nearly level; a high-rigidness, low-carver path runs straight and rides up and down over the terrain. A balanced setting is `0.6 / 0.7`.
+- Whatever the settings, the route found is then straightened where the ground allows and its corners are rounded, so a path has fewer kinks and turns in curves. It never moves more than 8 blocks from the route the search found.
 - A levelled path does not dig. Where the ground rises above it, its tiles are laid under the surface and don't show; where the ground drops away it is built up on `fill_block`; more than 8 blocks off the ground either way, tiles are left out. So a high `carver` on steep ground leaves gaps.
 - For wide paved roads, set `width.max` to 5. For ordinary paths, 3. For thin trails, 1.
 - `fade` of `8` on each end blends the path edges into the terrain so they do not visually start/stop in midair.
@@ -487,6 +488,6 @@ block or the console, e.g. `/execute positioned 1000 64 -500 run paths locate`.
 
 `/paths debug structures` -- list every cached structure NBT and whether it resolved (`ok`) or is missing.
 
-`/paths debug jobs` -- count the paths waiting to be laid in this dimension (and how many chunks of them are down), the paths already finished, and what is queued, computing and cached right now. A path is laid chunk by chunk as those chunks load, so it stays waiting until players have been everywhere it goes.
+`/paths debug jobs` -- count the paths waiting to be laid in this dimension (and how many chunks of them are down), the paths already finished, and what is queued, computing and cached right now. A path is laid chunk by chunk as those chunks load, so it stays waiting until players have been everywhere it goes. In a world from before 1.2.0 it also counts the paths that keep their old, unsmoothed route: the ones already finished or partly laid when the mod was updated.
 
 `/paths debug reload` -- reload datapacks as `/reload` does, then clear the mod's caches: the structure templates it has loaded, and every path it has worked out, so paths in chunks that haven't generated yet are planned again. A plain `/reload` keeps the cached templates, so use this after changing a `.nbt`. `path_type`, `path_network`, `structure_set`, `feature_decorator_set` and `bush_decorator_set` are datapack registries, which Minecraft only loads with the world on every version: changes to those files need the world (or server) restarted.

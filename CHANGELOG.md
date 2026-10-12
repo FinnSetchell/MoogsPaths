@@ -2,6 +2,16 @@
 
 ---
 
+## [1.2.0] - 2026-10-12
+
+### Changed
+- Paths have fewer kinks and turn in gentle curves
+
+### Fixed
+- Worlds last played before 1.1.0 no longer log save errors on Minecraft 1.21.11 and newer
+
+---
+
 ## [1.1.1] - 2026-10-09
 
 ### Fixed

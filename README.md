@@ -63,6 +63,7 @@ Each path is decorated with a combination of:
 *   **Biome-aware generation** - paths pick surfaces and decorations that match their biome
 *   **Terrain-following pathfinder** - A* pathfinding on a 4x4 block grid with slope awareness, cliff rejection and configurable rigidness
 *   **Smooth slopes** - carver and height smoothing keep paths from jumping up and down with the terrain
+*   **Gentle curves** - routes are straightened and their corners rounded, so paths have fewer kinks and turn in curves
 *   **Fade in / fade out** - paths blend into the terrain at their start and end
 *   **Water bridging** - paths can use alternate blocks over water (boardwalk planks, etc.)
 *   **NBT structure placement** - place structures at endpoints or at intervals along the path, with flatness checks and terrain adjustment
