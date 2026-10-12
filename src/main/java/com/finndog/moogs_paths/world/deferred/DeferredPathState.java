@@ -337,8 +337,10 @@ public class DeferredPathState extends SavedData {
                 for(Map.Entry<Long, int[]> e : s.bounds.entrySet()) out.add(new BoundsEntry(e.getKey(), e.getValue()));
                 return out;
             }),
-            Codec.LONG_STREAM.optionalFieldOf("done", java.util.stream.LongStream.empty())
-                .forGetter(s -> s.completed.stream().mapToLong(Long::longValue))
+            // No default value here: a default stream is one object shared by every load, and a stream
+            // can be read once, so the second save without the field (any from before 1.1.0) failed to load.
+            Codec.LONG_STREAM.optionalFieldOf("done")
+                .forGetter(s -> java.util.Optional.of(s.completed.stream().mapToLong(Long::longValue)))
         ).apply(inst, (pending, placed, boundsList, done) -> {
             DeferredPathState state = new DeferredPathState();
             for(DeferredPathJob job : pending) {
@@ -356,7 +358,7 @@ public class DeferredPathState extends SavedData {
             for(BoundsEntry be : boundsList) {
                 if(be.bb().length == 4) state.bounds.put(be.seed(), be.bb());
             }
-            done.forEach(state.completed::add);
+            done.ifPresent(seeds -> seeds.forEach(state.completed::add));
             return state;
         }));
     }
