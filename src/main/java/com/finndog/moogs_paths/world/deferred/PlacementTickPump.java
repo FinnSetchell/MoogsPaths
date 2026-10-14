@@ -115,6 +115,8 @@ public final class PlacementTickPump {
     public static void onServerStopping(MinecraftServer server) {
         started = false;
         PathfindWorker.stop();
+        // The jobs are done, so nothing is laying out a structure: let go of this server's templates.
+        StructureAnchors.clearCache();
         clear();
     }
 

@@ -15,6 +15,7 @@ import com.mojang.datafixers.util.Either;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.Holder;
+import net.minecraft.core.HolderGetter;
 import net.minecraft.core.QuartPos;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.SectionPos;
@@ -24,7 +25,9 @@ import net.minecraft.core.registries.Registries;
 //?}
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.StructureManager;
@@ -35,6 +38,7 @@ import net.minecraft.world.level.biome.Climate;
 /*import net.minecraft.world.level.biome.BiomeResolver;
 import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
 *///?}
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Mirror;
 import net.minecraft.world.level.block.Rotation;
 import net.minecraft.world.level.chunk.ChunkAccess;
@@ -62,6 +66,7 @@ import net.minecraft.world.level.levelgen.structure.pools.SinglePoolElement;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplateManager;
+import net.minecraft.world.level.storage.LevelStorageSource;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
@@ -161,6 +166,8 @@ public final class StructureAnchors {
     public static void clearCache() {
         CANDIDATE_CACHE.clear();
         RESOLVE_CACHE.clear();
+        ownTemplates = null;
+        ownTemplatesFailed = false;
     }
 
     //////////////////////////////
@@ -591,12 +598,82 @@ public final class StructureAnchors {
         *///?}
     }
 
+    // Structures are laid out with a template manager of our own. Laying one out fills lazy caches in its
+    // templates (StructureTemplate.Palette keeps them in a plain HashMap), and world generation fills the
+    // same caches in the server's templates on its own threads: sharing them, one of its threads could
+    // throw ConcurrentModificationException and lose the chunk it was generating. Ours loads the same
+    // files, so structures come out the same, and is only used under GENERATE_LOCK, one thread at a time.
+    // Made again when the server's resources change (a /reload), and dropped when the server stops.
+    private record OwnTemplates(ResourceManager resources, StructureTemplateManager manager) {}
+    private static volatile OwnTemplates ownTemplates;
+    private static volatile boolean ownTemplatesFailed;
+
     private static StructureTemplateManager templateManager(ServerLevel level) {
+        MinecraftServer server = level.getServer();
+        ResourceManager resources = server.getResourceManager();
+        OwnTemplates own = ownTemplates;
+        if(own != null && own.resources() == resources) return own.manager();
+        StructureTemplateManager shared = serverTemplateManager(server);
+        StructureTemplateManager copy = copyOf(server, shared, resources);
+        if(copy == null) return shared;
+        ownTemplates = new OwnTemplates(resources, copy);
+        return copy;
+    }
+
+    private static StructureTemplateManager serverTemplateManager(MinecraftServer server) {
         //? if <26.3 {
-        return level.getServer().getStructureManager();
+        return server.getStructureManager();
         //?} else {
-        /*return level.getServer().getStructureTemplateManager();
+        /*return server.getStructureTemplateManager();
         *///?}
+    }
+
+    // A new manager made as the server makes its own: the server's resources, world folder (for templates
+    // saved by structure blocks), data fixer and block lookup. The world folder and block lookup are
+    // private, so they're found by type, which holds under every loader's names; since 26.1 the block
+    // lookup sits in the manager's template source rather than the manager.
+    private static StructureTemplateManager copyOf(MinecraftServer server, StructureTemplateManager shared, ResourceManager resources) {
+        if(ownTemplatesFailed) return null;
+        try {
+            LevelStorageSource.LevelStorageAccess storage = fieldOfType(server, LevelStorageSource.LevelStorageAccess.class, false);
+            HolderGetter<Block> blocks = fieldOfType(shared, HolderGetter.class, true);
+            return new StructureTemplateManager(resources, storage, server.getFixerUpper(), blocks);
+        } catch(ReflectiveOperationException | RuntimeException ex) {
+            ownTemplatesFailed = true;
+            Constants.LOG.warn("Moog's Paths could not make its own structure template manager ({}); structures are worked out with the server's", ex.toString());
+            return null;
+        }
+    }
+
+    // The first field holding a value of this type, in the object's class or its superclasses, or with
+    // oneLevelIn, in the objects its own fields hold.
+    @SuppressWarnings("unchecked")
+    private static <T> T fieldOfType(Object instance, Class<?> type, boolean oneLevelIn) throws ReflectiveOperationException {
+        Object found = valueOfType(instance, type);
+        if(found == null && oneLevelIn) {
+            for(Class<?> c = instance.getClass(); c != null && c != Object.class && found == null; c = c.getSuperclass()) {
+                for(Field field : c.getDeclaredFields()) {
+                    if(Modifier.isStatic(field.getModifiers()) || field.getType().isPrimitive() || field.getType().getName().startsWith("java.")) continue;
+                    field.setAccessible(true);
+                    Object part = field.get(instance);
+                    if(part != null && (found = valueOfType(part, type)) != null) break;
+                }
+            }
+        }
+        if(found == null) throw new NoSuchFieldException(instance.getClass().getSimpleName() + " holds no " + type.getSimpleName());
+        return (T) found;
+    }
+
+    private static Object valueOfType(Object instance, Class<?> type) throws IllegalAccessException {
+        for(Class<?> c = instance.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
+            for(Field field : c.getDeclaredFields()) {
+                if(Modifier.isStatic(field.getModifiers()) || !type.isAssignableFrom(field.getType())) continue;
+                field.setAccessible(true);
+                Object value = field.get(instance);
+                if(value != null) return value;
+            }
+        }
+        return null;
     }
 
     // 26.3 dropped RandomState#sampler; a sampler is built per use.
