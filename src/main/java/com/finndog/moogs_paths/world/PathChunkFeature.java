@@ -11,6 +11,7 @@ import com.finndog.moogs_paths.data.StructureOrigin;
 import com.finndog.moogs_paths.debug.PathDebugTimer;
 import com.finndog.moogs_paths.world.deferred.DeferredPathJob;
 import com.finndog.moogs_paths.world.deferred.DeferredPathState;
+import com.finndog.moogs_paths.world.deferred.PathfindWorker;
 import com.finndog.moogs_paths.world.deferred.PlacementTickPump;
 //? if >=26.3 {
 /*import com.mojang.serialization.MapCodec;
@@ -321,9 +322,16 @@ public class PathChunkFeature extends Feature<NoneFeatureConfiguration> {
         //?}
         RandomSource walkRandom = RandomSource.create(pathSeed ^ WALK_MIXER);
         boolean oldRoute = DeferredPathState.get(serverLevel).keepsOldRoute(pathSeed);
+        // Each lookup first checks the job's server hasn't stopped: lookups are where a path's time goes.
         return PathFinder.findPath(originPos, pathType, walkRandom,
-            (x, z) -> generator.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, serverLevel, randomState),
-            oldRoute ? null : (x, z) -> surfaceTerrain(generator, x, z, serverLevel, randomState),
+            (x, z) -> {
+                PathfindWorker.checkCancelled();
+                return generator.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, serverLevel, randomState);
+            },
+            oldRoute ? null : (x, z) -> {
+                PathfindWorker.checkCancelled();
+                return surfaceTerrain(generator, x, z, serverLevel, randomState);
+            },
             (gx, gz) -> {
                 if(Constants.ENABLE_DEBUG_TIMER) PathDataManager.recordBiomeCall(com.finndog.moogs_paths.data.BiomeCallSite.PATHFINDER_GOAL_CHECK);
                 //? if >=26.3 {

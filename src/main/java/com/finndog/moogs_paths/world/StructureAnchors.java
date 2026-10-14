@@ -9,6 +9,7 @@ import com.finndog.moogs_paths.data.PathType;
 import com.finndog.moogs_paths.data.StructureOrigin;
 import com.finndog.moogs_paths.world.deferred.DeferredPathJob;
 import com.finndog.moogs_paths.world.deferred.DeferredPathState;
+import com.finndog.moogs_paths.world.deferred.PathfindWorker;
 import com.finndog.moogs_paths.world.deferred.PlacementTickPump;
 import com.mojang.datafixers.util.Either;
 import net.minecraft.core.BlockPos;
@@ -73,6 +74,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.LockSupport;
 import java.util.concurrent.locks.ReentrantLock;
@@ -382,8 +384,19 @@ public final class StructureAnchors {
             }
             return;
         }
+        // A worker waits in short tries, so a job whose server stops while it waits ends here.
         while(true) {
-            GENERATE_LOCK.lock();
+            PathfindWorker.checkCancelled();
+            boolean locked;
+            try {
+                locked = GENERATE_LOCK.tryLock(5, TimeUnit.MILLISECONDS);
+            } catch(InterruptedException interrupted) {
+                // Nothing interrupts these threads; if something does, wait the plain way.
+                Thread.currentThread().interrupt();
+                GENERATE_LOCK.lock();
+                locked = true;
+            }
+            if(!locked) continue;
             if(PRIORITY_WAITERS.get() == 0) return;
             GENERATE_LOCK.unlock();
             LockSupport.parkNanos(1_000_000L);
@@ -397,6 +410,7 @@ public final class StructureAnchors {
     private static Optional<ResolvedStructure> generateGuarded(ServerLevel level, ResourceLocation setId, int chunkX, int chunkZ) {
         lockGenerate(level);
         try {
+            PathfindWorker.checkCancelled();
             for(int attempt = 1; ; attempt++) {
                 try {
                     return generate(level, setId, chunkX, chunkZ);
@@ -431,6 +445,8 @@ public final class StructureAnchors {
                 index++;
             }
             StructureSet.StructureSelectionEntry picked = entries.get(index);
+            // Working out a structure reads its template files: never once the job's server has stopped.
+            PathfindWorker.checkCancelled();
             Optional<ResolvedStructure> generated = tryGenerate(level, picked, chunkX, chunkZ);
             if(generated.isPresent()) return generated;
             entries.remove(index);
@@ -540,13 +556,21 @@ public final class StructureAnchors {
         throw new IllegalArgumentException("Unexpected tryGenerateStructure parameter " + type.getName());
     }
 
-    // A chunk that only ever holds the structure start: nothing reads or saves it.
+    // A chunk that only ever holds the structure start: nothing reads or saves it. Laying out a
+    // structure's pieces asks it for the world's height before every ground lookup, which can add up
+    // to seconds for a large village, so that is where a job whose server is stopping ends.
     private static ProtoChunk scratchChunk(ServerLevel level, ChunkPos chunk) {
         //? if <1.21.11 {
-        return new ProtoChunk(chunk, UpgradeData.EMPTY, level, level.registryAccess().registryOrThrow(Registries.BIOME), null);
+        return new ProtoChunk(chunk, UpgradeData.EMPTY, level, level.registryAccess().registryOrThrow(Registries.BIOME), null) {
         //?} else {
-        /*return new ProtoChunk(chunk, UpgradeData.EMPTY, level, level.palettedContainerFactory(), null);
+        /*return new ProtoChunk(chunk, UpgradeData.EMPTY, level, level.palettedContainerFactory(), null) {
         *///?}
+            @Override
+            public int getHeight() {
+                PathfindWorker.checkCancelled();
+                return super.getHeight();
+            }
+        };
     }
 
     // Without tryGenerateStructure (never seen, but a mod could in principle strip it), the structure
@@ -606,9 +630,16 @@ public final class StructureAnchors {
 
         ChunkGenerator generator = level.getChunkSource().getGenerator();
         RandomState randomState = level.getChunkSource().randomState();
-        PathFinder.HeightSampler heights = (x, z) -> generator.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, level, randomState);
+        // Each lookup first checks the job's server hasn't stopped: lookups are where a path's time goes.
+        PathFinder.HeightSampler heights = (x, z) -> {
+            PathfindWorker.checkCancelled();
+            return generator.getBaseHeight(x, z, Heightmap.Types.WORLD_SURFACE_WG, level, randomState);
+        };
         boolean oldRoute = DeferredPathState.get(level).keepsOldRoute(pathSeed);
-        PathFinder.TerrainSampler terrain = oldRoute ? null : (x, z) -> PathChunkFeature.surfaceTerrain(generator, x, z, level, randomState);
+        PathFinder.TerrainSampler terrain = oldRoute ? null : (x, z) -> {
+            PathfindWorker.checkCancelled();
+            return PathChunkFeature.surfaceTerrain(generator, x, z, level, randomState);
+        };
         // A path starts and aims within its network's biomes; on the way it may also cross a river.
         PathFinder.BiomeAccept biomes = networkBiomes(generator.getBiomeSource(), randomState, network, false);
         PathFinder.BiomeAccept passable = oldRoute ? biomes : networkBiomes(generator.getBiomeSource(), randomState, network, true);

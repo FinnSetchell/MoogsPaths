@@ -37,6 +37,9 @@ public final class PathfindWorker {
 
     // A job that throws this many times in one session is retired rather than retried on every chunk load.
     private static final int MAX_FAILURES = 3;
+    // How long stopping waits for running jobs to reach a point where they can stop. Normally well under
+    // a second: the rest of one terrain lookup or one structure piece, longer on a heavily loaded machine.
+    private static final int STOP_WAIT_SECONDS = 10;
 
     private static volatile ThreadPoolExecutor executor;
     private static final Set<Long> IN_FLIGHT = ConcurrentHashMap.newKeySet();
@@ -44,6 +47,27 @@ public final class PathfindWorker {
     private static volatile JobCompletionHook completionHook;
     // Bumped on start and stop, so a job still running when its server stops can't report into the next one.
     private static final AtomicInteger SESSION = new AtomicInteger();
+    // The session the job on this thread belongs to; unset on any thread that isn't running a job.
+    private static final ThreadLocal<Integer> JOB_SESSION = new ThreadLocal<>();
+
+    /** Thrown inside a job whose server is stopping, to end it. Not a failure. */
+    public static final class Cancelled extends RuntimeException {
+        private static final Cancelled INSTANCE = new Cancelled();
+
+        private Cancelled() {
+            super("path job cancelled: its server is stopping", null, false, false);
+        }
+    }
+
+    /**
+     * Ends the job on this thread if its server has stopped. Called before each terrain lookup and each
+     * structure a job works out, which is where its time goes, so a stopping server waits only for the
+     * step each job is on. Does nothing on a thread that isn't running a job.
+     */
+    public static void checkCancelled() {
+        Integer session = JOB_SESSION.get();
+        if(session != null && session != SESSION.get()) throw Cancelled.INSTANCE;
+    }
 
     @FunctionalInterface
     public interface JobCompletionHook {
@@ -76,12 +100,21 @@ public final class PathfindWorker {
         executor = null;
         IN_FLIGHT.clear();
         if(ex != null) {
-            // Queued jobs are dropped; running ones finish on their own and the session check discards
-            // what they find. Never interrupted: an interrupt during a read closes the file channel under
-            // it (ClosedByInterruptException), which for the Minecraft jar stops every later template load
-            // from it, and in singleplayer the game carries on in the same process after the server stops.
+            // Queued jobs are dropped; running ones see the new session at their next terrain lookup or
+            // structure and end there. Waited for, so no job is still reading the world's generator or
+            // structure files once the server goes on to close them. Never interrupted: an interrupt
+            // during a read closes the file channel under it (ClosedByInterruptException), which for the
+            // Minecraft jar stops every later template load from it, and in singleplayer the game carries
+            // on in the same process after the server stops.
             ex.getQueue().clear();
             ex.shutdown();
+            try {
+                if(!ex.awaitTermination(STOP_WAIT_SECONDS, TimeUnit.SECONDS)) {
+                    Constants.LOG.warn("Moog's Paths: {} path job(s) still running {} s after the server began stopping", ex.getActiveCount(), STOP_WAIT_SECONDS);
+                }
+            } catch(InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 
@@ -109,10 +142,26 @@ public final class PathfindWorker {
     }
 
     private static void runJob(ServerLevel level, DeferredPathJob job, int session) {
+        if(session != SESSION.get()) return;
+        JOB_SESSION.set(session);
+        try {
+            computeAndReport(level, job, session);
+        } finally {
+            JOB_SESSION.remove();
+        }
+    }
+
+    private static void computeAndReport(ServerLevel level, DeferredPathJob job, int session) {
         PathDataManager.CachedPath path;
         try {
             path = computeWaypoints(level, job);
+        } catch(Cancelled cancelled) {
+            // Its server is stopping: nothing is cached, counted or logged, and the job stays pending in
+            // the save to be computed next time.
+            return;
         } catch(Throwable t) {
+            // Something the server closed as it stopped, read by a job that was nearly done: not the path's fault.
+            if(session != SESSION.get()) return;
             int failures = FAILURES.merge(job.pathSeed(), 1, Integer::sum);
             if(failures == 1) Constants.LOG.error("PathfindWorker job failed for seed {}: {}", job.pathSeed(), t.toString(), t);
             IN_FLIGHT.remove(job.pathSeed());
