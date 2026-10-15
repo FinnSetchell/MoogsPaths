@@ -2,6 +2,14 @@
 
 ---
 
+## [1.2.1] - 2026-10-15
+
+### Fixed
+- Fixed roads still being worked out while a server shuts down, which could log errors
+- Fixed a rare crash in world generation when roads were being worked out next to villages
+
+---
+
 ## [1.2.0] - 2026-10-12
 
 ![moogs-paths-1.2.0-before-after](https://i.moogsmods.com/images/90f529d53fbf4e3fb540f61266ccef28.gif)
